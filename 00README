@@ -1,0 +1,142 @@
+NAME
+
+cApTUrE - vAriant collecTing UGP pipeline
+
+VERSION
+
+This document describes version 0.01
+
+SYNOPSIS
+
+./cApTUrE configure/capture.cfg -rr 3
+
+DESCRIPTION
+
+cApTUrE is a lightweight pipeline written in Perl, created for the
+Utah Genome Project (UGP)
+
+Currently it incorporates the following tools:
+-FastQC
+-bwa
+-samtools
+-Picard
+-GATK
+
+cApTUrE requires a config file given as the first commandline argument.
+And all instructions and requirements are given therein.
+
+GATKs best practices (with some modifications) are followed throughout this pipeline please refer to their site and the UGP wiki for more information.
+
+INSTALLATION
+
+Perl Modules:
+
+Config::Std
+IPC::System::Simple
+Parallel::ForkManager
+List::MoreUtils
+These will need to be installed before using cApTUrE.
+
+Example:
+sudo cpan -i "Parallel::ForkManager"
+
+External required software:
+
+FastQC
+BWA
+SAMtools
+Picard
+GATK
+CONTENTS
+
+cApTUrE's file structure:
+
+cApTUrE/data:
+
+exon_Region.list - Region file created for the standard UGP pipeline.
+cApTUrE/bin:
+
+cApTUrE - main script
+cApTUrE/bin/configure:
+
+capture_master.cfg - This is the main configure file used to run the UGP pipeline, but can also be used as an example template for future project.  This configure is also used to run ResourceAllocator
+cApTUrE/bin/capture_tools:
+
+ResourceAllocator -Take known resource information and reports best fit settings to allow cApTUrE to utilize all memory and cpu. ResourceAllocator will report best cpu and memory suggestions in addition to current config settings. Update option will allow configure file to reflect these changes.
+FileRevise  - cApTUrE requires Illumina Fastq naming scheme in order to keep track of files and groups of files based on individual lanes and|or read pairs. FileRevise will attempt to rename file to the required scheme.
+KillcApTUrE - Often when running a large pipeline you will set the job to run in the background, KillcApTUrE allows users to kill all job assocated with their USER id, which will end all instances of cApTUrE, and any child jobs associated with it, i.e. bwa runs, etc.
+RegionMaker - RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file to be used with UnifiedGenotyper to decrease runtime when using a high number of background files.
+cApTUrE/bin/capture_tools/development:
+
+Sandbox of script currently being developed.
+RUNNING CAPTURE:
+
+After downloading and installing all dependences, a typical setup and run would follow these steps:
+
+Setting up the config file:
+
+Often many of the values in the config file can be set on a per-machine basis, creating essentially a new master file.  Examples of these would be known indel files, VQSR VCFs, BAM background files, and software paths.  Therefore what you will change each run will be the ugp_id, fastq dir, and possibly the run order.  The cpu, and memory setting can change each run and ResourceAllocator will alter these values.
+
+Setting up fastq files:
+
+cApTUrE requires fastq file to use the Illumina naming scheme, this is currently put in place to allow running pairs and multi-lane runs.  Please always review before finalizing name changes.
+
+Examples:
+
+9958X1_1.fastq.gz --> 9958X1_XXXX_L001_R1_001.fastq.gz
+
+9958X2_130327_700179R_0404_BD1YNUACXX_7_1.txt.gz --> 9958X2_XXXX_L001_R1_001.fastq.gz
+
+Running cApTUrE:
+
+It is recommend that the unix command screen be used.
+
+When cApTUrE runs it will create a number of log, list, error and report file.  One of these will be progress.log.  This file will keep track of each step of the order process, and is one that will be used and reviewed often throughout the pipeline; typically if you have failed runs.  Also, as cApTUrE work through each step of the pipeline, it will create list files which are collections of BAM and VCF files from the previous steps.  Furthermore, a cmd.log file will be generated which will keep track of the times of each command and the commandlines each used.
+
+Error tracking is usually done by reviewing error, log, progress and report files.
+
+INCOMPATIBILITIES
+
+None know, although not tested on Microsoft (but why would we?).
+
+BUGS AND LIMITATIONS
+
+Please report any bugs or feature requests to:
+shawn.rynearson@gmail.com
+
+AUTHOR
+Shawn Rynearson <shawn.rynearson@gmail.com>
+
+LICENCE AND COPYRIGHT
+Copyright (c) 2013, Shawn Rynearson <shawn.rynearson@gmail.com>
+All rights reserved.
+
+This module is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+
+DISCLAIMER OF WARRANTY
+BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO
+WARRANTY FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE
+LAW. EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS
+AND/OR OTHER PARTIES PROVIDE THE SOFTWARE "AS IS" WITHOUT WARRANTY
+OF ANY KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED
+TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE. THE ENTIRE RISK AS TO THE QUALITY AND
+PERFORMANCE OF THE SOFTWARE IS WITH YOU. SHOULD THE SOFTWARE PROVE
+DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR,
+OR CORRECTION.
+
+IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN
+WRITING WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY
+AND/OR REDISTRIBUTE THE SOFTWARE AS PERMITTED BY THE ABOVE LICENCE,
+BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL,
+INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR
+INABILITY TO USE THE SOFTWARE (INCLUDING BUT NOT LIMITED TO LOSS OF
+DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR
+THIRD PARTIES OR A FAILURE OF THE SOFTWARE TO OPERATE WITH ANY OTHER
+SOFTWARE), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF
+THE POSSIBILITY OF SUCH DAMAGES.
+
+ 
+
+ 

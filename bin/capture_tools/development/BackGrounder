@@ -1,0 +1,342 @@
+#!/usr/bin/perl
+# BackGrounder
+use strict;
+use warnings;
+use Getopt::Long;
+use Config::Std;
+use Parallel::ForkManager;
+
+use Data::Dumper;
+
+my $usage = "
+
+	*****STILL IN DEVELOPMENT*******
+
+
+Synopsis:
+	./BackGrounder --run reducereads --cfg configure/capture.cfg --dir reducereads/ --population CEU --cpu 8 
+	./BackGrounder --run complete --cfg configure/capture.cfg --dir reducereads/ --population ALL --cpu 8 
+	./BackGrounder --run collect --dir ncbi_bams/ 
+	./BackGrounder --run view --dir ncbi_bams/ --population CEU
+
+Description:
+	Backgrounder is designed to do a couple of  things. 
+	1 - Collect all 1000Genomes ftp bwa exome bams
+	2 - Run GATK ReducedReads on exomes file to allow quicker use with variant calling.
+
+	** Important to use the same fasta file used in analysis. **
+ 
+Required
+	--dir|d         : Path to directory of BAM files, to use or write to.
+	--cfg|cf        : Configure file used for cApTUrE run. Script will use fasta/GATK information
+	--run|r         : Specify type of run user want to perform.
+			
+			reducereads - Reduce the reads of a downloaded set of bam files.
+			complete    - Download via ftp and reduce bam file from NCBI.
+			collect     - Just download desired set of bam files.
+			view        - Print to screen the list of desired bam files.
+				
+
+Options:
+	--population|p  : 1000 Genomes population user would like to work with.
+			  (http://www.1000genomes.org/about#ProjectSamples). 
+                          Defalut is ALL
+	--cpu|c	        : Number of CPUs used to split runs across. 
+		          Does not use cpu info from config file.
+                          Default 1.
+
+	--help|h        : Print this usage statement.
+
+\n";
+
+my ( @dirs, $cpu, $cfg, $pop, $run, $help );
+GetOptions(
+    "dir|d=s" => \@dirs,
+    "cpu|c=i"         => \$cpu,
+    "config|cfg=s"    => \$cfg,
+    "run|r=s"         => \$run,
+    "population|p=s"    => \$pop,
+    "help|h"          => \$help,
+);
+if (! $run and ! @dirs and ! $cfg or $help ) { die "$usage\n" }
+
+# Information from config file
+read_config $cfg => my %cf;
+my $fasta = $cf{'required'}{'fasta'}    || die "fasta file not found\n";
+my $gatk  = $cf{'software'}{'gatk'}     || die "GATK program not found\n";
+my $tmp   = $cf{'required'}{'java_tmp'} || '/tmp';
+
+# set population
+unless ($pop) { $pop = 'ALL' }
+
+# set up PF
+unless ($cpu) { $cpu = 1 }
+my $pm = Parallel::ForkManager->new($cpu);
+
+
+#reduceRunner();
+#wget()
+#samIndex();
+
+
+# dispatch table
+my $steps = {
+	reducereads => \&reducereads,
+	complete    => \&complete,
+	collect     => \&collect,
+	view        => \&view,
+};
+
+$steps->{$run}->();
+
+my $thousand = {
+	CDX => '1',
+	CHB => '1',
+	JPT => '1',
+	KHV => '1',
+	CHS => '1',
+	ASN => '1',
+	BEB => '1',
+	GIH => '1',
+	ITU => '1',
+	PJL => '1',
+	STU => '1',
+	SAN => '1',
+	ASW => '1',
+	ACB => '1',
+	ESN => '1',
+	GWD => '1',
+	LWK => '1',
+	MSL => '1',
+	YRI => '1',
+	ARF => '1',
+	GBR => '1',
+	FIN => '1',
+	IBS => '1',
+	TSI => '1',
+	CEU => '1',
+	EUR => '1',
+	CLM => '1',
+	MXL => '1',
+	PEL => '1',
+	AMR => '1',
+};
+
+print $thousand, "\n";
+
+##-----------------------------------------------------------------------------
+
+sub view {
+	foreach my $i (<DATA>) {
+		chomp $i;
+		#print $thousand->{$pop}, "\n";
+
+		#print "$pop\n";
+		print "wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA06984/exome_alignment/NA06984.mapped.ILLUMINAZZ.bwa.$pop.exome.*.bam\n";
+	}
+	return;
+}
+# wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA06984/exome_alignment/NA06984.mapped.ILLUMINAZZ.bwa.CEU.exome.*.bam
+
+
+##-----------------------------------------------------------------------------
+
+=cut
+sub reduceRunner {
+
+	# make bam master file
+	foreach my $file (@dirs) {
+	    `find $file -name \"*bam\" >> bam_file.list`;
+	}
+	( scalar @dirs => 1 )
+	  ? warn "Bam files found\n"
+	  : die "Can't find bam files in given dir\n";
+
+	# run RR
+	my @bams = `cat bam_file.list` or die "could not read bam_file.list $!\n";
+	foreach my $bam (@bams) {
+	    chomp $bam;
+
+	    next if ( $bam =~ /\.reduced\.bam$/ );
+	    ( my $output = $bam ) =~ s/\.bam$/\.reduced\.bam/;
+	    if ( -e $output and -s $output > 100 ) { next }
+
+	    $pm->start and next;
+	    my $cmd = "java -jar -Xmx60g -XX:ParallelGCThreads=3 -Djava.io.tmpdir=$tmp  $gatk "
+		  #. "-T ReduceReads -R $fasta -I $bam -o $output &>> ReduceRunner.report";
+		  . "-T ReduceReads -R /dev/shm/srynearson/human_g1k_v37_decoy.fasta -I $bam -o $output &>> ReduceRunner.report";
+	    `$cmd`;
+	    $pm->finish;
+	}
+	$pm->wait_all_children;
+	`rm bam_file.list`;
+}
+##-----------------------------------------------------------------------------
+
+sub wget {
+	foreach my $wget (<DATA>) {
+		chomp $wget;
+
+		$pm->start and next;
+		`$wget`;
+		$pm->finish;
+	}
+	$pm->wait_all_children;
+}
+##-----------------------------------------------------------------------------
+
+sub samIndex {
+	opendir(DIR, '.');
+	foreach my $bam (readdir(DIR)) {
+		chomp $bam;
+		next unless ( $bam =~ /\.bam$/);
+		$pm->start and next;
+		`samtools index $bam`;
+		$pm->finish;
+	}
+	$pm->wait_all_children;
+}
+##-----------------------------------------------------------------------------
+=cut
+
+__DATA__
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA06984/exome_alignment/NA06984.mapped.ILLUMINAZZ.bwa.CEU.exome.*.bam
+
+
+__END__
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA06984/exome_alignment/NA06984.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA06986/exome_alignment/NA06986.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA06989/exome_alignment/NA06989.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA06994/exome_alignment/NA06994.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA07037/exome_alignment/NA07037.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA07048/exome_alignment/NA07048.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA07051/exome_alignment/NA07051.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA07346/exome_alignment/NA07346.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA07347/exome_alignment/NA07347.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA10847/exome_alignment/NA10847.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA11840/exome_alignment/NA11840.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA11893/exome_alignment/NA11893.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA11894/exome_alignment/NA11894.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA11918/exome_alignment/NA11918.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA11919/exome_alignment/NA11919.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA11920/exome_alignment/NA11920.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA11930/exome_alignment/NA11930.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA11931/exome_alignment/NA11931.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA11932/exome_alignment/NA11932.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA11933/exome_alignment/NA11933.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12045/exome_alignment/NA12045.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12058/exome_alignment/NA12058.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12249/exome_alignment/NA12249.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12272/exome_alignment/NA12272.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12273/exome_alignment/NA12273.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12275/exome_alignment/NA12275.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12282/exome_alignment/NA12282.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12283/exome_alignment/NA12283.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12286/exome_alignment/NA12286.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12287/exome_alignment/NA12287.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12340/exome_alignment/NA12340.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12341/exome_alignment/NA12341.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12342/exome_alignment/NA12342.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12347/exome_alignment/NA12347.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12348/exome_alignment/NA12348.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12383/exome_alignment/NA12383.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12399/exome_alignment/NA12399.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12400/exome_alignment/NA12400.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12413/exome_alignment/NA12413.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12546/exome_alignment/NA12546.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12716/exome_alignment/NA12716.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12717/exome_alignment/NA12717.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12718/exome_alignment/NA12718.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12748/exome_alignment/NA12748.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12749/exome_alignment/NA12749.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12750/exome_alignment/NA12750.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12751/exome_alignment/NA12751.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12760/exome_alignment/NA12760.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12761/exome_alignment/NA12761.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12763/exome_alignment/NA12763.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12775/exome_alignment/NA12775.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12776/exome_alignment/NA12776.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12777/exome_alignment/NA12777.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12778/exome_alignment/NA12778.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12827/exome_alignment/NA12827.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12828/exome_alignment/NA12828.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12829/exome_alignment/NA12829.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12830/exome_alignment/NA12830.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12842/exome_alignment/NA12842.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12843/exome_alignment/NA12843.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12878/exome_alignment/NA12878.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12889/exome_alignment/NA12889.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12890/exome_alignment/NA12890.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12891/exome_alignment/NA12891.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/NA12892/exome_alignment/NA12892.mapped.ILLUMINA.bwa.CEU.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00096/exome_alignment/HG00096.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00098/exome_alignment/HG00098.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00100/exome_alignment/HG00100.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00101/exome_alignment/HG00101.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00102/exome_alignment/HG00102.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00103/exome_alignment/HG00103.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00107/exome_alignment/HG00107.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00108/exome_alignment/HG00108.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00109/exome_alignment/HG00109.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00110/exome_alignment/HG00110.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00111/exome_alignment/HG00111.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00113/exome_alignment/HG00113.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00114/exome_alignment/HG00114.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00116/exome_alignment/HG00116.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00117/exome_alignment/HG00117.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00119/exome_alignment/HG00119.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00120/exome_alignment/HG00120.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00121/exome_alignment/HG00121.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00123/exome_alignment/HG00123.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00124/exome_alignment/HG00124.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00125/exome_alignment/HG00125.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00127/exome_alignment/HG00127.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00131/exome_alignment/HG00131.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00133/exome_alignment/HG00133.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00136/exome_alignment/HG00136.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00137/exome_alignment/HG00137.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00138/exome_alignment/HG00138.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00139/exome_alignment/HG00139.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00140/exome_alignment/HG00140.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00145/exome_alignment/HG00145.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00146/exome_alignment/HG00146.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00154/exome_alignment/HG00154.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00155/exome_alignment/HG00155.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00157/exome_alignment/HG00157.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00158/exome_alignment/HG00158.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00159/exome_alignment/HG00159.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00160/exome_alignment/HG00160.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00232/exome_alignment/HG00232.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00233/exome_alignment/HG00233.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00236/exome_alignment/HG00236.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00237/exome_alignment/HG00237.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00238/exome_alignment/HG00238.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00239/exome_alignment/HG00239.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00240/exome_alignment/HG00240.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00242/exome_alignment/HG00242.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00243/exome_alignment/HG00243.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00244/exome_alignment/HG00244.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00245/exome_alignment/HG00245.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00246/exome_alignment/HG00246.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00249/exome_alignment/HG00249.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00250/exome_alignment/HG00250.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00251/exome_alignment/HG00251.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00252/exome_alignment/HG00252.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00253/exome_alignment/HG00253.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00254/exome_alignment/HG00254.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00255/exome_alignment/HG00255.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00256/exome_alignment/HG00256.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00257/exome_alignment/HG00257.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00258/exome_alignment/HG00258.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00259/exome_alignment/HG00259.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00260/exome_alignment/HG00260.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00261/exome_alignment/HG00261.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00262/exome_alignment/HG00262.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00263/exome_alignment/HG00263.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00264/exome_alignment/HG00264.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG00265/exome_alignment/HG00265.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG01334/exome_alignment/HG01334.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG01791/exome_alignment/HG01791.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/ftp/data/HG02215/exome_alignment/HG02215.mapped.ILLUMINA.bwa.GBR.exome.*.bam
+
+
