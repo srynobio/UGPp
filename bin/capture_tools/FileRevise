@@ -5,9 +5,6 @@ use warnings;
 use IO::Dir;
 use Getopt::Long;
 
-#### need to make changes to how the exome data files are made two different lane
-#### they should not be!!
-
 my $usage = "
 
 Synopsis:
