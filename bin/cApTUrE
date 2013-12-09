@@ -420,7 +420,7 @@ sub fastqc {
 
     # made this because fastqc craps out after certain amount
     # of parallel runs,
-    my $pmfq = Parallell::ForkManager->new('10');
+    my $pmfq = Parallel::ForkManager->new('10');
 
     start_log('fastqc');
     foreach my $file ( $$FQDIR->read ) {
