@@ -448,7 +448,7 @@ sub fastqc {
 
         $pmfq->finish;
     }
-    $pm->wait_all_children;
+    $pmfq->wait_all_children;
     end_log('fastqc');
 
     $$FQDIR->close;
