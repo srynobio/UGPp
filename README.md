@@ -32,7 +32,7 @@ GATKs best practices (with some modifications) are followed throughout this pipe
 <strong>INSTALLATION</strong>
 
 <em>Perl Modules:</em>
-These Modules are included with cApTUrE.
+<br>These Modules are included with cApTUrE.
 <ul>
 	<li>Config::Std</li>
 	<li>IPC::System::Simple</li>
