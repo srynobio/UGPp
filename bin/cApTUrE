@@ -4,6 +4,8 @@ use strict;
 use warnings;
 use IO::File;
 use IO::Dir;
+use FindBin;
+use lib "$FindBin::Bin/../perl_lib";
 use Config::Std;
 use IPC::System::Simple qw (run);
 use Parallel::ForkManager;

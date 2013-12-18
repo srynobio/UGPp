@@ -30,15 +30,12 @@ GATKs best practices (with some modifications) are followed throughout this pipe
 INSTALLATION
 
 Perl Modules:
+These Modules are included with cApTUrE.
 
 Config::Std
 IPC::System::Simple
 Parallel::ForkManager
 List::MoreUtils
-These will need to be installed before using cApTUrE.
-
-Example:
-sudo cpan -i "Parallel::ForkManager"
 
 External required software:
 
