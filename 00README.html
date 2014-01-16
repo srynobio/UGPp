@@ -6,7 +6,7 @@ cApTUrE - vAriant collecTing UGP pipeline
 
 <strong>VERSION</strong>
 
-This document describes version 0.0.2
+This document describes version 0.03
 
 <strong>SYNOPSIS</strong>
 
@@ -18,11 +18,12 @@ cApTUrE is a lightweight pipeline written in Perl, created for the
 <a href="http://weatherby.genetics.utah.edu/UGP/wiki/index.php/Main_Page" target="_blank">Utah Genome Project (UGP)</a>
 
 Currently it incorporates the following tools:
--FastQC
--bwa
--samtools
--Picard
--GATK
+<ul>
+	<li>FastQC</li>
+	<li>BWA</li>
+	<li>SAMtools</li>
+	<li>GATK</li>
+</ul>
 
 cApTUrE requires a config file given as the first commandline argument.
 And all instructions and requirements are given therein.
