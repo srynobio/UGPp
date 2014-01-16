@@ -9,7 +9,7 @@ use Getopt::Long;
 use IPC::System::Simple qw (run);
 use Parallel::ForkManager;
 
-my $VERSION = '0.03';
+my $VERSION = '0.0.3';
 
 my $usage = "
 

@@ -6,7 +6,7 @@ cApTUrE - vAriant collecTing UGP pipeline
 
 <strong>VERSION</strong>
 
-This document describes version 0.03
+This document describes version 0.0.3
 
 <strong>SYNOPSIS</strong>
 
