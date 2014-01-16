@@ -4,14 +4,12 @@ use strict;
 use warnings;
 use IO::File;
 use IO::Dir;
-use FindBin;
-use lib "$FindBin::Bin/../perl_lib";
 use Config::Std;
+use Getopt::Long;
 use IPC::System::Simple qw (run);
 use Parallel::ForkManager;
-use Getopt::Long;
 
-my $VERSION = '0.0.2';
+my $VERSION = '0.03';
 
 my $usage = "
 
@@ -161,7 +159,6 @@ sub run_cApTUre {
 }
 
 #-------------------------------------------------------------------------------
-
 sub indexer {
 
     # dispatch table
@@ -218,29 +215,6 @@ sub config_verify {
             $soft->{$prog} =~ s/$/\//;
         }
     }
-
-    # Check file naming.
-    my $DIR = open_dir( $req->{'fastq_dir'} );
-
-    # check file format and file presence.
-    my $file_count = 0;
-    foreach my $file ( $$DIR->read ) {
-        next unless ( $file =~ /(fastq.gz|fq.gz)$/ );
-        $file_count++;
-
-        my @fq_file = split /\_/, $file;
-
-        if ( scalar @fq_file != 5 ) {
-            die_messenger("Naming conventions incorrect, cApTUre uses Illumina file naming conventions");
-        }
-    }
-    if ( $file_count < 1 ) {
-        die_messenger(
-                "No fastq.gz files could be found in $req->{'fastq_dir'}: "
-              . "please confirm files end in \.fastq.gz, "
-              . "check config file path or run FileRevise\n." );
-    }
-    $$DIR->close;
 
     # check for reference fasta.
     if ( !-e $req->{'fasta'} ) {
@@ -426,7 +400,7 @@ sub fastqc {
 
     start_log('fastqc');
     foreach my $file ( $$FQDIR->read ) {
-        next unless ( $file =~ /(fastq(.gz)?|fq(.gz)?)$/ );
+        next unless ( $file =~ /\.gz$/ );
 
         $pmfq->start and next;
 
@@ -447,7 +421,6 @@ sub fastqc {
         my $cmd = "$soft->{'fastqc'}fastqc $opts -o $output_dir -f fastq $output 2>> fastQC.report";
         cmd_log($cmd);
         runner($cmd);
-
         $pmfq->finish;
     }
     $pmfq->wait_all_children;
@@ -502,38 +475,61 @@ sub bwa_mem {
     my $opts = options( 'bwa_mem', '-' ) || '';
     my $FQDIR = open_dir( $req->{'fastq_dir'} );
 
-    my @fq;
-    foreach my $file ( $$FQDIR->read ) {
-        next unless ( $file =~ /(fq.gz|fastq.gz)$/ );
-        push @fq, $file;
+    my @fq_files;
+    foreach my $i ( $$FQDIR->read ) {
+        chomp $i;
+        next if ( $i !~ /.gz$/ );
+
+        push @fq_files, $i;
     }
-    my @sort_fq = sort { $a cmp $b } @fq;
+    my @sorted_fqs = sort { $a cmp $b } @fq_files;
+
+    my %fq_hash;
+    foreach my $f (@sorted_fqs) {
+        chomp $f;
+
+        my @parts = split "_", $f;
+        push @{ $fq_hash{ $parts[0] } }, $f;
+    }
 
     my $id = '1';
-    my @mem_cmd;
-    while (@sort_fq) {
-        my @sq = splice( @sort_fq, 0, 2 );
+    my @mem_cmds;
+    for ( my $i = 0 ; $i < scalar @fq_files ; $i += 2 ) {
 
-        # update with path information.
-        my @sfq      = map { "$req->{'fastq_dir'}$_" } @sq;
-        my @p_file   = name_parse( $sq[0] );
-        my $bam_file = "$req->{'fastq_dir'}$p_file[0]_$p_file[2].bam";
-        my $r_group  = '\'@RG'
-          . "\\tID:$id\\tSM:$p_file[0]\\tPL:ILLUMINA\\tLB:$p_file[0]-$id\'";
-        my $reads = join( " ", @sfq );
+        foreach my $g ( keys %fq_hash ) {
 
-        my $cmd =
-            "$soft->{'bwa'}bwa mem -M -R $r_group $opts $req->{'fasta'} "
-          . "$reads 2>> bwa_mem.report | $soft->{'samtools'}samtools view "
-          . "-bSho $bam_file - 2>> samtools_bam.report";
+            my $fq1 = $fq_hash{$g}[$i];
+            my $fq2 = $fq_hash{$g}[ $i + 1 ];
+            next unless ( $fq1 && $fq2 );
 
-        push @mem_cmd, $cmd;
-        $id++;
+            # paths
+            my $fq1_path = "$req->{'fastq_dir'}$fq1";
+            my $fq2_path = "$req->{'fastq_dir'}$fq2";
+            my $reads    = "$fq1_path $fq2_path";
+
+            #take the first file which will work
+            my @p_file = name_parse($fq1);
+
+            # create ordered bam files.
+            ( my $bam_name = $fq1 ) =~ s/(.*)\.(.*)\.gz/$1.bam/;
+            my $bam_file = "$req->{'fastq_dir'}$bam_name";
+
+            my $r_group = '\'@RG'
+              . "\\tID:$id\\tSM:$p_file[0]\\tPL:ILLUMINA\\tLB:$p_file[0]\'";
+
+            my $cmd =
+                "$soft->{'bwa'}bwa mem -M -R $r_group $opts $req->{'fasta'} "
+              . "$reads 2>> bwa_mem.report | $soft->{'samtools'}samtools view "
+              . "-bSho $bam_file - 2>> samtools_bam.report";
+
+            push @mem_cmds, $cmd;
+            $id++;
+        }
     }
 
     # run each command on a separate process.
     start_log('bwa_mem');
-    foreach my $command (@mem_cmd) {
+    foreach my $command (@mem_cmds) {
         $pm->start and next;
         cmd_log($command);
         runner($command);
@@ -553,14 +549,17 @@ sub bwa_aln {
 
     start_log('bwa_aln');
     foreach my $file ( $$FQDIR->read ) {
-        next unless ( $file =~ /\.(fastq.gz|fq.gz)$/ );
+        next unless ( $file =~ /\.gz/ );
+
         $pm->start and next;
 
         my @p_file = name_parse($file);
 
-        my $output = "$req->{'fastq_dir'}$p_file[0]_$p_file[2]_$p_file[3].sai";
-        my $cmd    = "$soft->{'bwa'}bwa aln $opts $req->{'fasta'} "
-          . "$req->{'fastq_dir'}$file > $output 2>> bwa_aln.report";
+        ( my $sai_name = $file ) =~ s/(.*)\.(.*)\.gz/$1.sai/;
+        my $sai_file = "$req->{'fastq_dir'}$sai_name";
+
+        my $cmd = "$soft->{'bwa'}bwa aln $opts $req->{'fasta'} "
+          . "$req->{'fastq_dir'}$file > $sai_file 2>> bwa_aln.report";
 
         cmd_log($cmd);
         runner($cmd);
@@ -580,11 +579,11 @@ sub bwa_sampe {
 
     my ( @sai, @fq );
     foreach my $file ( $$DH->read ) {
-        next unless ( $file =~ /(fq.gz|fastq.gz|sai)$/ );
+        next unless ( $file =~ /(gz||sai)$/ );
         if ( $file =~ /sai$/ ) {
             push @sai, $file;
         }
-        elsif ( $file =~ /(fastq.gz|fa.gz)$/ ) {
+        elsif ( $file =~ /.gz$/ ) {
             push @fq, $file;
         }
     }
@@ -608,15 +607,20 @@ sub bwa_sampe {
         my @sa  = map { "$req->{'fastq_dir'}$_" } @ss;
         my @sfq = map { "$req->{'fastq_dir'}$_" } @sq;
 
-        my @p_file   = name_parse( $ss[0] );
-        my $bam_file = "$req->{'fastq_dir'}$p_file[0]_$p_file[1].bam";
+        my @p_file = name_parse( $ss[0] );
 
-        # Specify the read group in a format like Ô@RG\tID:foo\tSM:barÕ
-        my $r_group = '\'@RG'
-          . "\\tID:$p_file[0]-$id\\tSM:$p_file[0]\\tPL:ILLUMINA\\tLB:$p_file[0]-$id\'";
+        # create ordered bam files.
+        ( my $bam_name = $sq[0] ) =~ s/(.*)\.(.*)\.gz/$1.bam/;
+        my $bam_file = "$req->{'fastq_dir'}$bam_name";
 
-        my $cmd = "$soft->{'bwa'}bwa sampe -r $r_group $opts $req->{'fasta'} $sa[0] $sa[1] "
-                  . "$sfq[0] $sfq[1] | $soft->{'samtools'}samtools view -bSho $bam_file - &>> bwa_sampe.report";
+        my $r_group =
+          '\'@RG' . "\\tID:$id\\tSM:$p_file[0]\\tPL:ILLUMINA\\tLB:$p_file[0]\'";
+
+        my $cmd = 
+	    "$soft->{'bwa'}bwa sampe -r $r_group $opts $req->{'fasta'} $sa[0] $sa[1] "
+          . "$sfq[0] $sfq[1] | $soft->{'samtools'}samtools view -bSho $bam_file - &>> bwa_sampe.report";
+
+        print $cmd, "\n";
 
         push @sampe_cmd, $cmd;
         $id++;
@@ -668,7 +672,6 @@ sub SortSam {
         cmd_log($sort_cmd);
         runner($sort_cmd);
 
-        ##push @index_list, $idx_cmd;
         print $SORTLIST "$dir$sort_file\n";
         $pm->finish;
     }
@@ -678,8 +681,6 @@ sub SortSam {
     $$DIR->close;
     $SORTLIST->close;
 }
-
-### add stats reviewer.
 
 #-------------------------------------------------------------------------------
 
@@ -739,9 +740,10 @@ sub _BuildBamIndex {
     my $file = shift;
 
     start_log('BuildBamIndex');
-    my $cmd = "java -Xmx$req->{'picard_java_Xmx'}g -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
-              . "-Djava.io.tmpdir=$req->{'java_tmp'} -jar "
-              . "$soft->{'picard'}BuildBamIndex.jar INPUT=$file &>> BamIndex.report";
+    my $cmd =
+        "java -Xmx$req->{'picard_java_Xmx'}g -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
+      . "-Djava.io.tmpdir=$req->{'java_tmp'} -jar "
+      . "$soft->{'picard'}BuildBamIndex.jar INPUT=$file &>> BamIndex.report";
 
     cmd_log($cmd);
     runner("$cmd");
@@ -779,10 +781,11 @@ sub MarkDuplicates {
         $dedup{$output} = '1';
 
         $pm->start and next;
-        my $cmd = "java -Xmx$req->{'picard_java_Xmx'}g -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
-                  . "-Djava.io.tmpdir=$req->{'java_tmp'} -jar "
-                  . "$soft->{'picard'}MarkDuplicates.jar INPUT=$bam OUTPUT=$output METRICS_FILE=$metric "
-                  . "$opts &>> MarkDuplicates.report";
+        my $cmd =
+	    "java -Xmx$req->{'picard_java_Xmx'}g -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
+          . "-Djava.io.tmpdir=$req->{'java_tmp'} -jar "
+          . "$soft->{'picard'}MarkDuplicates.jar INPUT=$bam OUTPUT=$output METRICS_FILE=$metric "
+          . "$opts &>> MarkDuplicates.report";
 
         cmd_log($cmd);
         runner($cmd);
@@ -845,9 +848,10 @@ sub MergeSamFiles {
 
         # run each command in parallel job.
         $pm->start and next;
-        my $cmd = "java -Xmx$req->{'picard_java_Xmx'}g -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
-                  . "-Djava.io.tmpdir=$req->{'java_tmp'} -jar "
-                  . "$soft->{'picard'}MergeSamFiles.jar $opts $input $output 2>> MergeSamFiles.report";
+        my $cmd =
+	    "java -Xmx$req->{'picard_java_Xmx'}g -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
+          . "-Djava.io.tmpdir=$req->{'java_tmp'} -jar "
+          . "$soft->{'picard'}MergeSamFiles.jar $opts $input $output 2>> MergeSamFiles.report";
 
         cmd_log($cmd);
         runner($cmd);
@@ -878,10 +882,11 @@ sub CollectMultipleMetrics {
         $pm->start and next;
         ( my $w_file = $bam ) =~ s/\.bam$/\.metrics/;
 
-        my $cmd = "java -Xmx$req->{'picard_java_Xmx'}g -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
-                  . "-Djava.io.tmpdir=$req->{'java_tmp'} -jar "
-                  . "$soft->{'picard'}CollectMultipleMetrics.jar INPUT=$bam $opts "
-                  . "REFERENCE_SEQUENCE=$req->{'fasta'} OUTPUT=$w_file 2>> CollectMultipleMetrics.report";
+        my $cmd =
+	    "java -Xmx$req->{'picard_java_Xmx'}g -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
+          . "-Djava.io.tmpdir=$req->{'java_tmp'} -jar "
+          . "$soft->{'picard'}CollectMultipleMetrics.jar INPUT=$bam $opts "
+          . "REFERENCE_SEQUENCE=$req->{'fasta'} OUTPUT=$w_file 2>> CollectMultipleMetrics.report";
 
         cmd_log("$cmd");
         runner("$cmd");
@@ -935,9 +940,10 @@ sub RealignerTargetCreator {
     }
 
     start_log("RealignerTargetCreator");
-    my $cmd = "java -Xmx$req->{'gatk_tc_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
-              . "$soft->{'gatk'}GenomeAnalysisTK.jar -T RealignerTargetCreator -R $req->{'fasta'} -I dedup_bam.list $opts "
-              . "$known_vcfs -o $outfile &>> RealignerTargetCreator.report";
+    my $cmd =
+	"java -Xmx$req->{'gatk_tc_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+      . "$soft->{'gatk'}GenomeAnalysisTK.jar -T RealignerTargetCreator -R $req->{'fasta'} -I dedup_bam.list $opts "
+      . "$known_vcfs -o $outfile &>> RealignerTargetCreator.report";
 
     cmd_log($cmd);
     runner("$cmd");
@@ -972,9 +978,10 @@ sub IndelRealigner {
         $indel_list{$output} = '1';
 
         $pm->start and next;
-        my $cmd = "java -Xmx$req->{'gatk_ir_Xmx'}g -jar -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
-                  . "-Djava.io.tmpdir=$req->{'java_tmp'} $soft->{'gatk'}GenomeAnalysisTK.jar -T IndelRealigner -R $req->{'fasta'} "
-                  . " -I $dedup $opts -targetIntervals $target $known_vcfs -o $output &>> IndelRealigner.report";
+        my $cmd =
+	    "java -Xmx$req->{'gatk_ir_Xmx'}g -jar -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
+          . "-Djava.io.tmpdir=$req->{'java_tmp'} $soft->{'gatk'}GenomeAnalysisTK.jar -T IndelRealigner -R $req->{'fasta'} "
+          . " -I $dedup $opts -targetIntervals $target $known_vcfs -o $output &>> IndelRealigner.report";
 
         cmd_log($cmd);
         runner($cmd);
@@ -1006,10 +1013,11 @@ sub ReduceReads {
         $reduced{$output} = '1';
 
         $pm->start and next;
-        my $cmd = "java -Xmx$req->{'gatk_rr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
-                  . "-XX:ParallelGCThreads=$req->{'picard_java_threads'} $soft->{'gatk'}GenomeAnalysisTK.jar "
-                  . "-T ReduceReads -R $req->{'fasta'} -I $bam $opts "
-                  . "-o $output &>> ReduceReads.report";
+        my $cmd =
+	    "java -Xmx$req->{'gatk_rr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+          . "-XX:ParallelGCThreads=$req->{'picard_java_threads'} $soft->{'gatk'}GenomeAnalysisTK.jar "
+          . "-T ReduceReads -R $req->{'fasta'} -I $bam $opts "
+          . "-o $output &>> ReduceReads.report";
 
         cmd_log($cmd);
         runner("$cmd");
@@ -1048,9 +1056,10 @@ sub BaseRecalibrator {
         chomp $bam;
 
         $pm->start and next;
-        my $cmd = "java -Xmx$req->{'gatk_br_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
-                  . "$soft->{'gatk'}GenomeAnalysisTK.jar -T BaseRecalibrator -R $req->{'fasta'} -I $bam $opts "
-                  . "$known_vcfs -o $output &>> BaseRecalibrator.report";
+        my $cmd =
+	    "java -Xmx$req->{'gatk_br_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+          . "$soft->{'gatk'}GenomeAnalysisTK.jar -T BaseRecalibrator -R $req->{'fasta'} -I $bam $opts "
+          . "$known_vcfs -o $output &>> BaseRecalibrator.report";
 
         cmd_log($cmd);
         runner($cmd);
@@ -1081,9 +1090,10 @@ sub PrintReads {
         $recal{$output} = 1;
 
         $pm->start and next;
-        my $cmd = "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
-                  . "$soft->{'gatk'}GenomeAnalysisTK.jar -T PrintReads -R $req->{'fasta'} -I $bam $opts "
-                  . "-BQSR $bqsr -o $output &>> PrintReads.report";
+        my $cmd =
+	    "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+          . "$soft->{'gatk'}GenomeAnalysisTK.jar -T PrintReads -R $req->{'fasta'} -I $bam $opts "
+          . "-BQSR $bqsr -o $output &>> PrintReads.report";
 
         cmd_log($cmd);
         runner($cmd);
@@ -1124,9 +1134,10 @@ sub UnifiedGenotyper_SNP {
     }
 
     start_log('UnifiedGenotyper_SNP');
-    my $cmd = "java -Xmx$req->{'gatk_ug_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
-              . "$soft->{'gatk'}GenomeAnalysisTK.jar -T UnifiedGenotyper -R $req->{'fasta'} $input_bams $background "
-              . "$opts -o $output &>> UnifiedGenotyper_SNP.report";
+    my $cmd =
+        "java -Xmx$req->{'gatk_ug_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+      . "$soft->{'gatk'}GenomeAnalysisTK.jar -T UnifiedGenotyper -R $req->{'fasta'} $input_bams $background "
+      . "$opts -o $output &>> UnifiedGenotyper_SNP.report";
 
     cmd_log($cmd);
     runner($cmd);
@@ -1160,9 +1171,10 @@ sub UnifiedGenotyper_INDEL {
     }
 
     start_log('UnifiedGenotyper_INDEL');
-    my $cmd = "java -Xmx$req->{'gatk_ug_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
-              . "$soft->{'gatk'}GenomeAnalysisTK.jar -T UnifiedGenotyper -R $req->{'fasta'} $input_bams $background "
-              . "$opts -o $output &>> UnifiedGenotyper_INDEL.report";
+    my $cmd =
+        "java -Xmx$req->{'gatk_ug_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+      . "$soft->{'gatk'}GenomeAnalysisTK.jar -T UnifiedGenotyper -R $req->{'fasta'} $input_bams $background "
+      . "$opts -o $output &>> UnifiedGenotyper_INDEL.report";
 
     cmd_log($cmd);
     runner($cmd);
@@ -1214,9 +1226,10 @@ sub VariantRecalibrator_SNP {
       "-rscriptFile $req->{'fastq_dir'}$req->{'ugp_id'}_snp_plots.R";
 
     start_log('VariantRecalibrator_SNP');
-    my $cmd = "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
-              . "$soft->{'gatk'}GenomeAnalysisTK.jar -T VariantRecalibrator -R $req->{'fasta'} -input $input $resource_call "
-              . "$opts $recalFile $tranchFile $rscriptFile -mode SNP &>> VariantRecalibrator_SNP.report";
+    my $cmd =
+        "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+      . "$soft->{'gatk'}GenomeAnalysisTK.jar -T VariantRecalibrator -R $req->{'fasta'} -input $input $resource_call "
+      . "$opts $recalFile $tranchFile $rscriptFile -mode SNP &>> VariantRecalibrator_SNP.report";
 
     cmd_log($cmd);
     runner($cmd);
@@ -1238,7 +1251,8 @@ sub VariantRecalibrator_INDEL {
 
     my @indel_file;
     if ( ref $config{'VariantRecalibrator_INDEL'}{'resource'} eq 'ARRAY' ) {
-        @indel_file = @{ $config{'VariantRecalibrator_INDEL'}{'resource'} };
+        @indel_file =
+          @{ $config{'VariantRecalibrator_INDEL'}{'resource'} };
     }
     else {
         push @indel_file, $config{'VariantRecalibrator_INDEL'}{'resource'};
@@ -1267,9 +1281,10 @@ sub VariantRecalibrator_INDEL {
       "-rscriptFile $req->{'fastq_dir'}$req->{'ugp_id'}_indel_plots.R";
 
     start_log('VariantRecalibrator_INDEL');
-    my $cmd = "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
-              . "$soft->{'gatk'}GenomeAnalysisTK.jar -T VariantRecalibrator -R $req->{'fasta'} -input $input $resource_call "
-              . "$opts $recalFile $tranchFile $rscriptFile -mode INDEL &>> VariantRecalibrator_INDEL.report";
+    my $cmd =
+        "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+      . "$soft->{'gatk'}GenomeAnalysisTK.jar -T VariantRecalibrator -R $req->{'fasta'} -input $input $resource_call "
+      . "$opts $recalFile $tranchFile $rscriptFile -mode INDEL &>> VariantRecalibrator_INDEL.report";
 
     cmd_log($cmd);
     runner($cmd);
@@ -1288,9 +1303,10 @@ sub ApplyRecalibration_SNP {
     file_verify( $recalFile, $tranchFile, $input );
 
     start_log('ApplyRecalibration_SNP');
-    my $cmd = "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
-              . "$soft->{'gatk'}GenomeAnalysisTK.jar -T ApplyRecalibration -R $req->{'fasta'} -input $input "
-              . "$opts -recalFile  $recalFile -tranchesFile $tranchFile -mode SNP -o $output &>> ApplyRecalibration_SNP.report";
+    my $cmd =
+        "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+      . "$soft->{'gatk'}GenomeAnalysisTK.jar -T ApplyRecalibration -R $req->{'fasta'} -input $input "
+      . "$opts -recalFile  $recalFile -tranchesFile $tranchFile -mode SNP -o $output &>> ApplyRecalibration_SNP.report";
 
     cmd_log($cmd);
     runner($cmd);
@@ -1309,9 +1325,10 @@ sub ApplyRecalibration_INDEL {
     file_verify( $recalFile, $tranchFile, $input );
 
     start_log('ApplyRecalibration_INDEL');
-    my $cmd = "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
-              . "$soft->{'gatk'}GenomeAnalysisTK.jar -T ApplyRecalibration -R $req->{'fasta'} -input $input "
-              . "$opts -recalFile  $recalFile -tranchesFile $tranchFile -mode INDEL -o $output &>> ApplyRecalibration_INDEL.report";
+    my $cmd =
+        "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+      . "$soft->{'gatk'}GenomeAnalysisTK.jar -T ApplyRecalibration -R $req->{'fasta'} -input $input "
+      . "$opts -recalFile  $recalFile -tranchesFile $tranchFile -mode INDEL -o $output &>> ApplyRecalibration_INDEL.report";
 
     cmd_log($cmd);
     runner($cmd);
@@ -1351,27 +1368,30 @@ sub VariantPrepare {
     my $final_opts = options( 'CombineVariants',      '--' ) || '';
 
     start_log('SelectVariants_SNP');
-    my $svs_cmd = "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
-                  . "$soft->{'gatk'}GenomeAnalysisTK.jar -T SelectVariants -R $req->{'fasta'} $snp_opts "
-                  . "$sn --variant $snp_variant -o $output_snp &> SelectVariants_SNP.report";
+    my $svs_cmd =
+        "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+      . "$soft->{'gatk'}GenomeAnalysisTK.jar -T SelectVariants -R $req->{'fasta'} $snp_opts "
+      . "$sn --variant $snp_variant -o $output_snp &> SelectVariants_SNP.report";
 
     cmd_log($svs_cmd);
     runner($svs_cmd);
     end_log('SelectVariants_SNP');
 
     start_log('SelectVariants_INDEL');
-    my $svi_cmd = "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
-                  . "$soft->{'gatk'}GenomeAnalysisTK.jar -T SelectVariants -R $req->{'fasta'} $indel_opts "
-                  . "$sn --variant $indel_variant -o $output_indel &> SelectVariants_INDEL.report";
+    my $svi_cmd =
+        "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+      . "$soft->{'gatk'}GenomeAnalysisTK.jar -T SelectVariants -R $req->{'fasta'} $indel_opts "
+      . "$sn --variant $indel_variant -o $output_indel &> SelectVariants_INDEL.report";
 
     cmd_log($svi_cmd);
     runner($svi_cmd);
     end_log('SelectVariants_INDEL');
 
     start_log('CombineVariants');
-    my $cv_cmd = "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
-                 . "$soft->{'gatk'}GenomeAnalysisTK.jar -T CombineVariants -R $req->{'fasta'} $final_opts "
-                 . "--variant $output_snp --variant $output_indel -o $final_variant &> CombineVariants.report";
+    my $cv_cmd =
+        "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+      . "$soft->{'gatk'}GenomeAnalysisTK.jar -T CombineVariants -R $req->{'fasta'} $final_opts "
+      . "--variant $output_snp --variant $output_indel -o $final_variant &> CombineVariants.report";
 
     cmd_log($cv_cmd);
     runner($cv_cmd);

@@ -70,7 +70,6 @@ cApTUrE/bin/configure:
 cApTUrE/bin/capture_tools:
 <ul>
 	<li><em>ResourceAllocator</em> -Take known resource information and reports best fit settings to allow cApTUrE to utilize all memory and cpu. ResourceAllocator will report best cpu and memory suggestions in addition to current config settings. Update option will allow configure file to reflect these changes.</li>
-	<li><em>FileRevise</em>  - cApTUrE requires Illumina Fastq naming scheme in order to keep track of files and groups of files based on individual lanes and|or read pairs. FileRevise will attempt to rename file to the required scheme.</li>
 	<li><em>KillcApTUrE</em> - Often when running a large pipeline you will set the job to run in the background, KillcApTUrE allows users to kill all job assocated with their USER id, which will end all instances of cApTUrE, and any child jobs associated with it, i.e. bwa runs, etc.</li>
 	<li><em>RegionMaker</em> - RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file to be used with UnifiedGenotyper to decrease runtime when using a high number of background files.</li>
 </ul>
@@ -85,16 +84,6 @@ After downloading and installing all dependences, a typical setup and run would 
 <em>Setting up the config file</em>:
 
 Often many of the values in the config file can be set on a per-machine basis, creating essentially a new master file.  Examples of these would be known indel files, VQSR VCFs, BAM background files, and software paths.  Therefore what you will change each run will be the ugp_id, fastq dir, and possibly the run order.  The cpu, and memory setting can change each run and <em>ResourceAllocator</em> will alter these values.
-
-<em>Setting up fastq files:</em>
-
-cApTUrE requires fastq file to use the Illumina naming <a href="http://support.illumina.com/help/SequencingAnalysisWorkflow/Content/Vault/Informatics/Sequencing_Analysis/CASAVA/swSEQ_mCA_FASTQFiles.htm" target="_blank">scheme</a>, this is currently put in place to allow running pairs and multi-lane runs.  <strong>Please always review before finalizing name changes</strong>.
-
-Examples:
-
-9958X1_1.fastq.gz --&gt; 9958X1_XXXX_L001_R1_001.fastq.gz
-
-9958X2_130327_700179R_0404_BD1YNUACXX_7_1.txt.gz --&gt; 9958X2_XXXX_L001_R1_001.fastq.gz
 
 <em>Running cApTUrE:</em>
 

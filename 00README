@@ -60,10 +60,8 @@ capture_master.cfg - This is the main configure file used to run the UGP pipelin
 cApTUrE/bin/capture_tools:
 
 ResourceAllocator -Take known resource information and reports best fit settings to allow cApTUrE to utilize all memory and cpu. ResourceAllocator will report best cpu and memory suggestions in addition to current config settings. Update option will allow configure file to reflect these changes.
-FileRevise  - cApTUrE requires Illumina Fastq naming scheme in order to keep track of files and groups of files based on individual lanes and|or read pairs. FileRevise will attempt to rename file to the required scheme.
 KillcApTUrE - Often when running a large pipeline you will set the job to run in the background, KillcApTUrE allows users to kill all job assocated with their USER id, which will end all instances of cApTUrE, and any child jobs associated with it, i.e. bwa runs, etc.
 RegionMaker - RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file to be used with UnifiedGenotyper to decrease runtime when using a high number of background files.
-cApTUrE/bin/capture_tools/development:
 
 Sandbox of script currently being developed.
 RUNNING CAPTURE:
@@ -73,16 +71,6 @@ After downloading and installing all dependences, a typical setup and run would 
 Setting up the config file:
 
 Often many of the values in the config file can be set on a per-machine basis, creating essentially a new master file.  Examples of these would be known indel files, VQSR VCFs, BAM background files, and software paths.  Therefore what you will change each run will be the ugp_id, fastq dir, and possibly the run order.  The cpu, and memory setting can change each run and ResourceAllocator will alter these values.
-
-Setting up fastq files:
-
-cApTUrE requires fastq file to use the Illumina naming scheme, this is currently put in place to allow running pairs and multi-lane runs.  Please always review before finalizing name changes.
-
-Examples:
-
-9958X1_1.fastq.gz --> 9958X1_XXXX_L001_R1_001.fastq.gz
-
-9958X2_130327_700179R_0404_BD1YNUACXX_7_1.txt.gz --> 9958X2_XXXX_L001_R1_001.fastq.gz
 
 Running cApTUrE:
 
