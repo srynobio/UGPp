@@ -41,9 +41,6 @@ These Modules are included with cApTUrE.
 	<li>List::MoreUtils</li>
 </ul>
 
-Example:
-sudo cpan -i "Parallel::ForkManager"
-
 <em>External required software:</em>
 <ul>
 	<li><a href="http://www.bioinformatics.babraham.ac.uk/projects/fastqc/" target="_blank">FastQC</a></li>
@@ -74,10 +71,7 @@ cApTUrE/bin/capture_tools:
 	<li><em>KillcApTUrE</em> - Often when running a large pipeline you will set the job to run in the background, KillcApTUrE allows users to kill all job assocated with their USER id, which will end all instances of cApTUrE, and any child jobs associated with it, i.e. bwa runs, etc.</li>
 	<li><em>RegionMaker</em> - RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file to be used with UnifiedGenotyper to decrease runtime when using a high number of background files.</li>
 </ul>
-cApTUrE/bin/capture_tools/development:
-<ul>
-	<li>Sandbox of script currently being developed.</li>
-</ul>
+
 <strong>RUNNING CAPTURE:</strong>
 
 After downloading and installing all dependences, a typical setup and run would follow these steps:
@@ -96,7 +90,7 @@ Error tracking is usually done by reviewing error, log, progress and report file
 
 <strong>INCOMPATIBILITIES</strong>
 
-None know, although not tested on Microsoft (but why would we?).
+None know, although not tested on Microsoft.
 
 <strong>BUGS AND LIMITATIONS</strong>
 
