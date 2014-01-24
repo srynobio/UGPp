@@ -22,6 +22,7 @@ Currently it incorporates the following tools:
 	<li>FastQC</li>
 	<li>BWA</li>
 	<li>SAMtools</li>
+	<li>Picard</li>
 	<li>GATK</li>
 </ul>
 
