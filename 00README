@@ -4,7 +4,7 @@ cApTUrE - vAriant collecTing UGP pipeline
 
 VERSION
 
-This document describes version 0.0.3
+This document describes version 0.0.4
 
 SYNOPSIS
 
@@ -44,21 +44,25 @@ BWA
 SAMtools
 Picard
 GATK
+R
+
 CONTENTS
 
 cApTUrE's file structure:
 
 cApTUrE/data:
-
 exon_Region.list - Region file created for the standard UGP pipeline.
+
 cApTUrE/bin:
-
 cApTUrE - main script
-cApTUrE/bin/configure:
 
+cApTUrE/bin/configure:
 capture_master.cfg - This is the main configure file used to run the UGP pipeline, but can also be used as an example template for future project.  This configure is also used to run ResourceAllocator
+cluster.cfg - This is the main configure file used to run the UGP pipeline on the CHPC cluster.
+
 cApTUrE/bin/capture_tools:
 
+clUsTEr - CHPC cluster script
 ResourceAllocator -Take known resource information and reports best fit settings to allow cApTUrE to utilize all memory and cpu. ResourceAllocator will report best cpu and memory suggestions in addition to current config settings. Update option will allow configure file to reflect these changes.
 KillcApTUrE - Often when running a large pipeline you will set the job to run in the background, KillcApTUrE allows users to kill all job assocated with their USER id, which will end all instances of cApTUrE, and any child jobs associated with it, i.e. bwa runs, etc.
 RegionMaker - RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file to be used with UnifiedGenotyper to decrease runtime when using a high number of background files.
@@ -122,6 +126,3 @@ THIRD PARTIES OR A FAILURE OF THE SOFTWARE TO OPERATE WITH ANY OTHER
 SOFTWARE), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF
 THE POSSIBILITY OF SUCH DAMAGES.
 
- 
-
- 

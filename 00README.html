@@ -6,7 +6,7 @@ cApTUrE - vAriant collecTing UGP pipeline
 
 <strong>VERSION</strong>
 
-This document describes version 0.0.3
+This document describes version 0.0.4
 
 <strong>SYNOPSIS</strong>
 
@@ -48,6 +48,7 @@ These Modules are included with cApTUrE.
 	<li><a href="http://samtools.sourceforge.net" target="_blank">SAMtools</a></li>
 	<li><a href="http://picard.sourceforge.net" target="_blank">Picard</a></li>
 	<li><a href="http://www.broadinstitute.org/gatk/" target="_blank">GATK</a></li>
+	<li><a href="http://www.r-project.org/" target="_blank">R</a></li>
 </ul>
 <strong>CONTENTS</strong>
 
@@ -63,13 +64,15 @@ cApTUrE/bin:
 </ul>
 cApTUrE/bin/configure:
 <ul>
-	<li><em>capture_master.cfg</em> - This is the main configure file used to run the UGP pipeline, but can also be used as an example template for future project.  This configure is also used to run ResourceAllocator</li>
+	<li><em>capture_master.cfg</em> - This is the main configure file used to run the UGP pipeline, but can also be used as an example template for future project.  This configure is also used to run ResourceAllocator</li>
+	<li><em>cluster.cfg</em> - This is the main configure file used to run the UGP pipeline on the CHPC cluster.</li>
 </ul>
 cApTUrE/bin/capture_tools:
 <ul>
-	<li><em>ResourceAllocator</em> -Take known resource information and reports best fit settings to allow cApTUrE to utilize all memory and cpu. ResourceAllocator will report best cpu and memory suggestions in addition to current config settings. Update option will allow configure file to reflect these changes.</li>
-	<li><em>KillcApTUrE</em> - Often when running a large pipeline you will set the job to run in the background, KillcApTUrE allows users to kill all job assocated with their USER id, which will end all instances of cApTUrE, and any child jobs associated with it, i.e. bwa runs, etc.</li>
-	<li><em>RegionMaker</em> - RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file to be used with UnifiedGenotyper to decrease runtime when using a high number of background files.</li>
+	<li><em>clUsTEr</em> - CHPC cluster script</li>
+	<li><em>ResourceAllocator</em> -Take known resource information and reports best fit settings to allow cApTUrE to utilize all memory and cpu. ResourceAllocator will report best cpu and memory suggestions in addition to current config settings. Update option will allow configure file to reflect these changes.</li>
+	<li><em>KillcApTUrE</em> - Often when running a large pipeline you will set the job to run in the background, KillcApTUrE allows users to kill all job assocated with their USER id, which will end all instances of cApTUrE, and any child jobs associated with it, i.e. bwa runs, etc.</li>
+	<li><em>RegionMaker</em> - RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file to be used with UnifiedGenotyper to decrease runtime when using a high number of background files.</li>
 </ul>
 
 <strong>RUNNING CAPTURE:</strong>
@@ -78,13 +81,13 @@ After downloading and installing all dependences, a typical setup and run would 
 
 <em>Setting up the config file</em>:
 
-Often many of the values in the config file can be set on a per-machine basis, creating essentially a new master file.  Examples of these would be known indel files, VQSR VCFs, BAM background files, and software paths.  Therefore what you will change each run will be the ugp_id, fastq dir, and possibly the run order.  The cpu, and memory setting can change each run and <em>ResourceAllocator</em> will alter these values.
+Often many of the values in the config file can be set on a per-machine basis, creating essentially a new master file.  Examples of these would be known indel files, VQSR VCFs, BAM background files, and software paths.  Therefore what you will change each run will be the ugp_id, fastq dir, and possibly the run order.  The cpu, and memory setting can change each run and <em>ResourceAllocator</em> will alter these values.
 
 <em>Running cApTUrE:</em>
 
 It is recommend that the unix command <a href="http://www.computerhope.com/unix/screen.htm" target="_blank">screen</a> be used.
 
-When cApTUrE runs it will create a number of log, list, error and report file.  One of these will be progress.log.  This file will keep track of each step of the order process, and is one that will be used and reviewed often throughout the pipeline; typically if you have failed runs.  Also, as cApTUrE work through each step of the pipeline, it will create list files which are collections of BAM and VCF files from the previous steps.  Furthermore, a cmd.log file will be generated which will keep track of the times of each command and the commandlines each used.
+When cApTUrE runs it will create a number of log, list, error and report file.  One of these will be progress.log.  This file will keep track of each step of the order process, and is one that will be used and reviewed often throughout the pipeline; typically if you have failed runs.  Also, as cApTUrE work through each step of the pipeline, it will create list files which are collections of BAM and VCF files from the previous steps.  Furthermore, a cmd.log file will be generated which will keep track of the times of each command and the commandlines each used.
 
 Error tracking is usually done by reviewing error, log, progress and report files.
 
