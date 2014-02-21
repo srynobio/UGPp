@@ -74,6 +74,7 @@ cApTUrE/bin/capture_tools:
 	<li><em>ResourceAllocator</em> -Take known resource information and reports best fit settings to allow cApTUrE to utilize all memory and cpu. ResourceAllocator will report best cpu and memory suggestions in addition to current config settings. Update option will allow configure file to reflect these changes.</li>
 	<li><em>KillcApTUrE</em> - Often when running a large pipeline you will set the job to run in the background, KillcApTUrE allows users to kill all job assocated with their USER id, which will end all instances of cApTUrE, and any child jobs associated with it, i.e. bwa runs, etc.</li>
 	<li><em>RegionMaker</em> - RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file to be used with UnifiedGenotyper to decrease runtime when using a high number of background files.</li>
+	<li><em>Thousand_genome_exome_downloader.pl</em> - Script to download Thousand Genome population exomes.</li>
 </ul>
 
 <strong>RUNNING CAPTURE:</strong>
