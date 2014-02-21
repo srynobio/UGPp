@@ -2,6 +2,8 @@
 # ResourceAllocator
 use warnings;
 use strict;
+use FindBin;
+use lib "$FindBin::Bin/../../perl_libs/";
 use Config::Std;
 use Getopt::Long;
 
