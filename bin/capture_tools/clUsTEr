@@ -4,6 +4,8 @@ use strict;
 use warnings;
 use IO::File;
 use IO::Dir;
+use FindBin;
+use lib "$FindBin::Bin/../perl_libs";
 use Config::Std;
 use Getopt::Long;
 use IPC::System::Simple qw (run capture);
@@ -40,10 +42,12 @@ Options:
 
 \n";
 
-my ( $arc, $clean, $mail, $passfqc, $rr, $help );
+my ( $arc, $clean, $mail, $passfqc, $rr, $help, $region, $config);
 GetOptions(
-    "clean|c"         => \$clean,
-    "help|h"          => \$help,
+    "clean|c" => \$clean,
+    "help|h"  => \$help,
+    "region_file|rf=s" => \$region,
+    "config|cfg=s"    => \$config,
 );
 die $usage if $help;
 
@@ -53,7 +57,7 @@ if ($clean) {
     die "Cleaning up list and report files.\n";
 }
 
-my $conf_file = $ARGV[0] or die $usage;
+my $conf_file = $config or die $usage;
 
 # tracker for repeted_runs
 my $times = '0';
@@ -118,8 +122,6 @@ sub run_cApTUre {
         ReduceReads            => \&ReduceReads,
         SNP                    => \&SNP,
         INDEL                  => \&INDEL,
-
-        #        mail_user                 => \&mail_user("finished"),
     };
 
     print $CMDLOG "#############################################\n"
@@ -141,6 +143,7 @@ sub run_cApTUre {
 }
 
 #-------------------------------------------------------------------------------
+
 sub indexer {
 
     # dispatch table
@@ -487,6 +490,8 @@ sub bwa_mem {
             ( my $bam_name = $fq1 ) =~ s/(.*)\.(.*)\.gz/$1.bam/;
             my $bam_file = "$req->{'fastq_dir'}$bam_name";
 
+            system("touch $bam_file");
+
             my $r_group = '\'@RG'
               . "\\tID:$id\\tSM:$p_file[0]\\tPL:ILLUMINA\\tLB:$p_file[0]\'";
 
@@ -495,22 +500,10 @@ sub bwa_mem {
               . "$reads 2>> bwa_mem.report | $soft->{'samtools'}samtools view "
               . "-bSho $bam_file - 2>> samtools_bam.report";
 
-            push @mem_cmds, $cmd;
+            push @{ $cmd_list{ $p_file[0] } }, $cmd;
             $id++;
         }
     }
-
-    # run each command on a separate process.
-    start_log('bwa_mem');
-    foreach my $command (@mem_cmds) {
-        $pm->start and next;
-        cmd_log($command);
-        runner($command);
-        $pm->finish;
-    }
-    $pm->wait_all_children;
-    end_log('bwa_mem');
-
     $$FQDIR->close;
 }
 
@@ -544,7 +537,6 @@ sub bwa_aln {
 sub PBS_annotate {
 
     my @pbs;
-
     foreach my $set ( keys %cmd_list ) {
         my $FH = IO::File->new( "$set.pbs", 'a+' ) or die;
         push @pbs, "$set.pbs";
@@ -556,6 +548,7 @@ sub PBS_annotate {
 #PBS -M shawn.rynearson\@gmail.com	
 source /uufs/chpc.utah.edu/common/home/u0413537/.bash_profile
 date
+cd /uufs/chpc.utah.edu/common/home/u0413537/Yandell-scratch/cApTUrE/bin
 \n";
         foreach my $group ( @{ $cmd_list{$set} } ) {
             print $FH $group, "\n";
@@ -565,14 +558,16 @@ date
     }
 
     foreach my $qsub (@pbs) {
-        next if $qsub =~ /SNP*|INDEL*/;
-        print "qsub $qsub &>> qsub_order\n";
-        system "qsub $qsub &>> qsub_order";
+        next if $qsub =~ /Unified_*|Variant_recal_*|Merge_*|Applyed_*/;
+
+        print "qsub $qsub &>> qsub_align\n";
+        system "qsub $qsub &>> qsub_align";
     }
 
     foreach my $qsub (@pbs) {
-        next unless $qsub =~ /SNP*|INDEL*/;
-        my @jobs = `cat qsub_order`;
+        next unless $qsub =~ /Unified_*/;
+        my @jobs = `cat qsub_align`;
+
         my @before;
         foreach my $i (@jobs) {
             chomp $i;
@@ -580,7 +575,46 @@ date
         }
         my $wait = join( ":", @before );
         print "qsub -W depend=afterok:$wait $qsub\n";
-        system "qsub -W depend=afterok:$wait $qsub";
+        system "qsub -W depend=afterok:$wait $qsub &>> qsub_unified";
+    }
+
+    foreach my $qsub (@pbs) {
+        next unless $qsub =~ /Merge*/;
+        my @jobs = `cat qsub_unified`;
+	my @before;
+        foreach my $i (@jobs) {
+            chomp $i;
+            push @before, $i;
+        }
+        my $wait = join( ":", @before );
+        print "qsub -W depend=afterok:$wait $qsub\n";
+       system "qsub -W depend=afterok:$wait $qsub &>> qsub_merged";
+    }
+
+    foreach my $qsub (@pbs) {
+        next unless $qsub =~ /Variant_recal*/;
+        my @jobs = `cat qsub_merged`;
+        my @before;
+        foreach my $i (@jobs) {
+            chomp $i;
+            push @before, $i;
+        }
+        my $wait = join( ":", @before );
+        print "qsub -W depend=afterok:$wait $qsub\n";
+        system "qsub -W depend=afterok:$wait $qsub &>> qsub_recal";
+    }
+
+    foreach my $qsub (@pbs) {
+        next unless $qsub =~ /Applyed*/;
+        my @jobs = `cat qsub_recal`;
+        my @before;
+        foreach my $i (@jobs) {
+            chomp $i;
+            push @before, $i;
+        }
+        my $wait = join( ":", @before );
+        print "qsub -W depend=afterok:$wait $qsub\n";
+        system "qsub -W depend=afterok:$wait $qsub &>> qsub_applyed";
     }
     return;
 }
@@ -690,7 +724,8 @@ sub idxstats {
         next unless ( $bam =~ /\_sorted.bam/ );
         ( my $idx_file = $bam ) =~ s/\.bam/\.stats/;
 
-        my $idx_cmd = "$soft->{'samtools'}samtools idxstats $req->{'fastq_dir'}$bam > $req->{'fastq_dir'}$idx_file 2>> idxstats.report";
+        my $idx_cmd =
+		"$soft->{'samtools'}samtools idxstats $req->{'fastq_dir'}$bam > $req->{'fastq_dir'}$idx_file 2>> idxstats.report";
     }
     $DIR->close;
 }
@@ -725,7 +760,7 @@ sub _BuildBamIndex {
     my $file = shift;
 
     my $cmd =
-	"java -Xmx$req->{'picard_java_Xmx'}g -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
+"java -Xmx$req->{'picard_java_Xmx'}g -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
       . "-Djava.io.tmpdir=$req->{'java_tmp'} -jar "
       . "$soft->{'picard'}BuildBamIndex.jar INPUT=$file &>> BamIndex.report";
 }
@@ -1054,7 +1089,7 @@ sub BaseRecalibrator {
     return;
 }
 
-#-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------/
 
 sub PrintReads {
     my $opts       = options( 'PrintReads', '--' ) || '';
@@ -1098,17 +1133,18 @@ sub SNP {
     my $unifed_recal = VariantRecalibrator_SNP();
     my $appled_snp   = ApplyRecalibration_SNP();
 
-    push @{ $cmd_list{'SNP'} }, $unifed_snp, $unifed_recal, $appled_snp;
+    return;
 }
 
 #-------------------------------------------------------------------------------
 
 sub INDEL {
+#    `rm qsub_applyed qsub_merged qsub_recal qsub_unified`;
     my $unifed_indel = UnifiedGenotyper_INDEL();
     my $unifed_recal = VariantRecalibrator_INDEL();
     my $appled_indel = ApplyRecalibration_INDEL();
 
-    push @{ $cmd_list{'INDEL'} }, $unifed_indel, $unifed_recal, $appled_indel;
+    return;
 }
 
 #-------------------------------------------------------------------------------
@@ -1116,8 +1152,6 @@ sub INDEL {
 sub UnifiedGenotyper_SNP {
     my $opts = options( 'UnifiedGenotyper_SNP', '--' ) || '';
     my $output = "$req->{'fastq_dir'}$req->{'ugp_id'}_raw_snp.vcf";
-
-    system("touch $output");
 
     my $opened = open_list('reduced_bam.list');
 
@@ -1138,12 +1172,57 @@ sub UnifiedGenotyper_SNP {
         $input_bams .= "-I $bam ";
     }
 
-    my $cmd =
-	"java -Xmx$req->{'gatk_ug_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
-      . "$soft->{'gatk'}GenomeAnalysisTK.jar -T UnifiedGenotyper -R $req->{'fasta'} $input_bams $background "
-      . "$opts -o $output &>> UnifiedGenotyper_SNP.report";
+    my %regions;
+    my $REGION = IO::File->new($region, 'r');
 
-    return $cmd;
+    foreach my $i (<$REGION>) {
+        chomp $i;
+        my @chrs = split /:/, $i;
+        push @{ $regions{ $chrs[0] } }, $i;
+    }
+
+    foreach my $chr ( keys %regions ) {
+
+        my $output_reg = "chr$chr" . "_region_file.list";
+        my $INTERNAL = IO::File->new( $output_reg, 'w' );
+
+        foreach my $list ( @{ $regions{$chr} } ) {
+            print $INTERNAL "$list\n";
+        }
+    }
+
+    my @test = `ls *region_file.list`;
+    my @all_output;
+    foreach my $reg_file (@test) {
+        chomp $reg_file;
+
+        my @in_file = split /\_/, $reg_file;
+
+        my $count_output = $output . "_$in_file[0]";
+        system("touch $count_output");
+
+        my $cmd =
+	    "java -Xmx$req->{'gatk_ug_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+          . "$soft->{'gatk'}GenomeAnalysisTK.jar -T UnifiedGenotyper -R $req->{'fasta'} $input_bams $background "
+          . "$opts --intervals $reg_file -o $count_output &>> UnifiedGenotyper_SNP.report";
+
+        push @all_output, $count_output;
+
+        my $pbs_name = "Unified_SNP_$in_file[0]";
+        push @{ $cmd_list{$pbs_name} }, $cmd;
+    }
+
+    my $merge = join( " --variant ", @all_output );
+    $merge =~ s/^/--variant /;
+
+    my $merge_cmd =
+	"java -Xmx$req->{'gatk_ug_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+      . "$soft->{'gatk'}GenomeAnalysisTK.jar -T CombineVariants -R $req->{'fasta'} $merge "
+      . "-o $output &>> merge_SNP.report";
+
+    push @{ $cmd_list{'Merge_SNP'} }, $merge_cmd;
+
+    return;
 }
 
 #-------------------------------------------------------------------------------
@@ -1173,12 +1252,38 @@ sub UnifiedGenotyper_INDEL {
         $input_bams .= "-I $bam ";
     }
 
-    my $cmd =
-	"java -Xmx$req->{'gatk_ug_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
-      . "$soft->{'gatk'}GenomeAnalysisTK.jar -T UnifiedGenotyper -R $req->{'fasta'} $input_bams $background "
-      . "$opts -o $output &>> UnifiedGenotyper_INDEL.report";
+    my @test = `ls *region_file.list`;
+    my @all_output;
+    foreach my $reg_file (@test) {
+        chomp $reg_file;
 
-    return $cmd;
+        my @in_file = split /\_/, $reg_file;
+
+        my $count_output = $output . "_$in_file[0]";
+        system("touch $count_output");
+
+        my $cmd =
+	    "java -Xmx$req->{'gatk_ug_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+          . "$soft->{'gatk'}GenomeAnalysisTK.jar -T UnifiedGenotyper -R $req->{'fasta'} $input_bams $background "
+          . "$opts --intervals $reg_file -o $count_output &>> UnifiedGenotyper_INDEL.report";
+
+        push @all_output, $count_output;
+
+        my $pbs_name = "Unified_INDEL_$in_file[0]";
+        push @{ $cmd_list{$pbs_name} }, $cmd;
+    }
+
+    my $merge = join( " --variant ", @all_output );
+    $merge =~ s/^/--variant /;
+
+    my $merge_cmd =
+	"java -Xmx$req->{'gatk_ug_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+      . "$soft->{'gatk'}GenomeAnalysisTK.jar -T CombineVariants -R $req->{'fasta'} $merge "
+      . "-o $output &>> merge_INDEL.report";
+
+    push @{ $cmd_list{'Merge_INDEL'} }, $merge_cmd;
+
+    return;
 }
 
 #-------------------------------------------------------------------------------
@@ -1235,7 +1340,7 @@ sub VariantRecalibrator_SNP {
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T VariantRecalibrator -R $req->{'fasta'} -input $input $resource_call "
       . "$opts $recalFile $tranchFile $rscriptFile -mode SNP &>> VariantRecalibrator_SNP.report";
 
-    return $cmd;
+    push @{ $cmd_list{'Variant_recal_SNP'} }, $cmd;
 }
 
 #-------------------------------------------------------------------------------
@@ -1291,7 +1396,8 @@ sub VariantRecalibrator_INDEL {
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T VariantRecalibrator -R $req->{'fasta'} -input $input $resource_call "
       . "$opts $recalFile $tranchFile $rscriptFile -mode INDEL &>> VariantRecalibrator_INDEL.report";
 
-    return $cmd;
+    push @{ $cmd_list{'Variant_recal_INDEL'} }, $cmd;
+    return;
 }
 
 #-------------------------------------------------------------------------------
@@ -1310,7 +1416,8 @@ sub ApplyRecalibration_SNP {
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T ApplyRecalibration -R $req->{'fasta'} -input $input "
       . "$opts -recalFile  $recalFile -tranchesFile $tranchFile -mode SNP -o $output &>> ApplyRecalibration_SNP.report";
 
-    return $cmd;
+    ###return $cmd;
+    push @{ $cmd_list{'Applyed_SNP'} }, $cmd;
 }
 
 #-------------------------------------------------------------------------------
@@ -1329,7 +1436,7 @@ sub ApplyRecalibration_INDEL {
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T ApplyRecalibration -R $req->{'fasta'} -input $input "
       . "$opts -recalFile  $recalFile -tranchesFile $tranchFile -mode INDEL -o $output &>> ApplyRecalibration_INDEL.report";
 
-    return $cmd;
+    push @{ $cmd_list{'Applyed_INDEL'} }, $cmd;
 }
 
 #-------------------------------------------------------------------------------

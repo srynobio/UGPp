@@ -21,11 +21,11 @@ Description:
 
 Required options:
 
-	--feature|f  : GFF3 feature to create regions.
-
-        --padding|p  : Additional number of base-pairs to add to the start and end of a region.
+	--feature|f  : GFF3 feature to create regions. Must match exactly to GFF feature.
 
 Additional options:
+        
+	--padding|p  : Additional number of base-pairs to add to the start and end of a region.
 
 	--help|h     : Prints this usage statement.
 				
@@ -37,12 +37,13 @@ GetOptions(
     "padding|p=i" => \$pad,
     "help|h"      => \$help,
 );
-unless ( $feature and $pad ) { die $usage }
+unless ( $feature ) { die $usage }
 die $usage if $help;
 
-print "Downloading GFF3 file\n";
-system("wget ftp://ftp.ncbi.nlm.nih.gov/genomes/H_sapiens/GFF/ref_GRCh37*level.gff3.gz");
+print "Downloading BUILD.37.3 GFF3 file\n";
+system("wget ftp://ftp.ncbi.nlm.nih.gov/genomes/H_sapiens/ARCHIVE/BUILD.37.3/GFF/ref_GRCh37*level.gff3.gz");
 system("mv ref_GRCh37*level.gff3.gz ref_GRCh37.gff3.gz");
+print "working...\n";
 system("gunzip ref_GRCh37.gff3.gz");
 updateGATKGFF();
 print "Sorting GFF3 file\n";
@@ -53,6 +54,8 @@ system(
 my $FI = IO::File->new( 'Updated.ref_GRCh37.sorted.gff3', 'r' );
 my $FO = IO::File->new( "$feature" . "_Region.list",      'w' );
 
+my $buffer = $pad || '0';
+
 my @collection;
 foreach my $i (<$FI>) {
     chomp $i;
@@ -60,8 +63,8 @@ foreach my $i (<$FI>) {
     my @line = split( "\t", $i );
 
     next unless ( $line[2] eq $feature );
-    my $start = $line[3] - $pad;
-    my $end   = $line[4] + $pad;
+    my $start = $line[3] - $buffer;
+    my $end   = $line[4] + $buffer;
 
     my $postion = "$line[0]:$start-$end";
     push @collection, $postion;

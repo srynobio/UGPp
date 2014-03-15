@@ -11,7 +11,7 @@ use Getopt::Long;
 use IPC::System::Simple qw (run);
 use Parallel::ForkManager;
 
-my $VERSION = '0.0.3';
+my $VERSION = '0.0.4';
 
 my $usage = "
 
@@ -261,6 +261,7 @@ sub die_messenger {
     print "Error occured $message\n";
     my $error = "FATAL: $message --";
     die $error;
+    exit(0);
 }
 
 #-------------------------------------------------------------------------------
@@ -346,7 +347,7 @@ sub runner {
     eval { run($cmd) };
     if ($@) {
         run_cApTUre() if ( $rr and $times <= $rr );
-        mail_user( "Error running command $cmd", $@ ) if $mail;
+        ##mail_user( "Error running command $cmd", $@ ) if $mail;
         die_messenger("Error running command: $cmd $@\n.");
     }
     $times = '0';
@@ -621,8 +622,6 @@ sub bwa_sampe {
         my $cmd = 
 	    "$soft->{'bwa'}bwa sampe -r $r_group $opts $req->{'fasta'} $sa[0] $sa[1] "
           . "$sfq[0] $sfq[1] | $soft->{'samtools'}samtools view -bSho $bam_file - &>> bwa_sampe.report";
-
-        print $cmd, "\n";
 
         push @sampe_cmd, $cmd;
         $id++;
