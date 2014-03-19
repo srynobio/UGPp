@@ -13,7 +13,7 @@ use Parallel::ForkManager;
 
 use Data::Dumper;
 
-my $VERSION = '0.0.4';
+my $VERSION = '0.0.5';
 
 my $usage = "
 
@@ -34,6 +34,10 @@ Description:
 
 	clUsTEr requires a config file given as the first commandline argument.
 	And all instruction and requirement are given therein.
+
+Required options:
+	--region_file|rf : Region file used by GATK UG.
+	--config|cf      : clUsTEr config file.
 
 Options:
 	--clean|c : Removes all list, pbs, and report files.
@@ -143,7 +147,6 @@ sub run_cApTUre {
 }
 
 #-------------------------------------------------------------------------------
-
 sub indexer {
 
     # dispatch table
@@ -1057,7 +1060,6 @@ sub ReduceReads {
 
 sub BaseRecalibrator {
     my $opts = options( 'BaseRecalibrator', '--' ) || '';
-    my $output = "$req->{'fastq_dir'}$req->{'ugp_id'}_recal_data.table";
 
     file_verify('realign_bam.list');
     my $opened_bams = open_list('realign_bam.list');
@@ -1076,13 +1078,14 @@ sub BaseRecalibrator {
     foreach my $bam ( @{$opened_bams} ) {
         chomp $bam;
 
+        my @f_name = split /\//, $bam;
+        my @p_file = name_parse( $f_name[-1] );
+
+    	my $output = "$req->{'fastq_dir'}$req->{'ugp_id'}_recal_data.$p_file[0].table";
         my $cmd =
 	    "java -Xmx$req->{'gatk_br_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
           . "$soft->{'gatk'}GenomeAnalysisTK.jar -T BaseRecalibrator -R $req->{'fasta'} -I $bam $opts "
           . "$known_vcfs -o $output &>> BaseRecalibrator.report";
-
-        my @f_name = split /\//, $bam;
-        my @p_file = name_parse( $f_name[-1] );
 
         push @{ $cmd_list{ $p_file[0] } }, $cmd;
     }
@@ -1093,7 +1096,6 @@ sub BaseRecalibrator {
 
 sub PrintReads {
     my $opts       = options( 'PrintReads', '--' ) || '';
-    my $bqsr       = "$req->{'fastq_dir'}$req->{'ugp_id'}_recal_data.table";
     my $RECAL_LIST = IO::File->new( 'recal_bam.list', 'w' );
 
     file_verify('realign_bam.list');
@@ -1102,6 +1104,10 @@ sub PrintReads {
     my %recal;
     foreach my $bam ( @{$opened} ) {
         chomp $bam;
+
+        my @f_name = split /\//, $bam;
+        my @p_file = name_parse( $f_name[-1] );
+    	my $bqsr   = "$req->{'fastq_dir'}$req->{'ugp_id'}_recal_data.$p_file[0].table";
 
         my ($output) = $bam =~ /(.*)\.bam/;
         $output =~ s/$/_recal.bam/;
@@ -1113,11 +1119,7 @@ sub PrintReads {
           . "$soft->{'gatk'}GenomeAnalysisTK.jar -T PrintReads -R $req->{'fasta'} -I $bam $opts "
           . "-BQSR $bqsr -o $output &>> PrintReads.report";
 
-        my @f_name = split /\//, $bam;
-        my @p_file = name_parse( $f_name[-1] );
-
         push @{ $cmd_list{ $p_file[0] } }, $cmd;
-
     }
 
     # create the list file.

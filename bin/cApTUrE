@@ -11,7 +11,7 @@ use Getopt::Long;
 use IPC::System::Simple qw (run);
 use Parallel::ForkManager;
 
-my $VERSION = '0.0.4';
+my $VERSION = '0.0.5';
 
 my $usage = "
 
@@ -619,8 +619,8 @@ sub bwa_sampe {
         my $r_group =
           '\'@RG' . "\\tID:$id\\tSM:$p_file[0]\\tPL:ILLUMINA\\tLB:$p_file[0]\'";
 
-        my $cmd = 
-	    "$soft->{'bwa'}bwa sampe -r $r_group $opts $req->{'fasta'} $sa[0] $sa[1] "
+        my $cmd =
+	  "$soft->{'bwa'}bwa sampe -r $r_group $opts $req->{'fasta'} $sa[0] $sa[1] "
           . "$sfq[0] $sfq[1] | $soft->{'samtools'}samtools view -bSho $bam_file - &>> bwa_sampe.report";
 
         push @sampe_cmd, $cmd;
@@ -742,7 +742,7 @@ sub _BuildBamIndex {
 
     start_log('BuildBamIndex');
     my $cmd =
-        "java -Xmx$req->{'picard_java_Xmx'}g -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
+	"java -Xmx$req->{'picard_java_Xmx'}g -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
       . "-Djava.io.tmpdir=$req->{'java_tmp'} -jar "
       . "$soft->{'picard'}BuildBamIndex.jar INPUT=$file &>> BamIndex.report";
 
@@ -1036,7 +1036,6 @@ sub ReduceReads {
 
 sub BaseRecalibrator {
     my $opts = options( 'BaseRecalibrator', '--' ) || '';
-    my $output = "$req->{'fastq_dir'}$req->{'ugp_id'}_recal_data.table";
 
     file_verify('realign_bam.list');
     my $opened_bams = open_list('realign_bam.list');
@@ -1052,60 +1051,57 @@ sub BaseRecalibrator {
         $known_vcfs .= "--knownSites $vcf ";
     }
 
-    start_log('BaseRecalibrator');
     foreach my $bam ( @{$opened_bams} ) {
         chomp $bam;
 
-        $pm->start and next;
+        my @f_name = split /\//, $bam;
+        my @p_file = name_parse( $f_name[-1] );
+
+        my $output = "$req->{'fastq_dir'}$req->{'ugp_id'}_recal_data.$p_file[0].table";
         my $cmd =
 	    "java -Xmx$req->{'gatk_br_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
           . "$soft->{'gatk'}GenomeAnalysisTK.jar -T BaseRecalibrator -R $req->{'fasta'} -I $bam $opts "
           . "$known_vcfs -o $output &>> BaseRecalibrator.report";
 
-        cmd_log($cmd);
-        runner($cmd);
-        $pm->finish;
+        push @{ $cmd_list{ $p_file[0] } }, $cmd;
     }
-    $pm->wait_all_children;
-    end_log('BaseRecalibrator');
+    return;
 }
 
 #-------------------------------------------------------------------------------
-
 sub PrintReads {
-    my $opts       = options( 'PrintReads', '--' ) || '';
-    my $bqsr       = "$req->{'fastq_dir'}$req->{'ugp_id'}_recal_data.table";
+    my $opts = options( 'PrintReads', '--' ) || '';
     my $RECAL_LIST = IO::File->new( 'recal_bam.list', 'w' );
 
     file_verify('realign_bam.list');
     my $opened = open_list('realign_bam.list');
 
     my %recal;
-    start_log('PrintReads');
     foreach my $bam ( @{$opened} ) {
         chomp $bam;
+
+        my @f_name = split /\//, $bam;
+        my @p_file = name_parse( $f_name[-1] );
+        my $bqsr =
+          "$req->{'fastq_dir'}$req->{'ugp_id'}_recal_data.$p_file[0].table";
 
         my ($output) = $bam =~ /(.*)\.bam/;
         $output =~ s/$/_recal.bam/;
 
         $recal{$output} = 1;
 
-        $pm->start and next;
         my $cmd =
 	    "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
           . "$soft->{'gatk'}GenomeAnalysisTK.jar -T PrintReads -R $req->{'fasta'} -I $bam $opts "
           . "-BQSR $bqsr -o $output &>> PrintReads.report";
 
-        cmd_log($cmd);
-        runner($cmd);
-        $pm->finish;
+        push @{ $cmd_list{ $p_file[0] } }, $cmd;
     }
-    $pm->wait_all_children;
-    end_log('PrintReads');
 
     # create the list file.
     map { print $RECAL_LIST $_, "\n" } keys %recal;
     $RECAL_LIST->close;
+    return;
 }
 
 #-------------------------------------------------------------------------------
@@ -1136,7 +1132,7 @@ sub UnifiedGenotyper_SNP {
 
     start_log('UnifiedGenotyper_SNP');
     my $cmd =
-        "java -Xmx$req->{'gatk_ug_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+	"java -Xmx$req->{'gatk_ug_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T UnifiedGenotyper -R $req->{'fasta'} $input_bams $background "
       . "$opts -o $output &>> UnifiedGenotyper_SNP.report";
 
@@ -1173,7 +1169,7 @@ sub UnifiedGenotyper_INDEL {
 
     start_log('UnifiedGenotyper_INDEL');
     my $cmd =
-        "java -Xmx$req->{'gatk_ug_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+	"java -Xmx$req->{'gatk_ug_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T UnifiedGenotyper -R $req->{'fasta'} $input_bams $background "
       . "$opts -o $output &>> UnifiedGenotyper_INDEL.report";
 
@@ -1228,7 +1224,7 @@ sub VariantRecalibrator_SNP {
 
     start_log('VariantRecalibrator_SNP');
     my $cmd =
-        "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+	"java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T VariantRecalibrator -R $req->{'fasta'} -input $input $resource_call "
       . "$opts $recalFile $tranchFile $rscriptFile -mode SNP &>> VariantRecalibrator_SNP.report";
 
@@ -1283,7 +1279,7 @@ sub VariantRecalibrator_INDEL {
 
     start_log('VariantRecalibrator_INDEL');
     my $cmd =
-        "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+	"java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T VariantRecalibrator -R $req->{'fasta'} -input $input $resource_call "
       . "$opts $recalFile $tranchFile $rscriptFile -mode INDEL &>> VariantRecalibrator_INDEL.report";
 
@@ -1305,7 +1301,7 @@ sub ApplyRecalibration_SNP {
 
     start_log('ApplyRecalibration_SNP');
     my $cmd =
-        "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+	"java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T ApplyRecalibration -R $req->{'fasta'} -input $input "
       . "$opts -recalFile  $recalFile -tranchesFile $tranchFile -mode SNP -o $output &>> ApplyRecalibration_SNP.report";
 
@@ -1327,7 +1323,7 @@ sub ApplyRecalibration_INDEL {
 
     start_log('ApplyRecalibration_INDEL');
     my $cmd =
-        "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+	"java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T ApplyRecalibration -R $req->{'fasta'} -input $input "
       . "$opts -recalFile  $recalFile -tranchesFile $tranchFile -mode INDEL -o $output &>> ApplyRecalibration_INDEL.report";
 
@@ -1370,7 +1366,7 @@ sub VariantPrepare {
 
     start_log('SelectVariants_SNP');
     my $svs_cmd =
-        "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+	"java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T SelectVariants -R $req->{'fasta'} $snp_opts "
       . "$sn --variant $snp_variant -o $output_snp &> SelectVariants_SNP.report";
 
@@ -1380,7 +1376,7 @@ sub VariantPrepare {
 
     start_log('SelectVariants_INDEL');
     my $svi_cmd =
-        "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+	"java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T SelectVariants -R $req->{'fasta'} $indel_opts "
       . "$sn --variant $indel_variant -o $output_indel &> SelectVariants_INDEL.report";
 
@@ -1390,7 +1386,7 @@ sub VariantPrepare {
 
     start_log('CombineVariants');
     my $cv_cmd =
-        "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
+	"java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T CombineVariants -R $req->{'fasta'} $final_opts "
       . "--variant $output_snp --variant $output_indel -o $final_variant &> CombineVariants.report";
 
