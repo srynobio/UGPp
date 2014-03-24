@@ -47,9 +47,6 @@ Options:
 	                    a requested number of times.
 			    
 	--clean|c   	  : Flag to clean all *list and *report files from bin directory.
-	
-	--mail|m    	  : cApTUrE will email user sending progress.log, error.log and cmd.log on error or completion.
-		      	    Value: user email address.
 		      
 	--fastqc_skip|fs  : Will skip any FAIL messages fastqc generated.
 
@@ -57,11 +54,10 @@ Options:
 
 \n";
 
-my ( $arc, $clean, $mail, $passfqc, $rr, $help );
+my ( $arc, $clean, $passfqc, $rr, $help );
 GetOptions(
     "repeat_run|rr=i" => \$rr,
     "clean|c"         => \$clean,
-    "mail|m=s"        => \$mail,
     "fastqc_skip|fs"  => \$passfqc,
     "help|h"          => \$help,
 );
@@ -140,7 +136,6 @@ sub run_cApTUre {
         ApplyRecalibration_SNP    => \&ApplyRecalibration_SNP,
         ApplyRecalibration_INDEL  => \&ApplyRecalibration_INDEL,
         VariantPrepare            => \&VariantPrepare,
-        mail_user                 => \&mail_user("finished"),
     };
 
     print $CMDLOG "#############################################\n"
@@ -327,19 +322,6 @@ sub name_parse {
 
 #-------------------------------------------------------------------------------
 
-sub mail_user {
-    my ( $message, $reason ) = @_;
-    $reason ||= 'cApTUrE';
-
-    if ($mail) {
-        system("mail -s \"$message: $reason\" $mail < Fatal_error.log");
-        system("mail -s \"$message: $reason\" $mail < cmd.log");
-        system("mail -s \"$message: $reason\" $mail < progress.log");
-    }
-}
-
-#-------------------------------------------------------------------------------
-
 sub runner {
     my $cmd = shift;
     $times++;
@@ -347,7 +329,6 @@ sub runner {
     eval { run($cmd) };
     if ($@) {
         run_cApTUre() if ( $rr and $times <= $rr );
-        ##mail_user( "Error running command $cmd", $@ ) if $mail;
         die_messenger("Error running command: $cmd $@\n.");
     }
     $times = '0';
@@ -735,24 +716,6 @@ sub flagstat {
 
 #-------------------------------------------------------------------------------
 
-###### Picard ######
-
-sub _BuildBamIndex {
-    my $file = shift;
-
-    start_log('BuildBamIndex');
-    my $cmd =
-	"java -Xmx$req->{'picard_java_Xmx'}g -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
-      . "-Djava.io.tmpdir=$req->{'java_tmp'} -jar "
-      . "$soft->{'picard'}BuildBamIndex.jar INPUT=$file &>> BamIndex.report";
-
-    cmd_log($cmd);
-    runner("$cmd");
-    end_log('BuildBamIndex');
-}
-
-#-------------------------------------------------------------------------------
-
 sub MarkDuplicates {
     my $DDLIST = IO::File->new( 'dedup_bam.list', 'w' );
 
@@ -1051,6 +1014,7 @@ sub BaseRecalibrator {
         $known_vcfs .= "--knownSites $vcf ";
     }
 
+    start_log('BaseRecalibrator');
     foreach my $bam ( @{$opened_bams} ) {
         chomp $bam;
 
@@ -1058,13 +1022,19 @@ sub BaseRecalibrator {
         my @p_file = name_parse( $f_name[-1] );
 
         my $output = "$req->{'fastq_dir'}$req->{'ugp_id'}_recal_data.$p_file[0].table";
+
+	$pm->start and next;
         my $cmd =
 	    "java -Xmx$req->{'gatk_br_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
           . "$soft->{'gatk'}GenomeAnalysisTK.jar -T BaseRecalibrator -R $req->{'fasta'} -I $bam $opts "
           . "$known_vcfs -o $output &>> BaseRecalibrator.report";
-
-        push @{ $cmd_list{ $p_file[0] } }, $cmd;
+	
+	cmd_log($cmd);
+	runner($cmd);
+	$pm->finish;
     }
+    $pm->wait_all_children;
+    end_log('BaseRecalibrator');
     return;
 }
 
@@ -1076,27 +1046,32 @@ sub PrintReads {
     file_verify('realign_bam.list');
     my $opened = open_list('realign_bam.list');
 
+    start_log('PrintReads');
     my %recal;
     foreach my $bam ( @{$opened} ) {
         chomp $bam;
 
         my @f_name = split /\//, $bam;
         my @p_file = name_parse( $f_name[-1] );
-        my $bqsr =
-          "$req->{'fastq_dir'}$req->{'ugp_id'}_recal_data.$p_file[0].table";
+        my $bqsr = "$req->{'fastq_dir'}$req->{'ugp_id'}_recal_data.$p_file[0].table";
 
         my ($output) = $bam =~ /(.*)\.bam/;
         $output =~ s/$/_recal.bam/;
 
         $recal{$output} = 1;
 
+	$pm->start and next;
         my $cmd =
 	    "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
           . "$soft->{'gatk'}GenomeAnalysisTK.jar -T PrintReads -R $req->{'fasta'} -I $bam $opts "
           . "-BQSR $bqsr -o $output &>> PrintReads.report";
 
-        push @{ $cmd_list{ $p_file[0] } }, $cmd;
+	cmd_log($cmd);
+	runner($cmd);
+	$pm->finish;
     }
+    $pm->wait_all_children;
+    end_log('PrintReads');
 
     # create the list file.
     map { print $RECAL_LIST $_, "\n" } keys %recal;

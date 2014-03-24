@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-# cApTUrE: vAriant collecTing UGP pipelinE
 use strict;
 use warnings;
 use IO::File;
@@ -11,12 +10,9 @@ use Getopt::Long;
 use IPC::System::Simple qw (run capture);
 use Parallel::ForkManager;
 
-use Data::Dumper;
-
 my $VERSION = '0.0.5';
 
 my $usage = "
-
 Description:
 	
 	clUsTEr: vAriant collecTing UGP pipeline version specialized for CHPC cluster environment : $VERSION
@@ -36,28 +32,27 @@ Description:
 	And all instruction and requirement are given therein.
 
 Required options:
-	--region_file|rf : Region file used by GATK UG.
-	--config|cf      : clUsTEr config file.
+	-rf,  --region_file : Region file used by GATK UG.
+	-cfg, --config      : clUsTEr config file.
 
 Options:
-	--clean|c : Removes all list, pbs, and report files.
-
-	--help|h  : Displays this usage statement.
+	-c, --clean	    : Removes all list, pbs, and report files.
+	-h, --help	    : Displays this usage statement.
 
 \n";
 
-my ( $arc, $clean, $mail, $passfqc, $rr, $help, $region, $config);
+my ( $clean, $help, $region, $config);
 GetOptions(
-    "clean|c" => \$clean,
-    "help|h"  => \$help,
+    "clean|c"          => \$clean,
+    "help|h"           => \$help,
     "region_file|rf=s" => \$region,
-    "config|cfg=s"    => \$config,
+    "config|cfg=s"     => \$config,
 );
 die $usage if $help;
 
 # capture clean
 if ($clean) {
-    system("rm -f *list *pbs* *.report");
+    system("rm -f *list *pbs* *.report qsub_*");
     die "Cleaning up list and report files.\n";
 }
 
@@ -72,11 +67,6 @@ read_config $conf_file => my %config;
 ## file variables
 my $req    = $config{'required'};
 my $soft   = $config{'software'};
-my $CMDLOG = IO::File->new( $req->{'command_log'}, 'a+' );
-
-# pipeline progress report
-my %progress_list =
-  map { $_ => 'incomplete' } @{ $config{'order'}{'command_order'} };
 
 # parallel process manager
 my $pm = Parallel::ForkManager->new( $req->{'cpu'} );
@@ -84,31 +74,19 @@ my $pm = Parallel::ForkManager->new( $req->{'cpu'} );
 # hash of all step of pipeline for PBS.
 my %cmd_list;
 
-run_cApTUre();
+run_clUsTEr();
+
 
 #-------------------------------------------------------------------------------
 #                                   SUBS
 #-------------------------------------------------------------------------------
 
-sub run_cApTUre {
-    my $PROG_FILE = IO::File->new( 'progress.log', 'a+' );
-
-    # check for position in pipline
-    if ( -e 'progress.log' and -s 'progress.log' ) {
-        my @progress = `cat progress.log`;
-        foreach my $complete (@progress) {
-            chomp $complete;
-            my ( $sub, $step ) = split /\:/, $complete;
-            if ( $step eq 'complete' ) {
-                $progress_list{$sub} = 'complete';
-            }
-        }
-    }
+sub run_clUsTEr {
 
     # dispatch table
     my $steps = {
-        fastqc                 => \&fastqc,
         indexer                => \&indexer,
+        fastqc                 => \&fastqc,
         bwa_mem                => \&bwa_mem,
         bwa_aln                => \&bwa_aln,
         bwa_sampe              => \&bwa_sampe,
@@ -126,42 +104,15 @@ sub run_cApTUre {
         ReduceReads            => \&ReduceReads,
         SNP                    => \&SNP,
         INDEL                  => \&INDEL,
+	VariantPrepare	=> \&VariantPrepare,
     };
-
-    print $CMDLOG "#############################################\n"
-      . "cApTUrE run version $VERSION started on "
-      . timestamp() . "\n"
-      . "#############################################\n";
 
     # Run verify and each step of order list
     config_verify();
     foreach my $tool ( @{ $config{'order'}{'command_order'} } ) {
-        next if ( $progress_list{$tool} eq 'complete' );
         $steps->{$tool}->();
-
-        $progress_list{$tool} = 'complete';
-        print $PROG_FILE "$tool:complete\n";
     }
     PBS_annotate();
-    $PROG_FILE->close;
-}
-
-#-------------------------------------------------------------------------------
-sub indexer {
-
-    # dispatch table
-    my $indexers = {
-        bwa  => \&_bwa_index,
-        gatk => \&_gatk_indexer,
-    };
-
-    # call each indexer
-    foreach my $i ( keys %{$indexers} ) {
-        $pm->start and next;
-        $indexers->{$i}->();
-        $pm->finish;
-    }
-    $pm->wait_all_children;
 }
 
 #-------------------------------------------------------------------------------
@@ -177,7 +128,6 @@ sub open_dir {
 
 sub open_list {
     my $file = shift;
-
     my @list = `cat $file`;
     return \@list;
 }
@@ -251,34 +201,6 @@ sub die_messenger {
 
 #-------------------------------------------------------------------------------
 
-sub timestamp {
-    my $time = localtime;
-    return $time;
-}
-
-#-------------------------------------------------------------------------------
-
-sub start_log {
-    my $program = shift;
-    printf $CMDLOG "{cApTUrE} %s started %s: \n", $program, timestamp();
-}
-
-#-------------------------------------------------------------------------------
-
-sub end_log {
-    my $program = shift;
-    printf $CMDLOG "{cApTUrE} %s finished %s: \n", $program, timestamp();
-}
-
-#-------------------------------------------------------------------------------
-
-sub cmd_log {
-    my $cmd = shift;
-    printf $CMDLOG "{cApTUrE} {COMMAND} --> %s: \n", $cmd;
-}
-
-#-------------------------------------------------------------------------------
-
 sub options {
     my ( $call, $flag ) = @_;
     my $section = $config{$call};
@@ -312,43 +234,16 @@ sub name_parse {
 
 #-------------------------------------------------------------------------------
 
-sub mail_user {
-    my ( $message, $reason ) = @_;
-    $reason ||= 'cApTUrE';
-
-    if ($mail) {
-        system("mail -s \"$message: $reason\" $mail < Fatal_error.log");
-        system("mail -s \"$message: $reason\" $mail < cmd.log");
-        system("mail -s \"$message: $reason\" $mail < progress.log");
-    }
+sub indexer {
+	bwa_index();
+	gatk_index();
+	return;
 }
 
 #-------------------------------------------------------------------------------
-
-sub qstat_check {
-    my @lt = `qstat -u u0413537`;
-
-    my $running = 0;
-    foreach my $jobs (@lt) {
-        chomp $jobs;
-        next unless ( $jobs =~ /^\d+/ );
-        my @report = split /\s/, $jobs;
-
-        my @list = grep { /R/ } @report;
-
-        if (@list) { $running++ }
-    }
-    return $running;
-}
-
-#-------------------------------------------------------------------------------
-
-###### md5 ######
 # still need to add to this sub.
 
 sub md5sum {
-    start_log('md5sum');
-
     my $FQDIR = open_dir( $req->{'fastq_dir'} );
 
     foreach my $fq ( $$FQDIR->read ) {
@@ -373,7 +268,6 @@ sub md5sum {
 }
 
 #-------------------------------------------------------------------------------
-
 ###### fastqc ######
 
 sub fastqc {
@@ -407,45 +301,16 @@ sub fastqc {
         push @{ $cmd_list{ $p_file[0] } }, $cmd;
     }
     $$FQDIR->close;
-    ####fastq_reviewer() unless $passfqc;
 }
 
 #-------------------------------------------------------------------------------
-
-sub fastq_reviewer {
-    my @summaries = `find $req->{'fastq_dir'} -name "summary.txt"`;
-    die_messenger("Can't fine fastqc summary.txt files.")
-      if scalar @summaries < 1;
-
-    my $fail = 0;
-    foreach my $report (@summaries) {
-        my @results = `cat $report`;
-
-        foreach my $i (@results) {
-            if ( $i =~ /^FAIL/ ) {
-                $fail++;
-            }
-        }
-    }
-    ( $fail > 0 and !$passfqc )
-      ? die_messenger("one or more fastqc tests failed")
-      : return;
-}
-
-#-------------------------------------------------------------------------------
-
 ###### BWA ######
 
-sub _bwa_index {
-    start_log('bwa_index');
-
+sub bwa_index {
     my $opts = options( 'bwa_index', '-' ) || '';
+    my $cmd = "$soft->{'bwa'}bwa index $opts $req->{'fasta'} 2>> bwa_index.report";
 
-    my $cmd =
-      "$soft->{'bwa'}bwa index $opts $req->{'fasta'} 2>> bwa_index.report";
-    cmd_log($cmd);
-    runner($cmd);
-    end_log('bwa_index');
+    push @{ $cmd_list{'index'} }, $cmd;
 }
 
 #-------------------------------------------------------------------------------
@@ -561,10 +426,24 @@ cd /uufs/chpc.utah.edu/common/home/u0413537/Yandell-scratch/cApTUrE/bin
     }
 
     foreach my $qsub (@pbs) {
-        next if $qsub =~ /Unified_*|Variant_recal_*|Merge_*|Applyed_*/;
+	next unless $qsub =~ /index_*/;
+        print "qsub $qsub &>> qsub_index\n";
+        system "qsub $qsub &>> qsub_index";
+    }
 
-        print "qsub $qsub &>> qsub_align\n";
-        system "qsub $qsub &>> qsub_align";
+    foreach my $qsub (@pbs) {
+        next if $qsub =~ /Unified_*|Variant_recal_*|Merge_*|Applyed_*|index_*|SelectVariants_*|CombineVariants/;
+
+        my @jobs = `cat qsub_index`;
+
+        my @before;
+        foreach my $i (@jobs) {
+            chomp $i;
+            push @before, $i;
+        }
+        my $wait = join( ":", @before );
+        print "qsub -W depend=afterok:$wait $qsub\n";
+        system "qsub -W depend=afterok:$wait $qsub &>> qsub_align";
     }
 
     foreach my $qsub (@pbs) {
@@ -619,6 +498,33 @@ cd /uufs/chpc.utah.edu/common/home/u0413537/Yandell-scratch/cApTUrE/bin
         print "qsub -W depend=afterok:$wait $qsub\n";
         system "qsub -W depend=afterok:$wait $qsub &>> qsub_applyed";
     }
+
+    foreach my $qsub (@pbs) {
+        next unless $qsub =~ /SelectVariants_*/;
+        my @jobs = `cat qsub_applyed`;
+        my @before;
+        foreach my $i (@jobs) {
+            chomp $i;
+            push @before, $i;
+        }
+        my $wait = join( ":", @before );
+        print "qsub -W depend=afterok:$wait $qsub\n";
+        system "qsub -W depend=afterok:$wait $qsub &>> qsub_select_variants";
+    }
+
+    foreach my $qsub (@pbs) {
+        next unless $qsub =~ /CombineVariants*/;
+        my @jobs = `cat qsub_select_variants`;
+        my @before;
+        foreach my $i (@jobs) {
+            chomp $i;
+            push @before, $i;
+        }
+        my $wait = join( ":", @before );
+        print "qsub -W depend=afterok:$wait $qsub\n";
+        system "qsub -W depend=afterok:$wait $qsub &>> qsub_combine_variants";
+    }
+
     return;
 }
 
@@ -681,7 +587,6 @@ sub bwa_sampe {
 }
 
 #-------------------------------------------------------------------------------
-
 ###### Picard and Samtools ######
 
 sub SortSam {
@@ -727,13 +632,17 @@ sub idxstats {
         next unless ( $bam =~ /\_sorted.bam/ );
         ( my $idx_file = $bam ) =~ s/\.bam/\.stats/;
 
+	my $output = "$req->{'fastq_dir'}$idx_file";
+	system("touch $output");
+
         my $idx_cmd =
-		"$soft->{'samtools'}samtools idxstats $req->{'fastq_dir'}$bam > $req->{'fastq_dir'}$idx_file 2>> idxstats.report";
+		"$soft->{'samtools'}samtools idxstats $req->{'fastq_dir'}$bam > $output 2>> idxstats.report";
     }
     $DIR->close;
 }
 
 #-------------------------------------------------------------------------------
+### add flagstat reviewer
 
 sub flagstat {
     my $DIR = open_dir( $req->{'fastq_dir'} );
@@ -753,22 +662,8 @@ sub flagstat {
     $$DIR->close;
 }
 
-### add flagstat reviewer
-
 #-------------------------------------------------------------------------------
-
 ###### Picard ######
-
-sub _BuildBamIndex {
-    my $file = shift;
-
-    my $cmd =
-"java -Xmx$req->{'picard_java_Xmx'}g -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
-      . "-Djava.io.tmpdir=$req->{'java_tmp'} -jar "
-      . "$soft->{'picard'}BuildBamIndex.jar INPUT=$file &>> BamIndex.report";
-}
-
-#-------------------------------------------------------------------------------
 
 sub MarkDuplicates {
     my $DDLIST = IO::File->new( 'dedup_bam.list', 'w' );
@@ -893,8 +788,9 @@ sub CollectMultipleMetrics {
 
     foreach my $bam ( @{$opened} ) {
         chomp $bam;
-
         ( my $w_file = $bam ) =~ s/\.bam$/\.metrics/;
+
+	system("touch $w_file");
 
         my $cmd =
 	    "java -Xmx$req->{'picard_java_Xmx'}g -XX:ParallelGCThreads=$req->{'picard_java_threads'} "
@@ -911,30 +807,25 @@ sub CollectMultipleMetrics {
 }
 
 #-------------------------------------------------------------------------------
-
 ###### GATK ######
 
-sub _gatk_indexer {
+sub gatk_index {
 
     # gatk required use, but is a picard tool
     my $picard = "$soft->{'picard'}CreateSequenceDictionary.jar";
     my $fasta  = "$req->{'fasta'}";
     my $output = "$req->{'fasta'}";
 
-    start_log('GATK_INDEXING');
-
     $output =~ s/(.*)\.(fasta|fa)/$1.dict/;
+    system("touch $output");
     my $picard_cmd = "java -jar $picard R=$fasta O=$output 2>> seq_dict.report";
-    cmd_log($picard_cmd);
-    runner("$picard_cmd");
+    push @{ $cmd_list{'index'} }, $picard_cmd;
 
     # now run to prepare the fasta index file.
     my $samtools = "$soft->{'samtools'}samtools faidx";
     my $sam_cmd  = "$samtools $fasta";
-    cmd_log($sam_cmd);
-    runner("$sam_cmd");
-
-    end_log('GATK_INDEXING');
+    push @{ $cmd_list{'index'} }, $sam_cmd;
+    return;
 }
 
 #-------------------------------------------------------------------------------
@@ -1038,6 +929,7 @@ sub ReduceReads {
 
         $reduced{$output} = '1';
 
+	system("touch $output");
         my $cmd =
 	    "java -Xmx$req->{'gatk_rr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
           . "-XX:ParallelGCThreads=$req->{'picard_java_threads'} $soft->{'gatk'}GenomeAnalysisTK.jar "
@@ -1082,6 +974,8 @@ sub BaseRecalibrator {
         my @p_file = name_parse( $f_name[-1] );
 
     	my $output = "$req->{'fastq_dir'}$req->{'ugp_id'}_recal_data.$p_file[0].table";
+	system("touch $output");
+
         my $cmd =
 	    "java -Xmx$req->{'gatk_br_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
           . "$soft->{'gatk'}GenomeAnalysisTK.jar -T BaseRecalibrator -R $req->{'fasta'} -I $bam $opts "
@@ -1114,6 +1008,7 @@ sub PrintReads {
 
         $recal{$output} = 1;
 
+	system("touch $output");
         my $cmd =
 	    "java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
           . "$soft->{'gatk'}GenomeAnalysisTK.jar -T PrintReads -R $req->{'fasta'} -I $bam $opts "
@@ -1134,18 +1029,15 @@ sub SNP {
     my $unifed_snp   = UnifiedGenotyper_SNP();
     my $unifed_recal = VariantRecalibrator_SNP();
     my $appled_snp   = ApplyRecalibration_SNP();
-
     return;
 }
 
 #-------------------------------------------------------------------------------
 
 sub INDEL {
-#    `rm qsub_applyed qsub_merged qsub_recal qsub_unified`;
     my $unifed_indel = UnifiedGenotyper_INDEL();
     my $unifed_recal = VariantRecalibrator_INDEL();
     my $appled_indel = ApplyRecalibration_INDEL();
-
     return;
 }
 
@@ -1469,43 +1361,36 @@ sub VariantPrepare {
     ( my $output_indel = $indel_variant ) =~
       s/_applyed_filtered_INDEL.vcf/_applyed_filtered_INDEL_subset.vcf/;
 
+	system("touch $output_snp $output_indel $final_variant");
+
     my $snp_opts   = options( 'SelectVariants_SNP',   '--' ) || '';
     my $indel_opts = options( 'SelectVariants_INDEL', '--' ) || '';
     my $final_opts = options( 'CombineVariants',      '--' ) || '';
 
-    start_log('SelectVariants_SNP');
     my $svs_cmd =
 	"java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T SelectVariants -R $req->{'fasta'} $snp_opts "
       . "$sn --variant $snp_variant -o $output_snp &> SelectVariants_SNP.report";
 
-    cmd_log($svs_cmd);
-    runner($svs_cmd);
-    end_log('SelectVariants_SNP');
+    push @{ $cmd_list{'SelectVariants_SNP'} }, $svs_cmd;
 
-    start_log('SelectVariants_INDEL');
     my $svi_cmd =
 	"java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T SelectVariants -R $req->{'fasta'} $indel_opts "
       . "$sn --variant $indel_variant -o $output_indel &> SelectVariants_INDEL.report";
 
-    cmd_log($svi_cmd);
-    runner($svi_cmd);
-    end_log('SelectVariants_INDEL');
+    push @{ $cmd_list{'SelectVariants_INDEL'} }, $svi_cmd;
 
-    start_log('CombineVariants');
     my $cv_cmd =
 	"java -Xmx$req->{'gatk_pr_Xmx'}g -jar -Djava.io.tmpdir=$req->{'java_tmp'} "
       . "$soft->{'gatk'}GenomeAnalysisTK.jar -T CombineVariants -R $req->{'fasta'} $final_opts "
       . "--variant $output_snp --variant $output_indel -o $final_variant &> CombineVariants.report";
 
-    cmd_log($cv_cmd);
-    runner($cv_cmd);
-    end_log('CombineVariants');
+    push @{ $cmd_list{'CombineVariants'} }, $cv_cmd;
+	return;
 }
 
 #-------------------------------------------------------------------------------
 
-$CMDLOG->close;
 close STDERR;
 
