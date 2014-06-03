@@ -1,4 +1,0 @@
-BWA_mem:complete
-Picard_SortSam:complete
-Picard_MarkDuplicates:complete
-GATK_RealignerTargetCreator:complete
