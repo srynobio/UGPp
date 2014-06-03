@@ -1,8 +1,5 @@
-&nbsp;
 
-<strong>NAME</strong>
-
-cApTUrE - vAriant collecTing UGP pipeline
+<strong>cApTUrE - vAriant collecTing UGP pipeline</strong>
 
 <strong>VERSION</strong>
 
@@ -82,13 +79,13 @@ After downloading and installing all dependences, a typical setup and run would 
 
 <em>Setting up the config file</em>:
 
-Often many of the values in the config file can be set on a per-machine basis, creating essentially a new master file.  Examples of these would be known indel files, VQSR VCFs, BAM background files, and software paths.  Therefore what you will change each run will be the ugp_id, fastq dir, and possibly the run order.  The cpu, and memory setting can change each run and <em>ResourceAllocator</em> will alter these values.
+Often many of the values in the config file can be set on a per-machine basis, creating essentially a new master file.  Examples of these would be known indel files, VQSR VCFs, BAM background files, and software paths.  Therefore what you will change each run will be the ugp_id, fastq dir, and possibly the run order.
 
 <em>Running cApTUrE:</em>
 
 It is recommend that the unix command <a href="http://www.computerhope.com/unix/screen.htm" target="_blank">screen</a> be used.
 
-When cApTUrE runs it will create a number of log, list, error and report file.  One of these will be PROGRESS.  This file will keep track of each step of the order process, and is one that will be used and reviewed often throughout the pipeline; typically if you have failed runs.  Also, as cApTUrE work through each step of the pipeline, it will create list files which are collections of BAM and VCF files from the previous steps.  Furthermore, a cmd.log file will be generated which will keep track of the times of each command and the commandlines each used.
+When cApTUrE runs it will create a number of log, list, error and report file.  One of these will be PROGRESS.  This file will keep track of each step of the order process, and is one that will be used and reviewed often throughout the pipeline; typically if you have failed runs.  Furthermore, a cmd.log file will be generated which will keep track of the times of each command and the commandlines each used.
 
 Error tracking is usually done by reviewing error, log, progress and report files.
 
