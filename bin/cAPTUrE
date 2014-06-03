@@ -50,8 +50,16 @@ Additional options:
 \n";
 
 my %c_opts = ();
-GetOptions( \%c_opts, "config|cfg=s", "run|r", "interval_list|il=s",
-    "engine|e=s", "clean|c", "file|f=s", "help|h", );
+GetOptions(
+    \%c_opts,
+    "config|cfg=s",
+    "run|r",
+    "interval_list|il=s",
+    "engine|e=s",
+    "clean|c",
+    "file|f=s",
+    "help|h"
+);
 croak $usage if $c_opts{help};
 
 # set up commandline defaults.
