@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 use strict;
 use warnings;
 use IO::File;
@@ -6,6 +6,7 @@ use Getopt::Long;
 use FindBin;
 use lib "$FindBin::Bin/../../perl_libs/";
 use List::MoreUtils qw{ distinct };
+use Carp;
 
 my $usage = "
 
@@ -37,8 +38,8 @@ GetOptions(
     "padding|p=i" => \$pad,
     "help|h"      => \$help,
 );
-unless ( $feature ) { die $usage }
-die $usage if $help;
+unless ( $feature ) { croak $usage }
+croak $usage if $help;
 
 print "Downloading BUILD.37.3 GFF3 file\n";
 system("wget ftp://ftp.ncbi.nlm.nih.gov/genomes/H_sapiens/ARCHIVE/BUILD.37.3/GFF/ref_GRCh37*level.gff3.gz");
@@ -81,15 +82,15 @@ print "Finished\n";
 sub updateGATKGFF {
 
     my $inFH = IO::File->new( 'ref_GRCh37.gff3', 'r' )
-      || die "please enter ref file\n";
+      || croak "please enter ref file\n";
     my $outFH = IO::File->new( 'Updated.ref_GRCh37.gff3', 'w' )
-      || die "Can't create Update.ref.model file\n";
+      || croak "Can't create Update.ref.model file\n";
 
     foreach (<$inFH>) {
         chomp $_;
 
         if ( $_ !~ /^NC_/ )   { next }
-        if ( $_ =~ /region/ ) { next }
+        if ( $_ =~ /region/  && $feature ne 'region') { next }
 
         # changing to MT, X, Y
         $_ =~ s/^NC_012920.1/MT/g;

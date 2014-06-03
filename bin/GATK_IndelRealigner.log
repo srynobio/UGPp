@@ -1,0 +1,38 @@
+INFO  17:05:00,592 HelpFormatter - --------------------------------------------------------------------------------------------- 
+INFO  17:05:00,595 HelpFormatter - The Genome Analysis Toolkit (GATK) vnightly-2014-01-09-g3462453, Compiled 2014/01/09 00:01:12 
+INFO  17:05:00,595 HelpFormatter - Copyright (c) 2010 The Broad Institute 
+INFO  17:05:00,595 HelpFormatter - For support and documentation go to http://www.broadinstitute.org/gatk 
+INFO  17:05:00,600 HelpFormatter - Program Args: -T IndelRealigner -R /data/srynearson/gatk_reference/human_g1k_v37_decoy.fasta -I /data2/1000_Genomes_Called_GATK_3.0/GBR/ERR031936_5_sorted_Dedup.bam -targetIntervals /data2/1000_Genomes_Called_GATK_3.0/GBR/GBR_Background_realign.intervals/data2/1000_Genomes_Called_GATK_3.0/GBR/GBR_Background_realign.intervals -known /data/GATK_Bundle/Mills_and_1000G_gold_standard.indels.b37.vcf -known /data/GATK_Bundle/1000G_phase1.indels.b37.vcf -o /data2/1000_Genomes_Called_GATK_3.0/GBR/ERR031936_5_sorted_Dedup_realign.bam 
+INFO  17:05:00,601 HelpFormatter - Date/Time: 2014/06/02 17:05:00 
+INFO  17:05:00,601 HelpFormatter - --------------------------------------------------------------------------------------------- 
+INFO  17:05:00,601 HelpFormatter - --------------------------------------------------------------------------------------------- 
+INFO  17:05:00,614 ArgumentTypeDescriptor - Dynamically determined type of /data/GATK_Bundle/Mills_and_1000G_gold_standard.indels.b37.vcf to be VCF 
+INFO  17:05:00,617 ArgumentTypeDescriptor - Dynamically determined type of /data/GATK_Bundle/1000G_phase1.indels.b37.vcf to be VCF 
+INFO  17:05:00,878 GenomeAnalysisEngine - Strictness is SILENT 
+INFO  17:05:01,005 GenomeAnalysisEngine - Downsampling Settings: No downsampling 
+INFO  17:05:01,014 SAMDataSource$SAMReaders - Initializing SAMRecords in serial 
+INFO  17:05:01,036 SAMDataSource$SAMReaders - Done initializing BAM readers: total time 0.02 
+INFO  17:05:01,057 RMDTrackBuilder - Loading Tribble index from disk for file /data/GATK_Bundle/Mills_and_1000G_gold_standard.indels.b37.vcf 
+INFO  17:05:01,145 RMDTrackBuilder - Loading Tribble index from disk for file /data/GATK_Bundle/1000G_phase1.indels.b37.vcf 
+INFO  17:05:01,255 GenomeAnalysisEngine - Preparing for traversal over 1 BAM files 
+INFO  17:05:01,261 GenomeAnalysisEngine - Done preparing for traversal 
+INFO  17:05:01,261 ProgressMeter - [INITIALIZATION COMPLETE; STARTING PROCESSING] 
+INFO  17:05:01,261 ProgressMeter -        Location processed.reads  runtime per.1M.reads completed total.runtime remaining 
+INFO  17:05:02,731 GATKRunReport - Uploaded run statistics report to AWS S3 
+##### ERROR ------------------------------------------------------------------------------------------
+##### ERROR A USER ERROR has occurred (version nightly-2014-01-09-g3462453): 
+##### ERROR
+##### ERROR This means that one or more arguments or inputs in your command are incorrect.
+##### ERROR The error message below tells you what is the problem.
+##### ERROR
+##### ERROR If the problem is an invalid argument, please check the online documentation guide
+##### ERROR (or rerun your command with --help) to view allowable command-line arguments for this tool.
+##### ERROR
+##### ERROR Visit our website and forum for extensive documentation and answers to 
+##### ERROR commonly asked questions http://www.broadinstitute.org/gatk
+##### ERROR
+##### ERROR Please do NOT post this error to the GATK forum unless you have really tried to fix it yourself.
+##### ERROR
+##### ERROR MESSAGE: Couldn't read file /data2/1000_Genomes_Called_GATK_3.0/GBR/GBR_Background_realign.intervals/data2/1000_Genomes_Called_GATK_3.0/GBR/GBR_Background_realign.intervals because The interval file does not exist.
+##### ERROR ------------------------------------------------------------------------------------------
+-

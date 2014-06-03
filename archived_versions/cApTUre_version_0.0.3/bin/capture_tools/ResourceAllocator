@@ -1,0 +1,168 @@
+#!/usr/bin/perl
+# ResourceAllocator
+use warnings;
+use strict;
+use FindBin;
+use lib "$FindBin::Bin/../../perl_libs/";
+use Config::Std;
+use Getopt::Long;
+
+my $usage = "
+
+Synopsis:
+
+        ResourceAllocator --cpu 48 --memory 256 --fastq_num 8 --individuals 4
+        ResourceAllocator -c 48 -m 256 -fn 8 -i 4 -cfg configure/cApTUrE.cfg -nc configure/new.cfg
+
+Description:
+
+	Take known resource information and reports best fit settings to allow
+        cApTUrE to utilize all memory and cpu.  ResourceAllocator will report
+        best cpu and memory suggestions in addition to current config settings.
+        Update option will allow configure file to reflect these changes.
+
+Required options:
+
+	--cpu|c          : Total number of machine CPUs or desired amount.
+
+        --memory|m       : Total memory of machine or disired amount in GB.
+        
+        --fastq_num|fn   : Total number of fastq file to be use in cApTUrE run.
+        
+        --pairs_number|p : Total number if pairs the fastq files represent.
+
+        --config|cfg     : specific configure file to update.
+
+Additional options:
+	--UG_mem|um     : Allow user to change amount of memory UG gets.
+                          Default is 32G. Better to not use this option if 
+			  working on machine with low memory.
+	
+	--new_conf|nc   : Using this option will create a new configure file 
+                          and not write over the original. Filename required.
+
+	--help|h        : Prints this usage statement.
+    
+\n";
+
+my ( $cpu, $mem, $fn, $pair, $cfg, $um, $nc, $help );
+GetOptions(
+    "cpu|c=i"          => \$cpu,
+    "memory|m=i"       => \$mem,
+    "fastq_num|fn=i"   => \$fn,
+    "pairs_number|p=s" => \$pair,
+    "config|cfg=s"     => \$cfg,
+    "UG_mem|um=i"      => \$um,
+    "new_conf|nc=s"    => \$nc,
+    "help|h"           => \$help,
+);
+die $usage if $help;
+die $usage unless ( $cpu and $mem and $fn and $pair );
+
+# read the config file.
+read_config $cfg => my %cf;
+
+## FASTQC, BWA
+# all running full number of fastq files.
+$cf{'required'}{'cpu'}   = $cpu;
+$cf{'fastqc'}{'threads'} = int( $cpu / $fn );
+$cf{'bwa_aln'}{'t'}      = int( $cpu / $fn );
+$cf{'bwa_mem'}{'t'}      = int( $cpu / ( $fn / 2 ) );
+
+# before merge or mark steps files will be halved.
+my $new_fq = $pair;
+
+## PICARD
+memory_allocate( '50', 'required', 'picard_java_Xmx' );
+$cf{'required'}{'picard_java_threads'} = int( $cpu / $pair );
+
+# RealignerTargetCreator
+# memory and cpu
+memory_allocate( '600', 'required', 'gatk_tc_Xmx' );
+$cf{'RealignerTargetCreator'}{'num_threads'} = $cpu;
+
+# IndelRealigner
+memory_allocate( '600', 'required', 'gatk_ir_Xmx' );
+
+# BaseRecalibrator
+memory_allocate( '600', 'required', 'gatk_br_Xmx' );
+$cf{'BaseRecalibrator'}{'num_cpu_threads_per_data_thread'} = int( $cpu / $fn );
+
+# PrintReads
+memory_allocate( '600', 'required', 'gatk_pr_Xmx' );
+$cf{'PrintReads'}{'num_cpu_threads_per_data_thread'} = int( $cpu / $fn );
+
+# ReduceReads
+memory_allocate( '600', 'required', 'gatk_rr_Xmx' );
+
+# UG memory
+my $ug_mem_user = $um || '32';
+
+# UnifiedGenotyper_SNP
+my $nt_snp  = '4';
+my $nct_snp = int( $cpu / $nt_snp );
+
+$cf{'required'}{'gatk_ug_Xmx'}                                 = $ug_mem_user;
+$cf{'UnifiedGenotyper_SNP'}{'num_threads'}                     = $nt_snp;
+$cf{'UnifiedGenotyper_SNP'}{'num_cpu_threads_per_data_thread'} = $nct_snp;
+
+# UnifiedGenotyper_INDEL
+my $nt_indel  = '4';
+my $nct_indel = int( $cpu / $nt_indel );
+
+$cf{'required'}{'gatk_ug_Xmx'}                                   = $ug_mem_user;
+$cf{'UnifiedGenotyper_INDEL'}{'num_threads'}                     = $nt_indel;
+$cf{'UnifiedGenotyper_INDEL'}{'num_cpu_threads_per_data_thread'} = $nct_indel;
+
+# VariantRecalibrator
+$cf{'VariantRecalibrator_SNP'}{'num_threads'}   = int($cpu);
+$cf{'VariantRecalibrator_INDEL'}{'num_threads'} = int($cpu);
+
+# ApplyRecalibration
+$cf{'ApplyRecalibration_SNP'}{'num_threads'}   = int($cpu);
+$cf{'ApplyRecalibration_INDEL'}{'num_threads'} = int($cpu);
+
+## Report
+unless ($nc) {
+    print "
+# The following are suggested setting for cApTUrE config file given the following options.
+
+Number of fastq files : $fn
+Number of CPUs        : $cpu
+Total memory(Gb)      : $mem\n\n" . "---" x 20, "\n";
+
+    foreach my $sub ( sort keys %cf ) {
+        print $sub, " -----\n";
+        foreach my $opt ( keys %{ $cf{$sub} } ) {
+            next unless ( $cf{$sub}{$opt} );
+            if ( ref $cf{$sub}{$opt} eq 'ARRAY' ) {
+                map { print "\t$_\n" } @{ $cf{$sub}{$opt} };
+                next;
+            }
+            print "\t$opt\t$cf{$sub}{$opt}\n";
+        }
+    }
+}
+
+#update the config file if user wants.
+if ($nc) {
+    write_config %cf, $nc;
+}
+
+#---- sub ----#
+
+sub memory_allocate {
+    my ( $max, $section, $command ) = @_;
+    my $memory = int( $mem / $new_fq ) - 12;
+
+    if ( $memory > $max ) {
+        $cf{$section}{$command} = $max;
+    }
+    else {
+        $cf{$section}{$command} = $memory;
+    }
+    return;
+}
+
+#-------------
+

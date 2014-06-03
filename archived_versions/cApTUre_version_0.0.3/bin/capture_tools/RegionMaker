@@ -1,0 +1,107 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use IO::File;
+use Getopt::Long;
+use FindBin;
+use lib "$FindBin::Bin/../../perl_libs/";
+use List::MoreUtils qw{ distinct };
+
+my $usage = "
+
+Synopsis:
+
+        RegionMaker -f exon -p 25
+
+Description:
+
+	RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file
+	to be used with UnifiedGenotyper to decrease runtime when using a high number of 
+	background files.
+
+Required options:
+
+	--feature|f  : GFF3 feature to create regions. Must match exactly to GFF feature.
+
+Additional options:
+        
+	--padding|p  : Additional number of base-pairs to add to the start and end of a region.
+
+	--help|h     : Prints this usage statement.
+				
+\n";
+
+my ( $feature, $pad, $help );
+GetOptions(
+    "feature|f=s" => \$feature,
+    "padding|p=i" => \$pad,
+    "help|h"      => \$help,
+);
+unless ( $feature ) { die $usage }
+die $usage if $help;
+
+print "Downloading BUILD.37.3 GFF3 file\n";
+system("wget ftp://ftp.ncbi.nlm.nih.gov/genomes/H_sapiens/ARCHIVE/BUILD.37.3/GFF/ref_GRCh37*level.gff3.gz");
+system("mv ref_GRCh37*level.gff3.gz ref_GRCh37.gff3.gz");
+print "working...\n";
+system("gunzip ref_GRCh37.gff3.gz");
+updateGATKGFF();
+print "Sorting GFF3 file\n";
+system(
+    "sort -k1,1 -k4,4n Updated.ref_GRCh37.gff3 > Updated.ref_GRCh37.sorted.gff3"
+);
+
+my $FI = IO::File->new( 'Updated.ref_GRCh37.sorted.gff3', 'r' );
+my $FO = IO::File->new( "$feature" . "_Region.list",      'w' );
+
+my $buffer = $pad || '0';
+
+my @collection;
+foreach my $i (<$FI>) {
+    chomp $i;
+    next if ( $i =~ /^#/ );
+    my @line = split( "\t", $i );
+
+    next unless ( $line[2] eq $feature );
+    my $start = $line[3] - $buffer;
+    my $end   = $line[4] + $buffer;
+
+    my $postion = "$line[0]:$start-$end";
+    push @collection, $postion;
+}
+
+my @uniq = distinct(@collection);
+
+map { print $FO "$_\n" } @uniq;
+
+`rm Updated* ref_GRCh37.gff3`;
+print "Finished\n";
+
+####--------------------------------------------------------------------
+sub updateGATKGFF {
+
+    my $inFH = IO::File->new( 'ref_GRCh37.gff3', 'r' )
+      || die "please enter ref file\n";
+    my $outFH = IO::File->new( 'Updated.ref_GRCh37.gff3', 'w' )
+      || die "Can't create Update.ref.model file\n";
+
+    foreach (<$inFH>) {
+        chomp $_;
+
+        if ( $_ !~ /^NC_/ )   { next }
+        if ( $_ =~ /region/  && $feature ne 'region') { next }
+
+        # changing to MT, X, Y
+        $_ =~ s/^NC_012920.1/MT/g;
+        $_ =~ s/^NC_000023.(\d+)?/X/g;
+        $_ =~ s/^NC_000024.(\d+)?/Y/g;
+
+        $_ =~ s/^NC_(0){5,5}(\d)\.(\d+)\t(.*)$/$2\t$4/g;
+        $_ =~ s/^NC_(0){4,4}(\d+)\.(\d+)\t(.*)$/$2\t$4/g;
+
+        print $outFH $_, "\n";
+    }
+    $outFH->close;
+}
+####--------------------------------------------------------------------
+

@@ -6,15 +6,17 @@ cApTUrE - vAriant collecTing UGP pipeline
 
 <strong>VERSION</strong>
 
-This document describes version 0.0.5
+This document describes version 1.0.3
 
 <strong>SYNOPSIS</strong>
 
-./cApTUrE configure/capture.cfg -rr 3
+    ./cApTUrE --config file.cfg --interval_list file.list --run
+    ./cApTUrE --config file.cfg --file sorted_bams.list --run
+    ./cApTUrE --clean
 
 <strong>DESCRIPTION</strong>
 
-cApTUrE is a lightweight pipeline written in Perl, created for the
+cApTUrE is a NGS pipeline written in Perl, created for the
 <a href="http://weatherby.genetics.utah.edu/UGP/wiki/index.php/Main_Page" target="_blank">Utah Genome Project (UGP)</a>
 
 Currently it incorporates the following tools:
@@ -23,7 +25,7 @@ Currently it incorporates the following tools:
 	<li>BWA</li>
 	<li>SAMtools</li>
 	<li>Picard</li>
-	<li>GATK</li>
+	<li>GATK 3.0+</li>
 </ul>
 
 cApTUrE requires a config file given as the first commandline argument.
@@ -34,12 +36,12 @@ GATKs best practices (with some modifications) are followed throughout this pipe
 <strong>INSTALLATION</strong>
 
 <em>Perl Modules:</em>
-These Modules are included with cApTUrE.
+Modules which cApTUrE requires.
 <ul>
+	<li>Moo</li>
+	<li>MCE</li>
 	<li>Config::Std</li>
 	<li>IPC::System::Simple</li>
-	<li>Parallel::ForkManager</li>
-	<li>List::MoreUtils</li>
 </ul>
 
 <em>External required software:</em>
@@ -58,6 +60,7 @@ cApTUrE's file structure:
 cApTUrE/data:
 <ul>
 	<li><em>exon_Region.list</em> - Region file created for the standard UGP pipeline.</li>
+	<li><em>exome.analysis.sequence.index</em> - 1000Genomes region file used to download exome data, used with Thousand_genome_recreator.pl.</li> 
 </ul>
 cApTUrE/bin:
 <ul>
@@ -65,15 +68,12 @@ cApTUrE/bin:
 </ul>
 cApTUrE/bin/configure:
 <ul>
-	<li><em>capture_master.cfg</em> - This is the main configure file used to run the UGP pipeline, but can also be used as an example template for future project.  This configure is also used to run ResourceAllocator</li>
-	<li><em>cluster.cfg</em> - This is the main configure file used to run the UGP pipeline on the CHPC cluster.</li>
+	<li><em>capture.cfg</em> - This is the main configure file used to run the UGP pipeline, but can also be used as an example template for future project.
 </ul>
 cApTUrE/bin/capture_tools:
 <ul>
-	<li><em>clUsTEr</em> - CHPC cluster script</li>
-	<li><em>ResourceAllocator</em> -Take known resource information and reports best fit settings to allow cApTUrE to utilize all memory and cpu. ResourceAllocator will report best cpu and memory suggestions in addition to current config settings. Update option will allow configure file to reflect these changes.</li>
-	<li><em>KillcApTUrE</em> - Often when running a large pipeline you will set the job to run in the background, KillcApTUrE allows users to kill all job assocated with their USER id, which will end all instances of cApTUrE, and any child jobs associated with it, i.e. bwa runs, etc.</li>
 	<li><em>RegionMaker</em> - RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file to be used with UnifiedGenotyper to decrease runtime when using a high number of background files.</li>
+	<li><em>Thousand_genome_recreator.pl</em> - Will download 1000Genomes data from their site via ftp.
 </ul>
 
 <strong>RUNNING CAPTURE:</strong>
@@ -88,13 +88,13 @@ Often many of the values in the config file can be set on a per-machine basis, c
 
 It is recommend that the unix command <a href="http://www.computerhope.com/unix/screen.htm" target="_blank">screen</a> be used.
 
-When cApTUrE runs it will create a number of log, list, error and report file.  One of these will be progress.log.  This file will keep track of each step of the order process, and is one that will be used and reviewed often throughout the pipeline; typically if you have failed runs.  Also, as cApTUrE work through each step of the pipeline, it will create list files which are collections of BAM and VCF files from the previous steps.  Furthermore, a cmd.log file will be generated which will keep track of the times of each command and the commandlines each used.
+When cApTUrE runs it will create a number of log, list, error and report file.  One of these will be PROGRESS.  This file will keep track of each step of the order process, and is one that will be used and reviewed often throughout the pipeline; typically if you have failed runs.  Also, as cApTUrE work through each step of the pipeline, it will create list files which are collections of BAM and VCF files from the previous steps.  Furthermore, a cmd.log file will be generated which will keep track of the times of each command and the commandlines each used.
 
 Error tracking is usually done by reviewing error, log, progress and report files.
 
 <strong>INCOMPATIBILITIES</strong>
 
-None know, although not tested on Microsoft.
+None know, although not tested on Microsoft or OSX.
 
 <strong>BUGS AND LIMITATIONS</strong>
 

@@ -1,0 +1,68 @@
+#!/usr/bin/env perl
+# cAPTUrE 1.0.3
+use strict;
+use warnings;
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+use DuctTape;
+use Getopt::Long;
+use Carp;
+
+my $usage = "
+
+Synopsis:
+    ./cApTUrE --config file.cfg --interval_list file.list --run
+    ./cApTUrE --config file.cfg --file sorted_bams.list --run
+    ./cApTUrE --clean 
+
+Description:
+
+    cApTUrE:  vAriant collecTing UGP pipeline version: 1.0.3
+
+    cApTUrE is a NGS pipeline written in Perl, created for the
+    Utah Genome Project (UGP) http://weatherby.genetics.utah.edu/UGP/wiki/index.php/Main_Page
+
+    Currently it incorporates the following tools:
+        -FastQC
+        -BWA
+        -SamTools
+        -Picard
+        -GATK 3.0
+
+    This version of cApTUrE is now updated to work with version 3.0+ of GATK.
+
+Required options:
+
+    -cfg, --config  UGP configuration file.
+
+Additional options:
+
+    -il, --interval_list    Region list file for GATK variant calling.
+
+    -f, --file  Will take file list as input if beginning cApTUrE with previously
+                collected files.  File must match previous step cApTUrE would have ran.
+
+    -r, --run   Will take given command stack and run commands.
+                When this option off a display of commands will piped to STDOUT.
+
+    -c, --clean Will clean up all log, data, pbs, index and report files.
+
+\n";
+
+my %c_opts = ();
+GetOptions( \%c_opts, "config|cfg=s", "run|r", "interval_list|il=s",
+    "engine|e=s", "clean|c", "file|f=s", "help|h", );
+croak $usage if $c_opts{help};
+
+# set up commandline defaults.
+if ( $c_opts{clean} ) {
+    `rm -rf *log CMD_stack.store *.pbs *.pbs.* launch.index cmd_tmp pbs_tmp`;
+    exit(0);
+}
+$c_opts{engine} //= 'MCE';
+
+#croak "need interval_list file.\n$usage" unless $c_opts{interval_list};
+
+my $t = DuctTape->new( commandline => \%c_opts, );
+
+$t->wrap;

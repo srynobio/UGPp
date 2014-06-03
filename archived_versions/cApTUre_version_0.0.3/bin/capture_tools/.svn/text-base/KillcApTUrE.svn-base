@@ -1,0 +1,72 @@
+#!/usr/bin/perl
+# KillcApTUrE
+use strict;
+use warnings;
+use Getopt::Long;
+
+my $usage = "
+
+Synopsis:
+
+        KillcApTUrE --seek
+        KillcApTUrE --destroy --keep \"26934 26935 26936\"
+
+Description:
+
+	Often when running a large pipeline you will set the job to run in the background,
+	KillcApTUrE allows users to kill all job assocated with their USER id, which will end 
+	all instances of cApTUrE, and any child jobs associated with it, i.e. bwa runs, etc.
+	** All jobs associated with a given USER will be terminated. **
+
+Required options:
+
+	--user|u     : User name on server.
+
+        --seek|s     : Will output for review all jobs running under given USER.
+
+	or
+
+        --destroy|d  : Will kill ALL USERs PIDs
+
+Additional options:
+
+	--keep|k     : Space seperate list of PID (from seek), user would like
+		       to keep active.
+				
+\n";
+
+my ( $sk, $dy, $ur, $kp );
+GetOptions(
+    "user|u=s"  => \$ur,
+    "seek|s"    => \$sk,
+    "keep|k=s"  => \$kp,
+    "destroy|d" => \$dy,
+);
+
+unless ( $ur and $sk or $dy ) { die "$usage" }
+
+# keep list
+my %wanted = map { $_ => '1' } split /\s+/, $kp if $kp;
+
+# collect all user processes.
+my @ps_list = `ps -u $ur |column -t`;
+
+foreach my $jobs (@ps_list) {
+    chomp $jobs;
+
+    next if ( $jobs =~ /^PID/ );
+
+    if ($sk) {
+        print "$jobs\n";
+        next;
+    }
+
+    my @kill_list = split /\s+/, $jobs;
+
+    # wait, don't kill me
+    next if $wanted{ $kill_list[0] };
+
+    `kill $kill_list[0]`;
+    print "RIP: $kill_list[0]\n";
+}
+
