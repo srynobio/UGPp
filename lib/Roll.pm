@@ -13,9 +13,9 @@ state %stored;
 #---------------------- ATTRIBUTES -------------------------
 #-----------------------------------------------------------
 
-has VERSION => (
-    is      => 'ro',
-    default => sub { '0.1.3' },
+has VERSION => ( 
+	is => 'ro',
+	default => sub { '0.1.3' }, 
 );
 
 has commandline => (
@@ -48,11 +48,11 @@ has programs => (
 );
 
 has data => (
-    is      => 'ro',
-    default => sub {
-        my $self = shift;
-        return $self->config->{main}->{data};
-    },
+	is => 'ro',
+	default => sub {
+		my $self = shift;
+		return $self->config->{main}->{data};
+	},
 );
 
 has order => (
@@ -68,17 +68,17 @@ has cpu => (
     default => sub {
         my $self = shift;
         my $cpu = $self->config->{main}->{cpu} || '1';
-        return $cpu if 'auto';
-        return $cpu + 1;
+	return $cpu if 'auto';
+	return $cpu + 1;
     },
 );
 
 has execute => (
-    is      => 'ro',
-    default => sub {
-        my $self = shift;
-        return $self->commandline->{run};
-    },
+	is => 'ro',
+	default => sub {
+		my $self = shift;
+		return $self->commandline->{run};
+	},
 );
 
 #-----------------------------------------------------------
@@ -92,7 +92,7 @@ sub _build_data {
 
     unless ( -e $data_path ) {
         $self->WARN("Data directory not found our not used");
-        return;
+	return;
     }
 
     unless ( $data_path =~ /\/$/ ) {
@@ -138,17 +138,17 @@ sub next {
 #-----------------------------------------------------------
 
 sub timestamp {
-    my $self = shift;
-    my $time = localtime;
-    return $time;
+	my $self = shift;
+	my $time = localtime;
+	return $time;
 }
 
 #-----------------------------------------------------------
 
 sub WARN {
-    my ( $self, $message ) = @_;
-    print STDOUT carp "$message\n";
-    return;
+	my ( $self, $message ) = @_;
+	print STDOUT carp "$message\n";
+	return;
 }
 
 #-----------------------------------------------------------
@@ -181,12 +181,12 @@ sub LOG {
         print $LOG "-" x 55;
         print $LOG "\n----- UGP Pipeline -----\n";
         print $LOG "-" x 55;
-        print $LOG "\nRan on ", $self->timestamp;
+        print $LOG "\nRan on ",  $self->timestamp;
         print $LOG "\nUsing the following programs:\n";
         print $LOG "\nUGP Pipeline Version: ", $self->VERSION, "\n";
-        print $LOG "BWA: " . $self->main->{bwa_version},           "\n";
-        print $LOG "Picard: " . $self->main->{picard_version},     "\n";
-        print $LOG "GATK: " . $self->main->{gatk_version},         "\n";
+        print $LOG "BWA: "      . $self->main->{bwa_version}, "\n";
+        print $LOG "Picard: "   . $self->main->{picard_version}, "\n";
+        print $LOG "GATK: "     . $self->main->{gatk_version}, "\n";
         print $LOG "SamTools: " . $self->main->{samtools_version}, "\n";
         print $LOG "-" x 55, "\n";
     }
@@ -200,10 +200,10 @@ sub LOG {
         print $LOG "Process finished $message at ", $self->timestamp, "\n";
         print $LOG "-" x 55, "\n";
     }
-    elsif ( $type eq 'progress' ) {
-        my $PROG = IO::File->new( 'PROGRESS', 'a+' );
-        print $PROG "$message:complete\n";
-        $PROG->close;
+    elsif( $type eq 'progress' ) {
+	my $PROG = IO::File->new('PROGRESS', 'a+' );
+	print $PROG "$message:complete\n";
+	$PROG->close;
     }
     else {
         $self->ERROR("Requested LOG message type unknown\n");
@@ -215,65 +215,67 @@ sub LOG {
 #-----------------------------------------------------------
 
 sub file_store {
-    my ( $self, $file ) = @_;
+	my ($self, $file)  = @_;
 
-    my $caller = ( caller(1) )[3];
-    my ( $class, $method ) = split "::", $caller;
-    push @{ $stored{$method} }, $file if $file;
-    return;
+	my $caller = ( caller(1) )[3];
+	my($class, $method) = split "::", $caller;
+	push @{$stored{$method}}, $file if $file;
+	return;
 }
 
 #-----------------------------------------------------------
 
 sub file_retrieve {
-    my ( $self, $class ) = @_;
-    $self->ERROR( "Method file_retrieve mush have requested class" )
-      unless $class;
+        my ($self, $class) = @_;
+        $self->ERROR(
+                "Method file_retrieve mush have requested class"
+        ) unless $class;
 
-    if ( $self->{commandline}->{file} and !-e 'CMD_stack.store' ) {
-        $self->_make_storable($class);
-        return $stored{$class};
-    }
+	if ($self->{commandline}->{file} and ! -e 'CMD_stack.store') {
+		$self->_make_storable($class);
+		return $stored{$class};
+	}
 
-    unless ( keys %stored ) {
-        my $stack = retrieve('CMD_stack.store');
-        %stored = %{$stack};
-        return $stored{$class};
-    }
-    else {
-        my $clone;
-        if ( $stored{$class} ) {
-            $clone = dclone( $stored{$class} );
+        unless (keys %stored) {
+                my $stack = retrieve('CMD_stack.store');
+                %stored = %{$stack};
+                return $stored{$class};
         }
         else {
-            $clone = undef;
+                my $clone;
+                if ( $stored{$class} ) {
+                        $clone = dclone($stored{$class});
+                }
+                else {
+                        $clone = undef;
+                }
+                return $clone;
         }
-        return $clone;
-    }
 }
 
 #-----------------------------------------------------------
 
 sub _make_storable {
-    my ( $self, $class ) = @_;
-    my $list = $self->{commandline}->{file};
+	my ($self, $class) = @_;
+	my $list = $self->{commandline}->{file};
 
-    my $FH = IO::File->new($list)
-      or $self->ERROR( "Given File $list can not be opened or corrupt" );
+	my $FH = IO::File->new($list) or $self->ERROR(
+		"Given File $list can not be opened or corrupt"
+	);
 
-    foreach my $file (<$FH>) {
-        chomp $file;
-        push @{ $stored{$class} }, $file if $file;
-    }
-    $FH->close;
-    return;
+	foreach my $file ( <$FH> ) {
+		chomp $file;
+		push @{$stored{$class}}, $file if $file;
+	}
+	$FH->close;
+	return;
 }
 
 #-----------------------------------------------------------
 
 sub DEMOLISH {
-    my $self = shift;
-    store \%stored, 'CMD_stack.store' unless ( -e 'CMD_stack.store' );
+	my $self = shift;
+	store \%stored, 'CMD_stack.store' unless (-e 'CMD_stack.store');
 }
 
 #-----------------------------------------------------------

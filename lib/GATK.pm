@@ -138,9 +138,10 @@ sub GATK_BaseRecalibrator {
         $tape->file_store($output);
 
         my $cmd =
-          sprintf( "java -jar -Xmx%s -Djava.io.tmpdir=%s %s "
-              . "-T BaseRecalibrator -R %s -I %s %s %s -o %s\n",
-            $opts->{java_xmx}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta},
+          sprintf( 
+		"java -jar -Xmx%s -XX:ParallelGCThreads=%s "
+		. "-Djava.io.tmpdir=%s %s -T BaseRecalibrator -R %s -I %s %s %s -o %s\n",
+            $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta},
             $aln, $tape->ddash, $tape->dbsnp, $output );
         push @cmds, $cmd;
     }
@@ -173,9 +174,10 @@ sub GATK_PrintReads {
         $tape->file_store($output);
 
         my $cmd =
-          sprintf( "java -jar -Xmx%s -Djava.io.tmpdir=%s %s -T PrintReads "
-              . "-R %s -I %s %s -BQSR %s -o %s\n",
-            $opts->{java_xmx}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta},
+          sprintf( 
+		"java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+		. "%s -T PrintReads -R %s -I %s %s -BQSR %s -o %s\n",
+            $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta},
             $bam, $tape->ddash, $recal_t, $output );
         push @cmds, $cmd;
     }
@@ -236,10 +238,12 @@ sub GATK_HaplotypeCaller {
                 ( my $output = $list ) =~ s/_file.list/_$name.raw.snps.indels.gvcf/;
                 $tape->file_store($output);
 
+		###if ( -e $output and -s $output) { next } 
+
                 my $cmd = sprintf(
-			"java -jar -Xmx%s -Djava.io.tmpdir=%s %s -T HaplotypeCaller "
-                      . "-R %s %s -I %s -L %s -o %s\n",
-                    $opts->{java_xmx}, $opts->{tmp}, $opts->{GATK},
+                	"java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+                      . "%s -T HaplotypeCaller -R %s %s -I %s -L %s -o %s\n",
+                    $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp}, $opts->{GATK},
                     $opts->{fasta}, $tape->ddash, $bam, $list, $output );
                 push @cmds, $cmd;
             }
@@ -250,9 +254,9 @@ sub GATK_HaplotypeCaller {
             $tape->file_store($output);
 
             my $cmd = sprintf(
-                "java -jar -Xmx%s -Djava.io.tmpdir=%s %s -T HaplotypeCaller "
-                . "-R %s %s -I %s -o %s\n",
-                $opts->{java_xmx}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta},
+                "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+		."%s -T HaplotypeCaller -R %s %s -I %s -o %s\n",
+                $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta},
                 $tape->ddash, $bam, $output );
             push @cmds, $cmd;
         }
@@ -262,6 +266,68 @@ sub GATK_HaplotypeCaller {
 
 ##-----------------------------------------------------------
 
+sub GATK_CombineGVCF {
+    my $tape = shift;
+    $tape->pull;
+
+    my $opts = $tape->options;
+
+    my $gvcf = $tape->file_retrieve('GATK_HaplotypeCaller');
+    my @iso = grep { /\.gvcf$/ } @{$gvcf};
+    my $variants = join( " --variant ", @iso );
+
+    my $output = $tape->output . $opts->{ugp_id} . '_mergeGvcf.vcf';
+    $tape->file_store($output);
+
+    my $cmd = sprintf(
+        "java -jar -Xmx%s %s -T CombineGVCFs -R %s " . "--variant %s -o %s\n",
+        $opts->{java_xmx}, $opts->{GATK}, $opts->{fasta}, $variants, $output );
+
+    $tape->bundle( \$cmd );
+}
+
+##-----------------------------------------------------------
+
+sub GATK_GenotypeGVCF {
+    my $tape = shift;
+    $tape->pull;
+
+    my $opts = $tape->options;
+
+    # will need to step through to get only gvcf
+    my $combined = $tape->file_retrieve('GATK_CombineGVCF');
+    my @merged = grep { /_mergeGvcf.vcf$/ } @{$combined};
+
+    if ( $opts->{backgrounds} ) {
+
+        my $BK = IO::Dir->new( $opts->{backgrounds} )
+          or $tape->ERROR('Could not find/open background directory');
+
+        # push 'em on!
+        # http://open.spotify.com/track/2RnWnqnMqBuFosND1hbGjk
+        foreach my $back ( $BK->read ) {
+            next unless ( $back =~ /mergeGvcf.vcf$/ );
+            chomp $back;
+            my $fullpath = $opts->{backgrounds} . "/$back";
+            push @merged, $fullpath;
+        }
+        $BK->close;
+    }
+    my $variants = join( " --variant ", @merged );
+
+    my $output   = $tape->output . $opts->{ugp_id} . "_genotyped.vcf";
+    $tape->file_store($output);
+
+    my $cmd =
+      sprintf( "java -jar -Xmx%s %s -T GenotypeGVCFs -R %s "
+          . "%s --variant %s -o %s\n",
+        $opts->{java_xmx}, $opts->{GATK}, $opts->{fasta}, $tape->ddash,
+        $variants, $output );
+    $tape->bundle( \$cmd );
+}
+
+##-----------------------------------------------------------
+=cut
 sub GATK_CombineGVCF {
     my $tape = shift;
     $tape->pull;
@@ -322,6 +388,7 @@ sub GATK_GenotypeGVCF {
 }
 
 ##-----------------------------------------------------------
+=cut
 
 sub GATK_VariantRecalibrator_SNP {
     my $tape = shift;

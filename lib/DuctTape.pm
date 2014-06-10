@@ -143,7 +143,7 @@ sub pull {
 ##-----------------------------------------------------------
 
 sub bundle {
-    my ( $self, $cmd, $record ) = @_;
+    my ( $self, $cmd, $record) = @_;
     $record //= 'on';
 
     # get caller info to create log file.
@@ -155,8 +155,8 @@ sub bundle {
     # what type of call
     my $call_type = ref $cmd;
     unless ( $call_type and $call_type ne 'HASH' ) {
-        $self->ERROR(
-            "bundled command from $sub command must be an scalar or array reference."
+        $self->ERROR( 
+		"bundled command from $sub command must be an scalar or array reference."
         );
     }
 
@@ -168,12 +168,15 @@ sub bundle {
     else { @cmds = $$cmd; }
     chomp @cmds;
 
+    #collect all the cmd in object
+#    if ( $self->options->{run_log} eq 'TRUE' ) {
+
     if ( $record eq 'off' ) {
-        push @{ $self->{cmd_list}->{$sub} }, @cmds;
+       push @{ $self->{cmd_list}->{$sub} }, @cmds;
     }
-    else {
-        my @add_log = map { "$_ &> $log" } @cmds;
-        push @{ $self->{cmd_list}->{$sub} }, @add_log;
+    else { 
+    	my @add_log = map { "$_ &> $log" } @cmds;
+    	push @{ $self->{cmd_list}->{$sub} }, @add_log;
     }
     return;
 }
@@ -190,18 +193,18 @@ sub software {
 sub option_dash {
     my ( $self, $opts ) = @_;
 
-    $opts //= {};
+	$opts //= {};
 
     my ( $no_dash, $dash, $double_dash, $equal_dash );
 
-    # added this section so when $opts->"dash"
-    # is call it does not fail.
-    unless ($opts) {
-        $equal_dash  = '';
-        $no_dash     = '';
-        $dash        = '';
-        $double_dash = '';
-    }
+	# added this section so when $opts->"dash" 
+	# is call it does not fail.
+	unless ( $opts) {
+		$equal_dash  = '';
+            	$no_dash     = ''; 
+            	$dash        = '';
+            	$double_dash = '';
+	}	
 
     foreach my $i ( keys %{$opts} ) {
         next unless $opts->{$i};
@@ -391,6 +394,80 @@ sub _cluster {
     sleep(10);
     return;
 }
+
+=cut
+sub _cluster {
+	my $self = shift;
+
+	mkdir('cmd_tmp') unless ( -d 'cmd_tmp');
+	mkdir('pbs_tmp') unless ( -d 'pbs_tmp');
+
+	unless ( keys %{$self->{cmd_list}} ) { return }
+	my %stack = %{ $self->{cmd_list} };
+	my ($sub, $stack_data) = each %stack; 
+
+	my @qsubs;
+	{
+		# command creation section
+		my $cmd_file = "cmd_tmp/$sub-cmd.tmp";
+		
+		my $CMD = IO::File->new($cmd_file, 'w')
+			or $self->ERROR("Can not create needed command file");
+
+		$self->LOG('start', $sub);
+
+		map { print $CMD $_, "\n" } @{$stack_data};
+
+		my $cmd = "mpiexec -np 2 capture_tools/mpi.code $cmd_file";
+
+
+		# PBS creation section
+		my $pbs_job = "pbs_tmp/$sub.pbs";
+
+		my $PBS = IO::File->new($self->{main}->{pbs_template}, 'r')
+			or $self->ERROR('Can not open PBS template file or not found');
+
+		my $TMP = IO::File->new($pbs_job, 'w') 
+			or $self->ERROR('Can not create needed pbs file [cluster]');
+
+		map { print $TMP $_ } <$PBS>;
+		print $TMP $cmd, "\n";
+
+		push @qsubs, $pbs_job;
+	}
+
+	if ( -e 'launch.index' ) {
+		my @jobs = `cat launch.index`;
+		`rm launch.index`;
+
+		my @before;
+		foreach my $i (@jobs) {
+			chomp $i;
+			push @before, $i;
+		}
+		my $wait = join( ":", @before );
+
+		foreach my $launch (@qsubs) {
+			print "qsub -W depend=afterok:$wait $launch\n";
+			system "qsub -W depend=afterok:$wait $launch &>> launch.index";
+		}
+	}
+	else {
+		foreach my $launch (@qsubs) {
+			print "Submitting job:  $launch\n";
+			
+			$self->LOG('cmd', "qsub $launch");
+			#system "qsub $launch &>> launch.index";
+		}
+	}
+	$self->LOG('finish', $sub);
+	$self->LOG('progress', $sub);
+	sleep(10);
+
+	map { delete $self->{cmd_list}->{$_} } keys %stack;
+	return;
+}
+=cut
 
 ##-----------------------------------------------------------
 1;
