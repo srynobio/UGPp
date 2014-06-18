@@ -7,8 +7,8 @@ This document describes version 1.0.3
 
 <strong>SYNOPSIS</strong>
 
-    ./cApTUrE --config file.cfg --interval_list file.list --run
-    ./cApTUrE --config file.cfg --file sorted_bams.list --run
+    ./cApTUrE --config file.cfg --interval_list exon_regions.list --run
+    ./cApTUrE --config file.cfg --interval_list exon_regions.list --file sorted_bams.list --run
     ./cApTUrE --clean
 
 <strong>DESCRIPTION</strong>

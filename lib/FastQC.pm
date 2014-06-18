@@ -23,12 +23,12 @@ sub FastQC_unzip {
         next unless ( $file =~ /\.gz$/ );
         ( my $output = $file ) =~ s/\.gz$/\.fastq/;
 
-	$tape->file_store($output);
+        $tape->file_store($output);
 
         my $cmd = sprintf( "gunzip -c %s > %s", $file, $output );
         push @cmds, $cmd;
     }
-    $tape->bundle( \@cmds, 'off');
+    $tape->bundle( \@cmds, 'off' );
 }
 
 ##-----------------------------------------------------------
@@ -41,13 +41,12 @@ sub FastQC_QC {
     my $unzip = $tape->file_retrieve('FastQC_unzip');
 
     my @cmds;
-    foreach my $z (@{$unzip}) {
+    foreach my $z ( @{$unzip} ) {
         chomp $z;
-	next unless ( $z =~ /\.fastq/ );
+        next unless ( $z =~ /\.fastq/ );
 
-        my $cmd = sprintf( 
-		"%s %s -o %s -f fastq %s\n", $opts->{FastQC}, $tape->ddash, $opts->{output}, $z 
-	);
+        my $cmd = sprintf( "%s %s -o %s -f fastq %s\n",
+            $opts->{FastQC}, $tape->ddash, $opts->{output}, $z );
         push @cmds, $cmd;
     }
     $tape->bundle( \@cmds );
