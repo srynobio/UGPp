@@ -18,8 +18,8 @@ Description:
 	This script was created to allow downloading of thousand genomes fastq files to be used 
 	as a background calling set with GATK.
 
-	In first step script will use 1000genome index file and download original fastq files.
-	In second step script will collect all files for an individual and merge them into two
+	In first step of the script will use 1000genome index file and download original fastq files.
+	In second step will collect all files for an individual and merge them into two
 	fastq paired files.
 
 	Script works best if done in two different step as ftp can be somewhat unpredictable.
