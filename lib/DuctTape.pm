@@ -143,7 +143,7 @@ sub pull {
 ##-----------------------------------------------------------
 
 sub bundle {
-    my ( $self, $cmd, $record ) = @_;
+    my ( $self, $cmd, $record) = @_;
     $record //= 'on';
 
     # get caller info to create log file.
@@ -155,8 +155,8 @@ sub bundle {
     # what type of call
     my $call_type = ref $cmd;
     unless ( $call_type and $call_type ne 'HASH' ) {
-        $self->ERROR(
-            "bundled command from $sub command must be an scalar or array reference."
+        $self->ERROR( 
+		"bundled command from $sub command must be an scalar or array reference."
         );
     }
 
@@ -169,12 +169,14 @@ sub bundle {
     chomp @cmds;
 
     #collect all the cmd in object
+#    if ( $self->options->{run_log} eq 'TRUE' ) {
+
     if ( $record eq 'off' ) {
-        push @{ $self->{cmd_list}->{$sub} }, @cmds;
+       push @{ $self->{cmd_list}->{$sub} }, @cmds;
     }
-    else {
-        my @add_log = map { "$_ &> $log" } @cmds;
-        push @{ $self->{cmd_list}->{$sub} }, @add_log;
+    else { 
+    	my @add_log = map { "$_ &> $log" } @cmds;
+    	push @{ $self->{cmd_list}->{$sub} }, @add_log;
     }
     return;
 }
@@ -195,14 +197,15 @@ sub option_dash {
 
     my ( $no_dash, $dash, $double_dash, $equal_dash );
 
-    # added this section so when $opts->"dash"
-    # is call it does not fail.
-    unless ( keys %{$opts} ) {
-        $equal_dash  = '';
-        $no_dash     = '';
-        $dash        = '';
-        $double_dash = '';
-    }
+	# added this section so when $opts->"dash" 
+	# is call it does not fail.
+	unless ( keys %{$opts} ) {
+##	if ( ! $opts) {
+		$equal_dash  = '';
+            	$no_dash     = ''; 
+            	$dash        = '';
+            	$double_dash = '';
+	}	
 
     foreach my $i ( keys %{$opts} ) {
         next unless $opts->{$i};

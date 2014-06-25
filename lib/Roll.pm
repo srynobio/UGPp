@@ -231,6 +231,7 @@ sub file_retrieve {
       unless $class;
 
     if ( $self->{commandline}->{file} and !-e 'CMD_stack.store' ) {
+        `touch CMD_stack.store`;
         $self->_make_storable($class);
         return $stored{$class};
     }
@@ -280,7 +281,10 @@ sub _make_storable {
 
 sub DEMOLISH {
     my $self = shift;
-    store \%stored, 'CMD_stack.store' unless ( -e 'CMD_stack.store' );
+
+    if ( $self->execute ) {
+        store \%stored, 'CMD_stack.store';
+    }
 }
 
 #-----------------------------------------------------------

@@ -60,10 +60,13 @@ sub BWA_mem {
         my $r_group =
           '\'@RG' . "\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\'";
 
-        my $cmd = sprintf( "%s mem %s -R %s %s %s %s | %s view -bSho %s -\n",
-            $opts->{BWA}, $tape->dash, $r_group, $opts->{fasta},
-            $file1->{full}, $file2->{full},
-            $tape->software->{SamTools}, $path_bam );
+        my $cmd = sprintf(
+            "%s mem %s -R %s %s %s %s | %s view -bSho %s -\n",
+            $opts->{BWA},                          $tape->dash,
+            $r_group,                              $opts->{fasta},
+            $file1->{full},                        $file2->{full},
+            $tape->software->{SamTools}, $path_bam
+        );
         push @cmds, $cmd;
         $id++;
     }

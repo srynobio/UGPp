@@ -98,7 +98,8 @@ sub Picard_MergeSamFiles {
             "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
               . "%sMergeSamFiles.jar %s %s %s\n",
             $opts->{java_xmx}, $opts->{java_thread},
-            $opts->{tmp}, $opts->{Picard}, $tape->equal_dash, $input, $output );
+            $opts->{tmp}, $opts->{Picard},
+            $tape->equal_dash, $input, $output );
         push @cmds, $cmd;
     }
     $tape->bundle( \@cmds );

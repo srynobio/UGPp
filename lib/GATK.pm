@@ -81,13 +81,14 @@ sub GATK_RealignerTargetCreator {
     foreach my $in ( @{$dedup} ) {
         $id++;
 
-        my $parts  = $tape->file_frags($in);
-        my $output = $tape->output . $parts->{parts}[0] . '_realign.intervals_' . $id;
+        my $parts = $tape->file_frags($in);
+        my $output =
+          $tape->output . $parts->{parts}[0] . $id . '_realign.intervals';
         $tape->file_store($output);
 
         my $cmd = sprintf(
             "java -jar -Xmx%s -Djava.io.tmpdir=%s %s -T RealignerTargetCreator "
-              . "-R %s %s %s %s -o %s\n",
+              . "-R %s -I %s %s %s -o %s\n",
             $opts->{java_xmx}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta}, $in,
             $tape->ddash, $tape->indels, $output );
         push @cmds, $cmd;
@@ -244,10 +245,13 @@ sub GATK_HaplotypeCaller {
                 my $name = $file->{parts}[0];
                 ( my $output = $list ) =~
                   s/_file.list/_$name.raw.snps.indels.gvcf/;
+
+                next if ( -e $output );
+
                 $tape->file_store($output);
 
                 my $cmd = sprintf(
-			"java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+                        "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                       . "%s -T HaplotypeCaller -R %s %s -I %s -L %s -o %s\n",
                     $opts->{java_xmx}, $opts->{java_thread},
                     $opts->{tmp},      $opts->{GATK},
@@ -261,6 +265,9 @@ sub GATK_HaplotypeCaller {
         elsif ( !$tape->intervals ) {
             ( my $updated = $file->{name} ) =~ s/\.bam/\.raw.snps.indels.gvcf/;
             my $output = $tape->output . $updated;
+
+            next if ( -e $output );
+
             $tape->file_store($output);
 
             my $cmd = sprintf(
@@ -485,7 +492,7 @@ sub GATK_SelectVariants {
     }
 
     # make some output files
-    ( my $output_snp = $snp_file ) =~ s/_recal_SNP.vcf/_cleaned_SNP.vcf/;
+    ( my $output_snp   = $snp_file ) =~ s/_recal_SNP.vcf/_cleaned_SNP.vcf/;
     ( my $output_indel = $indel_file ) =~
       s/_recal_INDEL.vcf/_cleaned_INDEL.vcf/;
 
@@ -502,7 +509,7 @@ sub GATK_SelectVariants {
         $snp_file, $output_snp );
 
     my $indel_cmd = sprintf(
-        "java -jar -Djava.io.tmpdir=%s %s -T SelectVariants -R %s "
+            "java -jar -Djava.io.tmpdir=%s %s -T SelectVariants -R %s "
           . "%s %s --variant %s -o %s\n",
         $opts->{tmp}, $opts->{GATK}, $opts->{fasta}, $tape->ddash,
         $sn,          $indel_file,   $output_indel

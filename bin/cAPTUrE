@@ -13,7 +13,7 @@ my $usage = "
 Synopsis:
     ./cApTUrE --config file.cfg --interval_list file.list --run
     ./cApTUrE --config file.cfg --file sorted_bams.list --run
-    ./cApTUrE --clean 
+    ./cApTUrE --clean
 
 Description:
 
@@ -64,7 +64,7 @@ croak $usage if $c_opts{help};
 
 # set up commandline defaults.
 if ( $c_opts{clean} ) {
-    `rm -rf *log CMD_stack.store *.pbs *.pbs.* launch.index cmd_tmp pbs_tmp`;
+    `rm -rf CMD_stack.store *.pbs *.pbs.* launch.index cmd_tmp pbs_tmp`;
     exit(0);
 }
 $c_opts{engine} //= 'MCE';
