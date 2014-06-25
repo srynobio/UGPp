@@ -479,7 +479,7 @@ sub GATK_CombineVariants {
     my @app_snp = map { "--variant $_ " } @{$snp_files};
     my @app_ind = map { "--variant $_ " } @{$indel_files};
 
-    my $output = $opts->{output} . $opts->{ugp_id} . "_Final.vcf";
+    my $output = $opts->{output} . $opts->{ugp_id} . "_Final+Backgrounds.vcf";
 
     my $cmd =
       sprintf( "java -jar -Djava.io.tmpdir=%s %s -T CombineVariants -R %s "
