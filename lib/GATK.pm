@@ -86,9 +86,9 @@ sub GATK_RealignerTargetCreator {
         $tape->file_store($output);
 
         my $cmd = sprintf(
-            "java -jar -Xmx%s -Djava.io.tmpdir=%s %s -T RealignerTargetCreator "
+            "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s -T RealignerTargetCreator "
               . "-R %s -I %s %s %s -o %s\n",
-            $opts->{java_xmx}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta}, $in,
+            $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta}, $in,
             $tape->ddash, $tape->indels, $output );
         push @cmds, $cmd;
     }
