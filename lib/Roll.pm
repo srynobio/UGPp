@@ -282,9 +282,9 @@ sub _make_storable {
 sub DEMOLISH {
     my $self = shift;
 
-    if ( $self->execute ) {
+    #if ( $self->execute ) {
         store \%stored, 'CMD_stack.store';
-    }
+    #}
 }
 
 #-----------------------------------------------------------
