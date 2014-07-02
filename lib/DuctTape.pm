@@ -93,10 +93,14 @@ sub wrap {
     my @cmd_stack;
     foreach my $sub ( @{$steps} ) {
         chomp $sub;
-        next if ( $progress_list{$sub} and $progress_list{$sub} eq 'complete' );
 
         eval { $self->$sub };
         if ($@) { $self->ERROR("Error when calling $sub: $@") }
+
+        if ( $progress_list{$sub} and $progress_list{$sub} eq 'complete' ) {
+            delete $self->{cmd_list}->{$sub};
+            next;
+        }
 
         if ( !$self->execute ) {
             map { print "Review of command[s] from: $sub => $_\n" }
@@ -392,7 +396,7 @@ sub _cluster {
     map { delete $self->{cmd_list}->{$_} } keys %stack;
     $self->LOG( 'finish',   $sub );
     $self->LOG( 'progress', $sub );
-    sleep(5);
+    sleep(10);
     return;
 }
 
