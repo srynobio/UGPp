@@ -56,20 +56,21 @@ cApTUrE's file structure:
 
 cApTUrE/data:
 <ul>
-	<li><em>exon_Region.list</em> - Region file created for the standard UGP pipeline.</li>
-	<li><em>exome.analysis.sequence.index</em> - 1000Genomes region file used to download exome data, used with Thousand_genome_recreator.pl.</li> 
-	<li><em>capture.cfg</em> - This is the main configure file used to run the UGP pipeline, but can also be used as an example template for future project.
-	<li><em>cluster.cfg</em> - This is the main configure file used to run the UGP pipeline on the CHPC cluster.
+	<li><em>exon_Region.list</em></li>
+	<li><em>exome.analysis.sequence.index</em></li>
+	<li><em>capture.cfg</em> - This is the main configure file used to run the UGP pipeline, but can also be used as an example template for future project.</li>
+	<li><em>cluster.cfg</em> - This is the main configure file used to run the UGP pipeline on the CHPC cluster.</li>
 </ul>
 cApTUrE/bin:
 <ul>
 	<li><em>cApTUrE</em> - main script</li>
+	<li><em>config_creator</em>
 </ul>
 cApTUrE/bin/capture_tools:
 <ul>
-	<li><em>RegionMaker</em> - RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file to be used with UnifiedGenotyper to decrease runtime when using a high number of background files.</li>
-	<li><em>Thousand_genome_recreator.pl</em> - Will download 1000Genomes data from their site via ftp.</li>
-	<li><em>UGP-SCP.pl</em> - Will assist in transfering large sets of fastq file to and from different servers.  Set for UGP and CHPC servers currently.</li>
+	<li><em>RegionMaker</em></li> 
+	<li><em>Thousand_genome_recreator.pl</em></li>
+	<li><em>UGP-SCP.pl</em></li>
 </ul>
 
 <strong>RUNNING CAPTURE:</strong>
