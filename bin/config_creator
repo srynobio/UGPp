@@ -1,0 +1,110 @@
+#!/usr/bin/perl
+use warnings;
+use strict;
+use Getopt::Long;
+use Carp;
+use Config::Std;
+use IO::Dir;
+
+my $usage = "
+
+Synopsis:
+
+    ./config_creator --fasta_dir <string> --memory <int> --cpu <int> --tmp <string> --log <string> --new_config <string>
+    ./config_creator -fd /data2/srynearson/gcat -m 1000 -cpu 80 -t /tmp -l report.log -nc gcat_run.cfg
+
+Description:
+
+    General utility script to help create configure files quickly.
+    *Will not modify software options*
+
+Required options:
+
+    -fd, --fastq_dir:   Path to location of fastq files.
+    -m,  --memory:      Total GB of memory available.
+
+Additional options:
+
+    -cfg, --config:         Configure file you would like to build from.
+    -t,   --tmp:            Path to tmp file location.  Default: /tmp
+    -l,   --log:            Log file name for a given run.  cAPTUrE will default to cmd.log
+    -nc,  --new_config:     Name of the new config file generated.
+    -jt,  --java_threads:   How many threads you would like java to have access to.
+    -o,   --output_dir:     Path to write output files to.  cAPTUrE will default to fastq dir.
+
+UGP options:
+
+    --ugp_id:   UGP id to add to config file.
+
+\n";
+
+my ( $fq_dir, $mem, $config, $tmp, $jt, $n_config, $output, $log, $help, $ugp_id );
+GetOptions(
+    "fastq_dir|fd=s" => \$fq_dir,
+    "memory|m=i"     => \$mem,
+    "config|cfg=s"   => \$config,
+    "tmp|t=s"           => \$tmp,
+    "java_threads|jt=i" => \$jt,
+    "new_config|nc=s"   => \$n_config,
+    "output_dir|o=s"    => \$output,
+    "log|l=s"           => \$log,
+    "help|h"            => \$help,
+    "ugp_id=s"          => \$ugp_id,
+);
+croak "fastq directory and memory options required\n$usage"
+  unless ( $fq_dir and $mem );
+croak $usage if ($help);
+
+# set or add default;
+$config   //= '../data/capture.cfg';
+$tmp      //= '/tmp';
+$n_config //= 'tmp.cfg';
+
+my $FH = IO::Dir->new($fq_dir) or croak "Fastq directory or file not correct\n";
+my @fq_check;
+foreach my $file ( $FH->read ) {
+    chomp $file;
+    next unless ( $file =~ /gz$/ );
+    push @fq_check, $file;
+}
+$FH->close;
+
+# quick file check
+( @fq_check > 1 )
+  ? 1
+  : croak "No fastq files with extension .gz found in $fq_dir\n";
+
+# default config which comes with capture and build config hash.
+$config //= '../data/capture.cfg';
+read_config $config => my %config;
+
+## Build the sections of the config file ##
+
+# add data directory
+$config{main}{data} = $fq_dir;
+
+# configure cpu based on how many fq files
+my $fq_number = scalar @fq_check;
+$config{main}{cpu} = $fq_number;
+
+# configure java memory Xmx
+my $java_mem = int( $mem / ( $fq_number / 2 ) );
+$config{main}{java_xmx} = '$java_mem' . 'g';
+
+# add tmp dir
+$config{main}{tmp} = $tmp;
+
+# add output dir if supplyed
+$config{main}{output} = $output if $output;
+
+# add log file if supplyed
+$config{main}{log} = $output if $log;
+
+# some UGP specific additions
+$config{main}{ugp_id} = 'Capture_$ugp_id';
+
+# write file
+write_config %config, $n_config;
+
+print "Software options setting not set.\n";
+
