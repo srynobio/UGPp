@@ -3,11 +3,11 @@
 
 <strong>VERSION</strong>
 
-This document describes version 1.0.3
+This document describes version 1.0.4
 
 <strong>SYNOPSIS</strong>
 
-    ./cApTUrE --config file.cfg --interval_list exon_regions.list --run
+    ./cApTUrE --config <string> --interval_list <string> --run
     ./cApTUrE --config file.cfg --interval_list exon_regions.list --file sorted_bams.list --run
     ./cApTUrE --clean
 
@@ -58,19 +58,18 @@ cApTUrE/data:
 <ul>
 	<li><em>exon_Region.list</em> - Region file created for the standard UGP pipeline.</li>
 	<li><em>exome.analysis.sequence.index</em> - 1000Genomes region file used to download exome data, used with Thousand_genome_recreator.pl.</li> 
+	<li><em>capture.cfg</em> - This is the main configure file used to run the UGP pipeline, but can also be used as an example template for future project.
+	<li><em>cluster.cfg</em> - This is the main configure file used to run the UGP pipeline on the CHPC cluster.
 </ul>
 cApTUrE/bin:
 <ul>
 	<li><em>cApTUrE</em> - main script</li>
 </ul>
-cApTUrE/bin/configure:
-<ul>
-	<li><em>capture.cfg</em> - This is the main configure file used to run the UGP pipeline, but can also be used as an example template for future project.
-</ul>
 cApTUrE/bin/capture_tools:
 <ul>
 	<li><em>RegionMaker</em> - RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file to be used with UnifiedGenotyper to decrease runtime when using a high number of background files.</li>
 	<li><em>Thousand_genome_recreator.pl</em> - Will download 1000Genomes data from their site via ftp.
+	<li><em>UGP-SCP.pl</em> - Will assist in transfering large sets of fastq file to and from different servers.  Set for UGP and CHPC servers currently.
 </ul>
 
 <strong>RUNNING CAPTURE:</strong>
@@ -79,6 +78,7 @@ After downloading and installing all dependences, a typical setup and run would 
 
 <em>Setting up the config file</em>:
 
+config_creator has been created to help complete new configure files as needed.
 Often many of the values in the config file can be set on a per-machine basis, creating essentially a new master file.  Examples of these would be known indel files, VQSR VCFs, BAM background files, and software paths.  Therefore what you will change each run will be the ugp_id, fastq dir, and possibly the run order.
 
 <em>Running cApTUrE:</em>

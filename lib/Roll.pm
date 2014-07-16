@@ -15,7 +15,7 @@ state %stored;
 
 has VERSION => (
     is      => 'ro',
-    default => sub { '0.1.3' },
+    default => sub { '1.0.4' },
 );
 
 has commandline => (
