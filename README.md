@@ -68,8 +68,8 @@ cApTUrE/bin:
 cApTUrE/bin/capture_tools:
 <ul>
 	<li><em>RegionMaker</em> - RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file to be used with UnifiedGenotyper to decrease runtime when using a high number of background files.</li>
-	<li><em>Thousand_genome_recreator.pl</em> - Will download 1000Genomes data from their site via ftp.
-	<li><em>UGP-SCP.pl</em> - Will assist in transfering large sets of fastq file to and from different servers.  Set for UGP and CHPC servers currently.
+	<li><em>Thousand_genome_recreator.pl</em> - Will download 1000Genomes data from their site via ftp.</li>
+	<li><em>UGP-SCP.pl</em> - Will assist in transfering large sets of fastq file to and from different servers.  Set for UGP and CHPC servers currently.</li>
 </ul>
 
 <strong>RUNNING CAPTURE:</strong>
