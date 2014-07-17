@@ -61,6 +61,8 @@ GetOptions(
     "help|h"
 );
 croak $usage if $c_opts{help};
+croak "config file needed\n$usage" if ( ! $c_opts{config} );
+
 
 # set up commandline defaults.
 if ( $c_opts{clean} ) {
