@@ -90,7 +90,7 @@ $config{main}{cpu} = $fq_number;
 
 # configure java memory Xmx
 my $java_mem = int( $mem / ( $fq_number / 2 ) );
-$config{main}{java_xmx} = '$java_mem' . 'g';
+$config{main}{java_xmx} = "$java_mem" . 'g';
 
 # add tmp dir
 $config{main}{tmp} = $tmp;
@@ -102,7 +102,7 @@ $config{main}{output} = $output if $output;
 $config{main}{log} = $output if $log;
 
 # some UGP specific additions
-$config{main}{ugp_id} = 'Capture_$ugp_id';
+$config{main}{ugp_id} = "Capture_$ugp_id";
 
 # write file
 write_config %config, $n_config;
