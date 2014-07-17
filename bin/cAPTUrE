@@ -61,17 +61,16 @@ GetOptions(
     "help|h"
 );
 croak $usage if $c_opts{help};
-croak "config file needed\n$usage" if ( ! $c_opts{config} );
-
 
 # set up commandline defaults.
 if ( $c_opts{clean} ) {
     `rm -rf *.log CMD_stack.store *.pbs launch.index cmd_tmp pbs_tmp`;
     exit(0);
 }
-$c_opts{engine} //= 'MCE';
 
-#croak "need interval_list file.\n$usage" unless $c_opts{interval_list};
+croak "config file needed\n$usage" if ( ! $c_opts{config} );
+
+$c_opts{engine} //= 'MCE';
 
 my $t = DuctTape->new( commandline => \%c_opts, );
 
