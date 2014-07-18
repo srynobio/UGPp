@@ -52,13 +52,14 @@ GetOptions(
     "ugp_id=s"          => \$ugp_id,
 );
 croak "fastq directory and memory options required\n$usage"
-  unless ( $fq_dir and $mem );
+  unless ( $fq_dir and $mem and $upg_id );
 croak $usage if ($help);
 
 # set or add default;
 $config   //= '../data/capture.cfg';
 $tmp      //= '/tmp';
 $n_config //= 'tmp.cfg';
+$jt       //= '1';
 
 my $FH = IO::Dir->new($fq_dir) or croak "Fastq directory or file not correct\n";
 my @fq_check;
