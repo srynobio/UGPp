@@ -52,7 +52,7 @@ GetOptions(
     "ugp_id=s"          => \$ugp_id,
 );
 croak "fastq directory and memory options required\n$usage"
-  unless ( $fq_dir and $mem and $upg_id );
+  unless ( $fq_dir and $mem and $ugp_id );
 croak $usage if ($help);
 
 # set or add default;
