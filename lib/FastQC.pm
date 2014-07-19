@@ -21,6 +21,11 @@ sub FastQC_unzip {
         chomp $file;
 
         next unless ( $file =~ /\.gz$/ );
+        
+        my $output;
+        if ( $file =~ /txt/ ) {
+             ( $output = $file ) =~ s/\.gz$/\.fastq/;
+            
         ( my $output = $file ) =~ s/\.gz$/\.fastq/;
 
         $tape->file_store($output);
