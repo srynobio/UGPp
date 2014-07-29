@@ -231,7 +231,7 @@ sub GATK_HaplotypeCaller {
         }
     }
 
-# foreach bam file run it across the individual region files and store the output.
+    # foreach bam file run it across the individual region files and store the output.
     my @cmds;
     my $regions = $tape->file_retrieve('GATK_HaplotypeCaller')
       if $tape->intervals;
@@ -245,9 +245,9 @@ sub GATK_HaplotypeCaller {
                 next unless ( $list =~ /\.list/ );
 
                 my $name = $file->{parts}[0];
-                ( my $output = $list ) =~
-                  s/_file.list/_$name.raw.snps.indels.gvcf/;
+                ( my $output = $list ) =~ s/_file.list/_$name.raw.snps.indels.gvcf/;
 
+                next if ( -e $output and $tape->execute );
                 $tape->file_store($output);
 
                 my $cmd = sprintf(
@@ -266,6 +266,7 @@ sub GATK_HaplotypeCaller {
             ( my $updated = $file->{name} ) =~ s/\.bam/\.raw.snps.indels.gvcf/;
             my $output = $tape->output . $updated;
 
+            next if ( -e $output and $tape->execute );
             $tape->file_store($output);
 
             my $cmd = sprintf(
