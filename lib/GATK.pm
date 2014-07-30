@@ -247,7 +247,7 @@ sub GATK_HaplotypeCaller {
                 my $name = $file->{parts}[0];
                 ( my $output = $list ) =~ s/_file.list/_$name.raw.snps.indels.gvcf/;
 
-                next if ( -e $output and $tape->execute );
+                #next if ( -e $output and $tape->execute );
                 $tape->file_store($output);
 
                 my $cmd = sprintf(
@@ -266,7 +266,7 @@ sub GATK_HaplotypeCaller {
             ( my $updated = $file->{name} ) =~ s/\.bam/\.raw.snps.indels.gvcf/;
             my $output = $tape->output . $updated;
 
-            next if ( -e $output and $tape->execute );
+            #next if ( -e $output and $tape->execute );
             $tape->file_store($output);
 
             my $cmd = sprintf(
@@ -295,7 +295,7 @@ sub GATK_CombineGVCF {
     my @cmds;
     if ( scalar @iso > 200 ) {
         my @var;
-        push @var, [ splice @iso, 0, 50 ] while @iso;
+        push @var, [ splice @iso, 0, 200 ] while @iso;
 
         my $id;
         foreach my $chunk (@var) {
