@@ -151,7 +151,8 @@ sub bundle {
     my ( $self, $cmd, $record ) = @_;
     $record //= 'on';
 
-    get caller info to create log file . my $caller = ( caller(1) )[3];
+    # get caller info to create log file. 
+    my $caller = ( caller(1) )[3];
     my ( $package, $sub ) = split /::/, $caller;
 
     # what type of call
