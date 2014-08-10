@@ -313,24 +313,11 @@ sub GATK_CombineGVCF {
 
             push @cmds, $cmd;
         }
-        my $merged = $tape->file_retrieve('GATK_CombineGVCF');
-        my $variants = join( " --variant ", @{$merged} );
-
-        my $output = $tape->output . $opts->{ugp_id} . '_Master_mergeGvcf.vcf';
-        $tape->file_store($output);
-
-        my $cmd =
-          sprintf( "java -jar -Xmx%s %s -T CombineGVCFs -R %s "
-              . "--variant %s -o %s\n",
-            $opts->{java_xmx}, $opts->{GATK}, $opts->{fasta}, $variants,
-            $output );
-
-        push @cmds, $cmd;
     }
     else {
         my $variants = join( " --variant ", @iso );
 
-        my $output = $tape->output . $opts->{ugp_id} . '_mergeGvcf.vcf';
+        my $output = $tape->output . $opts->{ugp_id} . '_final_mergeGvcf.vcf';
         $tape->file_store($output);
 
         my $cmd =
@@ -344,6 +331,30 @@ sub GATK_CombineGVCF {
 
     $tape->bundle( \@cmds );
 }
+
+##-----------------------------------------------------------
+
+sub GATK_CombineGVCF_Merge {
+    my $tape = shift;
+    $tape->pull;
+
+    my $opts = $tape->options;
+
+    my $merged = $tape->file_retrieve('GATK_CombineGVCF');
+    my $variants = join( " --variant ", @{$merged} );
+
+    my $output = $tape->output . $opts->{ugp_id} . '_final_mergeGvcf.vcf';
+    $tape->file_store($output);
+
+    my $cmd =
+      sprintf( "java -jar -Xmx%s %s -T CombineGVCFs -R %s "
+          . "--variant %s -o %s\n",
+        $opts->{java_xmx}, $opts->{GATK}, $opts->{fasta}, $variants,
+        $output
+    );
+    $tape->bundle(\$cmd);
+}
+
 ##-----------------------------------------------------------
 
 sub GATK_GenotypeGVCF {
@@ -354,7 +365,7 @@ sub GATK_GenotypeGVCF {
 
     # will need to step through to get only gvcf
     my $combined = $tape->file_retrieve('GATK_CombineGVCF');
-    my @merged = grep { /_mergeGvcf.vcf$/ } @{$combined};
+    my @merged = grep { /_final_mergeGvcf.vcf$/ } @{$combined};
 
     if ( $opts->{backgrounds} ) {
 

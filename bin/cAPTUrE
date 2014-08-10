@@ -65,7 +65,7 @@ croak $usage if $c_opts{help};
 
 # set up commandline defaults.
 if ( $c_opts{clean} ) {
-    `rm -rf *.log CMD_stack.store *.pbs launch.index cmd_tmp pbs_tmp`;
+    `rm -rf *.log CMD_stack.store *.pbs* launch.index cmd_tmp pbs_tmp`;
     exit(0);
 }
 
