@@ -306,9 +306,9 @@ sub GATK_CombineGVCF {
             $tape->file_store($output);
 
             my $cmd =
-              sprintf( "java -jar -Xmx%s %s -T CombineGVCFs -R %s "
+              sprintf( "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s -T CombineGVCFs -R %s "
                   . "--variant %s -o %s\n",
-                $opts->{java_xmx}, $opts->{GATK}, $opts->{fasta}, $variants,
+                $opts->{java_xmx}, $opts->{java_thread}, $opts->{GATK}, $opts->{fasta}, $variants,
                 $output );
 
             push @cmds, $cmd;
@@ -321,9 +321,9 @@ sub GATK_CombineGVCF {
         $tape->file_store($output);
 
         my $cmd =
-          sprintf( "java -jar -Xmx%s %s -T CombineGVCFs -R %s "
+          sprintf( "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s -T CombineGVCFs -R %s "
               . "--variant %s -o %s\n",
-            $opts->{java_xmx}, $opts->{GATK}, $opts->{fasta}, $variants,
+            $opts->{java_xmx}, $opts->{java_thread}, $opts->{GATK}, $opts->{fasta}, $variants,
             $output );
 
         push @cmds, $cmd;
@@ -347,9 +347,9 @@ sub GATK_CombineGVCF_Merge {
     $tape->file_store($output);
 
     my $cmd =
-      sprintf( "java -jar -Xmx%s %s -T CombineGVCFs -R %s "
+      sprintf( "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s -T CombineGVCFs -R %s "
           . "--variant %s -o %s\n",
-        $opts->{java_xmx}, $opts->{GATK}, $opts->{fasta}, $variants,
+        $opts->{java_xmx}, $opts->{java_thread}, $opts->{GATK}, $opts->{fasta}, $variants,
         $output
     );
     $tape->bundle(\$cmd);
