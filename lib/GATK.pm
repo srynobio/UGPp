@@ -295,7 +295,7 @@ sub GATK_CombineGVCF {
     my @cmds;
     if ( scalar @iso > 200 ) {
         my @var;
-        push @var, [ splice @iso, 0, 200 ] while @iso;
+        push @var, [ splice @iso, 0, 100 ] while @iso;
 
         my $id;
         foreach my $chunk (@var) {
@@ -342,6 +342,9 @@ sub GATK_CombineGVCF_Merge {
 
     my $merged = $tape->file_retrieve('GATK_CombineGVCF');
     my $variants = join( " --variant ", @{$merged} );
+
+    # Single merged files dont need a master merge
+    if ( $variants =~ /_final_mergeGvcf/ ) { return }
 
     my $output = $tape->output . $opts->{ugp_id} . '_final_mergeGvcf.vcf';
     $tape->file_store($output);
