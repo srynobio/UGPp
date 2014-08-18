@@ -18,6 +18,7 @@ cApTUrE is a NGS pipeline written in Perl, created for the
 
 Currently it incorporates the following tools:
 <ul>
+	<li>Perl v5.10</li>
 	<li>FastQC</li>
 	<li>BWA</li>
 	<li>SAMtools</li>
