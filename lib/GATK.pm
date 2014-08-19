@@ -373,7 +373,7 @@ sub GATK_GenotypeGVCF {
     my $combined;
     ($single) ? $combined = $single : $combined = $multi;
 
-    my @merged = grep { /_final_mergeGvcf.vcf$/ } @{$combined};}}))))
+    my @merged = grep { /_final_mergeGvcf.vcf$/ } @{$combined};
 
     if ( $opts->{backgrounds} ) {
 
