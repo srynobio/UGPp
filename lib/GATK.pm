@@ -367,8 +367,13 @@ sub GATK_GenotypeGVCF {
     my $opts = $tape->options;
 
     # will need to step through to get only gvcf
-    my $combined = $tape->file_retrieve('GATK_CombineGVCF');
-    my @merged = grep { /_final_mergeGvcf.vcf$/ } @{$combined};
+    my $single = $tape->file_retrieve('GATK_CombineGVCF');
+    my $multi  = $tape->file_retrieve('GATK_CombineGVCF_Merge');
+
+    my $combined;
+    ($single) ? $combined = $single : $combined = $multi;
+
+    my @merged = grep { /_final_mergeGvcf.vcf$/ } @{$combined};}}))))
 
     if ( $opts->{backgrounds} ) {
 
