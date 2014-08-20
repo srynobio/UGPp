@@ -38,7 +38,7 @@ sub SamTools_idxstats {
             $opts->{SamTools}, $bam, $idx_file );
         push @cmds, $cmd;
     }
-    $tape->bundle( \@cmds );
+    $tape->bundle( \@cmds, 'off' );
 }
 
 ##-----------------------------------------------------------

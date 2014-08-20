@@ -22,50 +22,56 @@ sub QC_Fastqc_check {
 
 	# Clean up
 	my @reports;
-	if ( @fails ) { 
-		map { s/\cI/ - /g } @fails;
+	if ( @fails ) {
+		$tape->WARN("Fastqc reported FAIL, please review QC-report.txt\n");
 		chomp @fails;
 		@reports = map { $_ } @fails; 
 	}
 	if ( @warns ) { 
-		map { s/\cI/ - /g } @warns;
 		chomp  @warns; 
 		@reports = map { $_ } @warns; 
 	}
-
-	my $tt;	
-
+	$tape->QC_report(\@reports);
+	return;
 }
-
 
 ##-----------------------------------------------------------
 
-sub MD5_checksum {
-    my $tape = shift;
-    $tape->pull;
+sub QC_idxstats {
+	my $tape = shift;
+	$tape->pull;
+	
+	my $opts = $tape->options;
+	
+	my $output_dir = $opts->{output};
+	my @stats = `find $output_dir -name \"*_sorted.stats\"`;
+	chomp @stats;
 
-    my $opts = $tape->options;
+	if ( ! @stats ) {
+		$tape->WARN("idxstats files not found\n");
+		return;
+	}
 
-    my @cmds;
-    while ( my $file = $tape->next ) {
-        chomp $file;
-        next unless ( $file =~ /md5_checksums.txt/ );
+	my @report;
+	foreach my $stat ( @stats ) {
+		chomp $stat;
+		
+		my $IDX = IO::File->new($stat, 'r') 
+			or $tape->WARN("idxstats $stat file can't be opened\n");
 
-        my $path = $opts->{data};
+		foreach my $line (<$IDX>) {
+			my @results = split("\t", $line);
+			next if ($results[0] =~ /(^GL|^NC|^hs)/);
 
-        # add file path to file.
-        my $file_update = "perl -lane '\$F[1] =~ s?^?  $path?; print \@F' $file > tmp.md5";
-        if ( $tape->execute ) {
-                `$file_update`;
-                `mv tmp.md5 $file`;
-        }
-
-        my $cmd = sprintf(
-            "md5sum -c %s", $file
-        );
-        push @cmds, $cmd;
-    }
-    $tape->bundle(\@cmds);
+			if ( $results[2] <= $results[3] ) {
+				my $record = 
+					"File $stat shows a high number of unmapped reads compared to mapped at chromosome $results[0]";
+				push @report, $record;
+			}
+		}		
+		$IDX->close;
+	}
+	$tape->QC_report(\@report);
 }
 
 ##-----------------------------------------------------------

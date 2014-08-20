@@ -169,7 +169,7 @@ sub LOG {
     my ( $self, $type, $message ) = @_;
     $message //= 'Pipeline';
 
-    my $log_file = $self->main->{log} || 'cmd.log';
+    my $log_file = $self->main->{log} || 'cApTUrE-cmds.txt';
     my $LOG = IO::File->new( $log_file, 'a+' );
 
     if ( $type eq 'config' ) {
@@ -210,6 +210,25 @@ sub LOG {
     }
     $LOG->close;
     return;
+}
+
+#-----------------------------------------------------------
+
+sub QC_report {
+	my ($self, $message) = @_;
+    	my $caller = ( caller(1) )[3];
+
+	my $QC = IO::File->new('QC-report.txt', 'a+');
+
+	$self->ERROR("QC_report message must be arrayref\n")
+		if (ref $message ne 'ARRAY');
+
+	print $QC "# ==== Quality Info from $caller ====#\n";
+	map { print $QC $_, "\n" } @$message;
+        print $QC "-" x 55, "\n";
+	
+	$QC->close;
+	return;
 }
 
 #-----------------------------------------------------------
