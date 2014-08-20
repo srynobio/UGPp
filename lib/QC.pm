@@ -13,6 +13,27 @@ extends 'Roll';
 sub QC_Fastqc_check {
 	my $tape = shift;
 	$tape->pull;
+	
+	my $opts = $tape->options;
+	my $output_dir = $opts->{output};
+
+	my @fails = `find $output_dir -name \"summary.txt\" -exec grep \'FAIL\' {} \\;`;
+	my @warns = `find $output_dir -name \"summary.txt\" -exec grep \'WARN\' {} \\;`;
+
+	# Clean up
+	my @reports;
+	if ( @fails ) { 
+		map { s/\cI/ - /g } @fails;
+		chomp @fails;
+		@reports = map { $_ } @fails; 
+	}
+	if ( @warns ) { 
+		map { s/\cI/ - /g } @warns;
+		chomp  @warns; 
+		@reports = map { $_ } @warns; 
+	}
+
+	my $tt;	
 
 }
 
