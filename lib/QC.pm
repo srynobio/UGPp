@@ -10,7 +10,35 @@ extends 'Roll';
 ##------------------------ METHODS --------------------------
 ##-----------------------------------------------------------
 
-sub QC_Fastqc_check {
+sub QC_md5_check {
+	my $tape = shift;
+	$tape->pull;
+
+	my $opts = $tape->options;
+
+	while ( my $check = $tape->next ) {
+		chomp $check;
+		next unless ( $check =~ /md5_results/ );
+
+		my @md5_results = `cat $check`;
+
+		my @passed;
+		foreach my $test ( @md5_results ) {
+			chomp $test;
+			next unless ( $test =~ /OK$/ );
+			push @passed, $test;
+		}
+
+		unless ( scalar @md5_results == scalar @passed ) {
+			$tape->ERROR("One or more md5 sum checked did not pass");
+		}
+	}
+	return;
+}
+
+##-----------------------------------------------------------
+
+sub QC_fastqc_check {
 	my $tape = shift;
 	$tape->pull;
 	
@@ -18,21 +46,41 @@ sub QC_Fastqc_check {
 	my $output_dir = $opts->{output};
 
 	my @fails = `find $output_dir -name \"summary.txt\" -exec grep \'FAIL\' {} \\;`;
-	my @warns = `find $output_dir -name \"summary.txt\" -exec grep \'WARN\' {} \\;`;
+	my @data  = `find $output_dir -name \"fastqc_data.txt\"`;
 
 	# Clean up
 	my @reports;
 	if ( @fails ) {
-		$tape->WARN("Fastqc reported FAIL, please review QC-report.txt\n");
+		$tape->WARN("Fastqc reported FAIL files, please review QC-report.txt\n");
 		chomp @fails;
 		@reports = map { $_ } @fails; 
 	}
-	if ( @warns ) { 
-		chomp  @warns; 
-		@reports = map { $_ } @warns; 
+
+	foreach my $d ( @data ) {
+		chomp $d;
+		
+		my $DT = IO::File->new($d, 'r') 
+			or $tape->WARN("Fastqc file $d can't be opened\n");
+
+		my $fail;
+		foreach my $result ( <$DT> ) {
+			chomp $result;
+			next unless ( $result =~ 
+				/(^Encoding|^Total Sequences|^Filtered Sequences|^Sequence length|^\%GC|^Total Duplicate Percentage)/ );
+			my @view = split "\t", $result;
+			
+			if ( $view[0] eq 'Encoding' and $view[1] ne 'Sanger / Illumina 1.9' ) { $fail++; next }
+			if ( $view[0] eq 'Total Sequences' and $view[1] < 30000000 ) { $fail++; next }
+			if ( $view[0] eq 'Filtered Sequences' and $view[1] >= 5 ) { $fail++; next }
+			if ( $view[0] eq 'Sequence length' and $view[1] < 100 ) { $fail++; next }
+			if ( $view[0] eq '%GC' and ( $view[1] > 55 or $view[1] < 45) ) { $fail++; next }
+			if ( $view[0] eq 'Total Duplicate Percentage' and $view[1] > '60.0' ) { $fail++; next }
+
+			$tape->WARN("One or more QC data report values failed review QC-report.txt file") if $fail;
+		}
+		push @reports, $d if $fail;
 	}
 	$tape->QC_report(\@reports);
-	return;
 }
 
 ##-----------------------------------------------------------
@@ -76,5 +124,36 @@ sub QC_idxstats {
 
 ##-----------------------------------------------------------
 
+sub QC_metrics_check {
+	my $tape = shift;
+	$tape->pull;
+
+	my $opts = $tape->options;
+
+
+
+}
+
+##-----------------------------------------------------------
+
 1;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
