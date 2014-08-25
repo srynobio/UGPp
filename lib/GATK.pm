@@ -544,9 +544,9 @@ sub GATK_CombineVariants {
     my $output = $opts->{output} . $opts->{ugp_id} . "_Final+Backgrounds.vcf";
 
     my $cmd = sprintf(
-        "java -jar -Djava.io.tmpdir=%s %s -T CombineVariants -R %s "
+        "java -jar -Xmx%s -Djava.io.tmpdir=%s %s -T CombineVariants -R %s "
           . "%s %s %s -o %s",
-        $opts->{tmp}, $opts->{GATK}, $opts->{fasta}, $tape->ddash,
+        $opts->{java_xmx}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta}, $tape->ddash,
         join( " ", @app_snp ),
         join( " ", @app_ind ), $output
     );
