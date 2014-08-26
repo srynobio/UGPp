@@ -63,13 +63,13 @@ has order => (
     },
 );
 
-has cpu => (
+has workers => (
     is      => 'ro',
     default => sub {
         my $self = shift;
-        my $cpu = $self->config->{main}->{cpu} || '1';
-        return $cpu if 'auto';
-        return $cpu + 1;
+        my $workers = $self->config->{main}->{workers} || '1';
+        return $workers if 'auto';
+        return $workers + 1;
     },
 );
 

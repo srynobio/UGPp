@@ -1,0 +1,229 @@
+#!/usr/bin/perl
+#use warnings;
+use strict;
+use Carp;
+use Config::Std;
+use IO::Dir;
+use IPC::Open3;
+
+my $usage = "
+
+Synopsis:
+
+    ./config_creator --fasta_dir <string> --memory <int> --cpu <int> --tmp <string> --log <string> --new_config <string>
+    ./config_creator -fd /data2/srynearson/gcat -m 1000 -cpu 80 -t /tmp -l report.log -nc gcat_run.cfg
+
+Description:
+
+    General utility script to help create configure files quickly.
+    *Will not modify software options*
+
+\n";
+
+print
+"\nconfig_creator is an interactive script which will help make config file generation quicker and easier\n\n";
+
+print "Enter your fastq directory [REQUIRED]: ";
+my $fq_dir = <STDIN>;
+print "Enter the amount of memory in Gigs you would like to use: [example 20g, REQUIRED] ";
+my $mem = <STDIN>;
+print "Enter the number of workers/forks you would like to use [<int>, auto defaults to 1]: ";
+my $workers = <STDIN>;
+print "Specify tmp directory you would like to use [default /tmp]: ";
+my $tmp = <STDIN>;
+print "Configure file you would like to build from [default capture.cfg]: ";
+my $config = <STDIN>;
+print "Name for the new configure file [default /hostname.cfg] ";
+my $new_config = <STDIN>;
+print "Output directory you would like to use [default fastq directory] ";
+my $output = <STDIN>;
+print "Enter name used for cmd log file [default cmds-log.txt]: ";
+my $log = <STDIN>;
+print "UGP id to add if desired: ";
+my $ugp_id = <STDIN>;
+print "Enter path to BWA directory: ";
+my $bwa = <STDIN>;
+print "Enter path to Picard_Tools directory: ";
+my $picard = <STDIN>;
+print "Enter path to SamTools directory: ";
+my $samtools = <STDIN>;
+print "Enter path to GATK directory: ";
+my $gatk = <STDIN>;
+print "Enter path to FastQC directory: ";
+my $fastqc = <STDIN>;
+print "\nWorking....\n";
+
+chomp(
+    $fq_dir,     $mem,      $workers, $tmp, $config,
+    $new_config, $output,   $ugp_id,  $log, $bwa,
+    $picard,     $samtools, $gatk,    $fastqc
+);
+
+my $host = `hostname`;
+chomp($host);
+my $host_tmp = $host . '.cfg';
+
+# set defaults
+$workers    ||= '1';
+$tmp        ||= '/tmp';
+$config     ||= '../data/capture.cfg';
+$new_config ||= $host_tmp;
+$output     ||= $fq_dir;
+$log        ||= 'cmds-log.txt';
+
+# add version infomation to config file
+my $bwa_v      = bwa_version($bwa)           if $bwa;
+my $picard_v   = picard_version($picard)     if $picard;
+my $samtools_v = samtools_version($samtools) if $samtools;
+my $gatk_v     = gatk_version($gatk)         if $gatk;
+my $fastqc_v   = fastqc_version($fastqc)     if $fastqc;
+chomp( $bwa_v, $picard_v, $samtools_v, $gatk_v, $fastqc_v );
+
+# input checking
+croak "Fastq directory could not be found.\n"  unless ( -d $fq_dir );
+croak "Output directory could not be found.\n" unless ( -d $output );
+croak "Configure file could not be found.\n"   unless ( -e $config );
+croak "Memory option needed\n"                 unless ($mem);
+
+# FQ file check
+my $FH = IO::Dir->new($fq_dir) or croak "Fastq directory or file not correct\n";
+my @fq_check;
+foreach my $file ( $FH->read ) {
+    chomp $file;
+    next unless ( $file =~ /gz$/ );
+    push @fq_check, $file;
+}
+$FH->close;
+
+if ( @fq_check % 2 ) { croak "Uneven files detected.\n" }
+( @fq_check > 1 )
+  ? 1
+  : croak "No fastq files with extension .gz found in $fq_dir\n";
+
+# read in template config file
+read_config $config => my %config;
+
+#### Build the sections of the config file ####
+
+# add data directory
+$config{main}{data} = $fq_dir;
+
+# configure cpu based on how many fq files
+#my $fq_number = scalar @fq_check;
+#my $cores = system("nproc");
+$config{main}{workers} = $workers;
+
+# configure java memory Xmx
+#my $java_mem = int( $mem / ( $fq_number / 2 ) );
+#$config{main}{java_xmx} = "$java_mem" . 'g';
+
+# add tmp dir
+$config{main}{tmp} = $tmp;
+
+# add output dir if supplyed
+$config{main}{output} = $output;
+
+# add log file if supplyed
+$config{main}{'log'} = $log;
+
+# some UGP specific additions
+($ugp_id) ? "cApTUrE_$ugp_id" : 'cApTUrE';
+$config{main}{ugp_id} = $ugp_id;
+
+# add version and paths
+$config{main}{bwa_version}    = $bwa_v    unless $config{main}{bwa_version};
+$config{main}{picard_version} = $picard_v unless $config{main}{picard_version};
+$config{main}{samtools_version} = $samtools_v unless $config{main}{samtools_version};
+$config{main}{gatk_version}   = $gatk_v   unless $config{main}{gatk_version};
+$config{main}{fastqc_version} = $fastqc_v unless $config{main}{fastqc_version};
+
+$config{software}{BWA}      = $bwa      unless $config{software}{BWA};
+$config{software}{Picard}   = $picard   unless $config{software}{Picard};
+$config{software}{SamTools} = $samtools unless $config{software}{Samtools};
+$config{software}{GATK} = "$gatk/GenomeAnalysisTK.jar" unless $config{software}{GATK};
+$config{software}{FastQC} = $fastqc unless $config{software}{FastQC};
+
+# write file
+write_config %config, $new_config;
+
+print "\nFinished\n";
+print "Please review your Software options\n";
+
+##--------------------------------------------------------
+
+sub bwa_version {
+    my $bwa_p = shift;
+    my $cmd   = $bwa_p . '/bwa';
+
+    my $in = '';
+    my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
+    my $version;
+    while (<PH>) {
+        next unless ( $_ =~ /^Version/ );
+        my ( $name, $ver ) = split ":", $_;
+        $ver =~ s/^\s+$//g;
+        $version = $ver;
+    }
+    waitpid( $pid, 0 );
+    return $version;
+}
+
+##--------------------------------------------------------
+
+sub picard_version {
+    my $picard_p = shift;
+    my $cmd      = 'java -jar ' . $picard_p . '/CollectMultipleMetrics.jar';
+
+    my $in = '';
+    my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
+    my $version;
+    while (<PH>) {
+        next unless ( $_ =~ /^Version/ );
+        my ( $name, $ver ) = split ":", $_;
+        $ver =~ s/^\s+$//g;
+        $version = $ver;
+    }
+    waitpid( $pid, 0 );
+    return $version;
+}
+
+##--------------------------------------------------------
+
+sub samtools_version {
+    my $samtools_p = shift;
+    my $cmd        = $samtools_p . '/samtools';
+
+    my $in = '';
+    my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
+    my $version;
+    while (<PH>) {
+        next unless ( $_ =~ /^Version/ );
+        my ( $name, $ver ) = split ":", $_;
+        $ver =~ s/^\s+$//g;
+        $version = $ver;
+    }
+    waitpid( $pid, 0 );
+    return $version;
+}
+
+##--------------------------------------------------------
+
+sub gatk_version {
+    my $gatk_p  = shift;
+    my $cmd     = 'java -jar ' . $gatk_p . '/GenomeAnalysisTK.jar -version';
+    my $version = `$cmd`;
+    return $version;
+}
+
+##--------------------------------------------------------
+
+sub fastqc_version {
+    my $fastqc_p = shift;
+    my $cmd      = $fastqc_p . '/fastqc -version';
+    my $version  = `$cmd`;
+    my ( undef, $ver ) = split( "\s+", $version );
+    return $ver;
+}
+
+##--------------------------------------------------------
+

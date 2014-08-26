@@ -296,7 +296,7 @@ sub _MCE_engine {
     $self->LOG( 'start', $sub );
 
     my $mce = MCE->new(
-        max_workers  => $self->cpu,
+        max_workers  => $self->workers,
         user_func    => \&_MCE_run,
         input_data   => $stack_data,
         on_post_exit => \&_MCE_error_kill,
