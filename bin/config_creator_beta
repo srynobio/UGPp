@@ -63,13 +63,20 @@ my $host = `hostname`;
 chomp($host);
 my $host_tmp = $host . '.cfg';
 
-# set defaults
+# set defaults and clean up.
 $workers    ||= '1';
 $tmp        ||= '/tmp';
 $config     ||= '../data/capture.cfg';
 $new_config ||= $host_tmp;
 $output     ||= $fq_dir;
 $log        ||= 'cmds-log.txt';
+
+$bwa      =~ s/\/$//g;
+$picard   =~ s/\/$//g;
+$samtools =~ s/\/$//g;
+$gatk     =~ s/\/$//g;
+$fastqc   =~ s/\/$//g;
+
 
 # add version infomation to config file
 my $bwa_v      = bwa_version($bwa)           if $bwa;
@@ -83,7 +90,7 @@ chomp( $bwa_v, $picard_v, $samtools_v, $gatk_v, $fastqc_v );
 croak "Fastq directory could not be found.\n"  unless ( -d $fq_dir );
 croak "Output directory could not be found.\n" unless ( -d $output );
 croak "Configure file could not be found.\n"   unless ( -e $config );
-croak "Memory option needed\n"                 unless ($mem);
+croak "Memory option needed\n"                 unless ( $mem );
 
 # FQ file check
 my $FH = IO::Dir->new($fq_dir) or croak "Fastq directory or file not correct\n";
@@ -100,17 +107,15 @@ if ( @fq_check % 2 ) { croak "Uneven files detected.\n" }
   ? 1
   : croak "No fastq files with extension .gz found in $fq_dir\n";
 
+#### Build the sections of the config file ####
+
 # read in template config file
 read_config $config => my %config;
-
-#### Build the sections of the config file ####
 
 # add data directory
 $config{main}{data} = $fq_dir;
 
 # configure cpu based on how many fq files
-#my $fq_number = scalar @fq_check;
-#my $cores = system("nproc");
 $config{main}{workers} = $workers;
 
 # configure java memory Xmx
@@ -131,23 +136,23 @@ $config{main}{'log'} = $log;
 $config{main}{ugp_id} = $ugp_id;
 
 # add version and paths
-$config{main}{bwa_version}    = $bwa_v    unless $config{main}{bwa_version};
-$config{main}{picard_version} = $picard_v unless $config{main}{picard_version};
+$config{main}{bwa_version}      = $bwa_v    unless $config{main}{bwa_version};
+$config{main}{picard_version}   = $picard_v unless $config{main}{picard_version};
 $config{main}{samtools_version} = $samtools_v unless $config{main}{samtools_version};
-$config{main}{gatk_version}   = $gatk_v   unless $config{main}{gatk_version};
-$config{main}{fastqc_version} = $fastqc_v unless $config{main}{fastqc_version};
+$config{main}{gatk_version}     = $gatk_v   unless $config{main}{gatk_version};
+$config{main}{fastqc_version}   = $fastqc_v unless $config{main}{fastqc_version};
 
 $config{software}{BWA}      = $bwa      unless $config{software}{BWA};
 $config{software}{Picard}   = $picard   unless $config{software}{Picard};
 $config{software}{SamTools} = $samtools unless $config{software}{Samtools};
-$config{software}{GATK} = "$gatk/GenomeAnalysisTK.jar" unless $config{software}{GATK};
-$config{software}{FastQC} = $fastqc unless $config{software}{FastQC};
+$config{software}{GATK}     = "$gatk/GenomeAnalysisTK.jar" unless $config{software}{GATK};
+$config{software}{FastQC}   = $fastqc unless $config{software}{FastQC};
 
 # write file
 write_config %config, $new_config;
 
 print "\nFinished\n";
-print "Please review your Software options\n";
+print "Please review your individual Software options\n";
 
 ##--------------------------------------------------------
 
@@ -221,8 +226,8 @@ sub fastqc_version {
     my $fastqc_p = shift;
     my $cmd      = $fastqc_p . '/fastqc -version';
     my $version  = `$cmd`;
-    my ( undef, $ver ) = split( "\s+", $version );
-    return $ver;
+    $version =~ s/FastQC //g;
+    return $version;
 }
 
 ##--------------------------------------------------------
