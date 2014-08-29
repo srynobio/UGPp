@@ -52,7 +52,7 @@ sub FastQC_QC {
         chomp $z;
         next unless ( $z =~ /\.fastq/ );
 
-        my $cmd = sprintf( "%s %s -o %s -f fastq %s\n",
+        my $cmd = sprintf( "%s/fastqc %s -o %s -f fastq %s\n",
             $opts->{FastQC}, $tape->ddash, $opts->{output}, $z );
         push @cmds, $cmd;
     }

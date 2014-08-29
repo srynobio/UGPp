@@ -16,7 +16,7 @@ sub SamTools_index {
 
     my $opts = $tape->options;
 
-    my $cmd = sprintf( "%s faidx %s\n", $opts->{SamTools}, $opts->{fasta}, );
+    my $cmd = sprintf( "%s/samtools faidx %s\n", $opts->{SamTools}, $opts->{fasta}, );
     $tape->bundle( \$cmd );
 }
 
@@ -34,7 +34,7 @@ sub SamTools_idxstats {
         ( my $idx_file = $bam ) =~ s/\.bam/\.stats/;
         $tape->file_store($idx_file);
 
-        my $cmd = sprintf( "%s idxstats %s > %s\n",
+        my $cmd = sprintf( "%s/samtools idxstats %s > %s\n",
             $opts->{SamTools}, $bam, $idx_file );
         push @cmds, $cmd;
     }
@@ -54,7 +54,7 @@ sub SamTools_flagstat {
     foreach my $sort ( @{$files} ) {
         ( my $flag_file = $sort ) =~ s/\.bam/.flagstat/;
 
-        my $cmd = sprintf( "%s flagstat %s > %s\n",
+        my $cmd = sprintf( "%s/samtools flagstat %s > %s\n",
             $opts->{SamTools}, $sort, $flag_file );
         push @cmds, $cmd;
     }

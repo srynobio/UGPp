@@ -87,8 +87,9 @@ sub GATK_RealignerTargetCreator {
         $tape->file_store($output);
 
         my $cmd = sprintf(
-                "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s -T RealignerTargetCreator "
-              . "-R %s -I %s %s %s -o %s\n",
+                "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+		."%s/GenomeAnalysisTK.jar -T RealignerTargetCreator "
+              	. "-R %s -I %s %s %s -o %s\n",
             $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp},
             $opts->{GATK},     $opts->{fasta},       $in,
             $tape->ddash,      $tape->indels,        $output
@@ -118,7 +119,7 @@ sub GATK_IndelRealigner {
 
         my $cmd = sprintf(
             "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-              . "%s -T IndelRealigner -R %s -I %s -targetIntervals %s %s -o %s\n",
+              . "%s/GenomeAnalysisTK.jar -T IndelRealigner -R %s -I %s -targetIntervals %s %s -o %s\n",
             $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp},
             $opts->{GATK},     $opts->{fasta},       $dep,
             shift @$target,    $known,               $output
@@ -146,7 +147,7 @@ sub GATK_BaseRecalibrator {
 
         my $cmd = sprintf(
             "java -jar -Xmx%s -XX:ParallelGCThreads=%s "
-              . "-Djava.io.tmpdir=%s %s -T BaseRecalibrator -R %s -I %s %s %s -o %s\n",
+              . "-Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T BaseRecalibrator -R %s -I %s %s %s -o %s\n",
             $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp},
             $opts->{GATK},     $opts->{fasta},       $aln,
             $tape->ddash,      $tape->dbsnp,         $output
@@ -183,7 +184,7 @@ sub GATK_PrintReads {
 
         my $cmd = sprintf(
             "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-              . "%s -T PrintReads -R %s -I %s %s -BQSR %s -o %s\n",
+              . "%s/GenomeAnalysisTK.jar -T PrintReads -R %s -I %s %s -BQSR %s -o %s\n",
             $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp},
             $opts->{GATK},     $opts->{fasta},       $bam,
             $tape->ddash,      $recal_t,             $output
@@ -252,7 +253,7 @@ sub GATK_HaplotypeCaller {
 
                 my $cmd = sprintf(
                         "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-                      . "%s -T HaplotypeCaller -R %s %s -I %s -L %s -o %s\n",
+                      . "%s/GenomeAnalysisTK.jar -T HaplotypeCaller -R %s %s -I %s -L %s -o %s\n",
                     $opts->{java_xmx}, $opts->{java_thread},
                     $opts->{tmp},      $opts->{GATK},
                     $opts->{fasta},    $tape->ddash,
@@ -271,7 +272,7 @@ sub GATK_HaplotypeCaller {
 
             my $cmd = sprintf(
                 "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-                  . "%s -T HaplotypeCaller -R %s %s -I %s -o %s\n",
+                  . "%s/GenomeAnalysisTK.jar -T HaplotypeCaller -R %s %s -I %s -o %s\n",
                 $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp},
                 $opts->{GATK}, $opts->{fasta}, $tape->ddash, $bam, $output );
             push @cmds, $cmd;
@@ -306,8 +307,9 @@ sub GATK_CombineGVCF {
             $tape->file_store($output);
 
             my $cmd =
-              sprintf( "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s -T CombineGVCFs -R %s "
-                  . "--variant %s -o %s\n",
+              sprintf( "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
+		 	." -T CombineGVCFs -R %s "
+                  	. "--variant %s -o %s\n",
                 $opts->{java_xmx}, $opts->{java_thread}, $opts->{GATK}, $opts->{fasta}, $variants,
                 $output );
 
@@ -321,8 +323,8 @@ sub GATK_CombineGVCF {
         $tape->file_store($output);
 
         my $cmd =
-          sprintf( "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s -T CombineGVCFs -R %s "
-              . "--variant %s -o %s\n",
+          sprintf( "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
+		." -T CombineGVCFs -R %s --variant %s -o %s\n",
             $opts->{java_xmx}, $opts->{java_thread}, $opts->{GATK}, $opts->{fasta}, $variants,
             $output );
 
@@ -350,8 +352,8 @@ sub GATK_CombineGVCF_Merge {
     $tape->file_store($output);
 
     my $cmd =
-      sprintf( "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s -T CombineGVCFs -R %s "
-          . "--variant %s -o %s\n",
+      sprintf( "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
+		." -T CombineGVCFs -R %s --variant %s -o %s\n",
         $opts->{java_xmx}, $opts->{java_thread}, $opts->{GATK}, $opts->{fasta}, $variants,
         $output
     );
@@ -396,7 +398,7 @@ sub GATK_GenotypeGVCF {
     $tape->file_store($output);
 
     my $cmd =
-      sprintf( "java -jar -Xmx%s %s -T GenotypeGVCFs -R %s "
+      sprintf( "java -jar -Xmx%s %s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
           . "%s --variant %s -o %s\n",
         $opts->{java_xmx}, $opts->{GATK}, $opts->{fasta}, $tape->ddash,
         $variants, $output );
@@ -427,8 +429,8 @@ sub GATK_VariantRecalibrator_SNP {
     my $anno     = $opts->{use_annotation_SNP};
 
     my $cmd = sprintf(
-        "java -jar -Xmx%s -Djava.io.tmpdir=%s %s -T VariantRecalibrator "
-          . "-R %s %s -resource:%s -an %s -input %s %s %s %s -mode SNP\n",
+        "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
+		." -T VariantRecalibrator -R %s %s -resource:%s -an %s -input %s %s %s %s -mode SNP\n",
         $opts->{java_xmx}, $opts->{tmp},
         $opts->{GATK},     $opts->{fasta},
         $tape->ddash, join( ' -resource:', @$resource ),
@@ -463,7 +465,7 @@ sub GATK_VariantRecalibrator_INDEL {
     my $anno     = $opts->{use_annotation_INDEL};
 
     my $cmd = sprintf(
-        "java -jar -Xmx%s -Djava.io.tmpdir=%s %s -T VariantRecalibrator "
+        "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T VariantRecalibrator "
           . "-R %s %s -resource:%s -an %s -input %s %s %s %s -mode INDEL\n",
         $opts->{java_xmx}, $opts->{tmp},
         $opts->{GATK},     $opts->{fasta},
@@ -492,7 +494,7 @@ sub GATK_ApplyRecalibration_SNP {
     $tape->file_store($output);
 
     my $cmd = sprintf(
-        "java -jar -Xmx%s -Djava.io.tmpdir=%s %s -T ApplyRecalibration "
+        "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
           . "-R %s %s -input %s %s %s -mode SNP -o %s\n",
         $opts->{java_xmx},     $opts->{tmp},          $opts->{GATK},
         $opts->{fasta},        $tape->ddash,          $genotpd,
@@ -518,7 +520,7 @@ sub GATK_ApplyRecalibration_INDEL {
     $tape->file_store($output);
 
     my $cmd = sprintf(
-        "java -jar -Xmx%s -Djava.io.tmpdir=%s %s -T ApplyRecalibration "
+        "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
           . "-R %s %s -input %s %s %s -mode INDEL -o %s\n",
         $opts->{java_xmx},     $opts->{tmp},          $opts->{GATK},
         $opts->{fasta},        $tape->ddash,          $genotpd,
@@ -544,7 +546,7 @@ sub GATK_CombineVariants {
     my $output = $opts->{output} . $opts->{ugp_id} . "_Final+Backgrounds.vcf";
 
     my $cmd = sprintf(
-        "java -jar -Djava.io.tmpdir=%s %s -T CombineVariants -R %s "
+        "java -jar -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T CombineVariants -R %s "
           . "%s %s %s -o %s",
         $opts->{tmp}, $opts->{GATK}, $opts->{fasta}, $tape->ddash,
         join( " ", @app_snp ),
@@ -554,80 +556,4 @@ sub GATK_CombineVariants {
 }
 
 ##-----------------------------------------------------------
-
-=cut
-## keep if need for the future
-
-sub GATK_SelectVariants {
-    my $tape = shift;
-    $tape->pull;
-
-    my $opts = $tape->options;
-
-    my $final_bams = $tape->file_retrieve('GATK_PrintReads');
-    my $appy_snp   = $tape->file_retrieve('GATK_ApplyRecalibration_SNP');
-    my $appy_indel = $tape->file_retrieve('GATK_ApplyRecalibration_INDEL');
-
-    # get data from retrieve ref
-    my $snp_file   = shift @{$appy_snp};
-    my $indel_file = shift @{$appy_indel};
-
-    my $sn;
-    foreach my $bam ( @{$final_bams} ) {
-        chomp $bam;
-        next unless ( $bam =~ /\.bam$/ );
-        my $frags = $tape->file_frags($bam);
-        $sn .= " -sn " . $frags->{parts}[0];
-    }
-
-    # make some output files
-    ( my $output_snp = $snp_file ) =~ s/_recal_SNP.vcf/_cleaned_SNP.vcf/;
-    ( my $output_indel = $indel_file ) =~
-      s/_recal_INDEL.vcf/_cleaned_INDEL.vcf/;
-
-    # Keep the outputs
-    $tape->file_store($output_snp);
-    $tape->file_store($output_indel);
-
-    # run commands for both snp and indels
-    my @cmds;
-    my $snp_cmd =
-      sprintf( "java -jar -Djava.io.tmpdir=%s %s -T SelectVariants -R %s "
-          . "%s %s --variant %s -o %s\n",
-        $opts->{tmp}, $opts->{GATK}, $opts->{fasta}, $tape->ddash, $sn,
-        $snp_file, $output_snp );
-
-    my $indel_cmd = sprintf(
-        "java -jar -Djava.io.tmpdir=%s %s -T SelectVariants -R %s "
-          . "%s %s --variant %s -o %s\n",
-        $opts->{tmp}, $opts->{GATK}, $opts->{fasta}, $tape->ddash,
-        $sn,          $indel_file,   $output_indel
-    );
-    push @cmds, $snp_cmd, $indel_cmd;
-
-    $tape->bundle( \@cmds );
-}
-
-sub GATK_CombineVariants {
-    my $tape = shift;
-    $tape->pull;
-
-    my $opts = $tape->options;
-
-    my $select_files = $tape->file_retrieve('GATK_SelectVariants');
-    my @variants = map { "--variant $_ " } @{$select_files};
-
-    my $output = $opts->{output} . $opts->{ugp_id} . "_Final.vcf";
-
-    my $cmd =
-      sprintf( "java -jar -Djava.io.tmpdir=%s %s -T CombineVariants -R %s "
-          . "%s %s -o %s",
-        $opts->{tmp}, $opts->{GATK}, $opts->{fasta}, $tape->ddash,
-        join( " ", @variants ), $output );
-    $tape->bundle( \$cmd );
-}
-=cut
-
-##-----------------------------------------------------------
-
 1;
