@@ -55,14 +55,10 @@ Additional options:
 
 my %c_opts = ();
 GetOptions(
-    \%c_opts,
-    "config|cfg=s",
-    "run|r",
-    "interval_list|il=s",
-    "engine|e=s",
-    "clean|c",
-    "error_check|ec",
-    "file|f=s",
+    \%c_opts,         "config|cfg=s",
+    "run|r",          "interval_list|il=s",
+    "engine|e=s",     "clean|c",
+    "error_check|ec", "file|f=s",
     "help|h"
 );
 croak $usage if $c_opts{help};
@@ -74,12 +70,12 @@ if ( $c_opts{clean} ) {
 }
 
 if ( $c_opts{error_check} ) {
-	system("grep -i 'error' *.log-*");
-	system("grep -i 'exceptions' *.log-*");
-	exit(0);
+    system("grep -i 'error' *.log-*");
+    system("grep -i 'exceptions' *.log-*");
+    exit(0);
 }
 
-croak "config file needed\n$usage" if ( ! $c_opts{config} );
+croak "config file needed\n$usage" if ( !$c_opts{config} );
 
 $c_opts{engine} //= 'MCE';
 

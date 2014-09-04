@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+# project_config
 use warnings;
 use strict;
 use Getopt::Long;
@@ -10,49 +11,51 @@ my $usage = "
 
 Synopsis:
 
-    ./config_creator --fasta_dir <string> --memory <int> --cpu <int> --tmp <string> --log <string> --new_config <string>
-    ./config_creator -fd /data2/srynearson/gcat -m 1000 -cpu 80 -t /tmp -l report.log -nc gcat_run.cfg
+    ./project_config --fasta_dir <string> --memory <int> --workers <int> --tmp <string> --log <string> --new_config <string>
+    ./project_config -fd /data2/srynearson/gcat -m 1000 -w 80 -t /tmp -l report.log -nc gcat_run.cfg
 
 Description:
 
-    General utility script to help create configure files quickly.
+    General utility script to help create new configure files per project.
     *Will not modify software options*
 
 Required options:
 
     -fd, --fastq_dir:   Path to location of fastq files.
-    -m,  --memory:      Total GB of memory available.
+    -u,  --ugp_id:   	UGP id to add to config file.
 
 Additional options:
 
-    -cfg, --config:         Configure file you would like to build from.
-    -t,   --tmp:            Path to tmp file location.  Default: /tmp
-    -l,   --log:            Log file name for a given run.  cAPTUrE will default to cmd.log
-    -nc,  --new_config:     Name of the new config file generated.
-    -jt,  --java_threads:   How many threads you would like java to have access to.
-    -o,   --output_dir:     Path to write output files to.  cAPTUrE will default to fastq dir.
-
-UGP options:
-
-    --ugp_id:   UGP id to add to config file.
+    -cfg, --config:         Configure file you would like to build from [default capture.cfg].
+    -t,   --tmp:            Path to tmp file location.  [default: /tmp]
+    -l,   --log:            Log file name for a given run.  [default to cmd.log]
+    -nc,  --new_config:     Name of the new config file generated. [default tmp.cfg]
+    -jt,  --java_threads:   How many threads you would like java to have access to [default 1]
+    -jm,  --java_memory:    How much memory java can access. [default 10g]
+    -o,   --output_dir:     Path to write output files to.  [default to fastq dir via cApTUrE]
+    -w,	  --workers:	    Number of CPUs to distribute work across. [default 1]
 
 \n";
 
-my ( $fq_dir, $mem, $config, $tmp, $jt, $n_config, $output, $log, $help, $ugp_id );
+my (
+    $fq_dir, $config, $tmp,  $jt,     $jm, $n_config,
+    $output, $log,    $help, $ugp_id, $workers
+);
 GetOptions(
-    "fastq_dir|fd=s" => \$fq_dir,
-    "memory|m=i"     => \$mem,
-    "config|cfg=s"   => \$config,
+    "fastq_dir|fd=s"    => \$fq_dir,
+    "config|cfg=s"      => \$config,
     "tmp|t=s"           => \$tmp,
     "java_threads|jt=i" => \$jt,
+    "java_memory|jm=i"  => \$jm,
     "new_config|nc=s"   => \$n_config,
     "output_dir|o=s"    => \$output,
     "log|l=s"           => \$log,
     "help|h"            => \$help,
-    "ugp_id=s"          => \$ugp_id,
+    "ugp_id|u=s"        => \$ugp_id,
+    "workers|w=i"       => \$workers,
 );
-croak "fastq directory and memory options required\n$usage"
-  unless ( $fq_dir and $mem and $ugp_id );
+croak "fastq directory, ugp_id required\n$usage"
+  unless ( $fq_dir and $ugp_id );
 croak $usage if ($help);
 
 # set or add default;
@@ -71,7 +74,7 @@ foreach my $file ( $FH->read ) {
 $FH->close;
 
 # quick file check
-if ( @fq_check % 2 ) { croak "Uneven files detected.\n" }
+if ( @fq_check % 2 ) { croak "Uneven fastq files detected.\n" }
 ( @fq_check > 1 )
   ? 1
   : croak "No fastq files with extension .gz found in $fq_dir\n";
@@ -85,13 +88,11 @@ read_config $config => my %config;
 # add data directory
 $config{main}{data} = $fq_dir;
 
-# configure cpu based on how many fq files
-my $fq_number = scalar @fq_check;
-$config{main}{cpu} = $fq_number;
+# configure workers based on how many fq files
+$config{main}{workers} = $workers;
 
 # configure java memory Xmx
-my $java_mem = int( $mem / ( $fq_number / 2 ) );
-$config{main}{java_xmx} = "$java_mem" . 'g';
+$config{main}{java_xmx} = $jm . 'g';
 
 # add tmp dir
 $config{main}{tmp} = $tmp;
@@ -103,7 +104,7 @@ $config{main}{output} = $output if $output;
 $config{main}{log} = $output if $log;
 
 # some UGP specific additions
-$config{main}{ugp_id} = "Capture_$ugp_id";
+$config{main}{ugp_id} = "cApTUrE_$ugp_id";
 
 # write file
 write_config %config, $n_config;
