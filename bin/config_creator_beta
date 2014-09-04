@@ -145,8 +145,8 @@ $config{main}{fastqc_version}   = $fastqc_v unless $config{main}{fastqc_version}
 $config{software}{BWA}      = $bwa      unless $config{software}{BWA};
 $config{software}{Picard}   = $picard   unless $config{software}{Picard};
 $config{software}{SamTools} = $samtools unless $config{software}{Samtools};
-$config{software}{GATK}     = "$gatk/GenomeAnalysisTK.jar" unless $config{software}{GATK};
-$config{software}{FastQC}   = $fastqc unless $config{software}{FastQC};
+$config{software}{GATK}     = $gatk     unless $config{software}{GATK};
+$config{software}{FastQC}   = $fastqc   unless $config{software}{FastQC};
 
 # write file
 write_config %config, $new_config;

@@ -373,7 +373,7 @@ sub GATK_GenotypeGVCF {
     my $multi  = $tape->file_retrieve('GATK_CombineGVCF_Merge');
 
     my $combined;
-    if ( $single ) { $combined = $single } else { $combined = $multi }
+    if ( $multi ) { $combined = $multi } else { $combined = $single }
 
     my @merged = grep { /_final_mergeGvcf.vcf$/ } @{$combined};
 

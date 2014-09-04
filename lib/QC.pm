@@ -10,9 +10,11 @@ extends 'Roll';
 ##------------------------ METHODS --------------------------
 ##-----------------------------------------------------------
 
-sub QC_md5_check {
+#sub QC_md5_check {
+sub md5_check {
 	my $tape = shift;
 	$tape->pull;
+	unless ($tape->execute) { return }
 
 	my $opts = $tape->options;
 
@@ -38,10 +40,12 @@ sub QC_md5_check {
 
 ##-----------------------------------------------------------
 
-sub QC_fastqc_check {
+#sub QC_fastqc_check {
+sub fastqc_check {
 	my $tape = shift;
 	$tape->pull;
-	
+	unless ($tape->execute) { return }
+
 	my $opts = $tape->options;
 	my $output_dir = $opts->{output};
 
@@ -85,9 +89,11 @@ sub QC_fastqc_check {
 
 ##-----------------------------------------------------------
 
-sub QC_idxstats {
+#sub QC_idxstats {
+sub idxstats_check {
 	my $tape = shift;
 	$tape->pull;
+	unless ($tape->execute) { return }
 	
 	my $opts = $tape->options;
 	
@@ -124,9 +130,11 @@ sub QC_idxstats {
 
 ##-----------------------------------------------------------
 
-sub QC_metrics_check {
+#sub QC_metrics_check {
+sub metrics_check {
 	my $tape = shift;
 	$tape->pull;
+	unless ($tape->execute) { return }
 
 	my $opts = $tape->options;
 
