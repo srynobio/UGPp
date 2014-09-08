@@ -41,13 +41,11 @@ my $user = 'srynearson';
 
 # build the scp object
 my $scp = Net::SCP::Expect->new(
-    host      => $host,
     user      => $user,
     password  => $pass,
     recursive => 1,
     timeout   => 20,
     verbose   => 1,
 );
-$scp->scp( "$host:$rp", $lp );
-
+$scp->scp( "$host:$rp", "$lp" );
 

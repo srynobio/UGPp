@@ -27,7 +27,6 @@ Required options:
 Additional options:
 
     -cfg, --config:         Configure file you would like to build from [default capture.cfg].
-    -t,   --tmp:            Path to tmp file location.  [default: /tmp]
     -l,   --log:            Log file name for a given run.  [default to cmd.log]
     -nc,  --new_config:     Name of the new config file generated. [default tmp.cfg]
     -jt,  --java_threads:   How many threads you would like java to have access to [default 1]
@@ -38,13 +37,12 @@ Additional options:
 \n";
 
 my (
-    $fq_dir, $config, $tmp,  $jt,     $jm, $n_config,
+    $fq_dir, $config, $jt,     $jm, $n_config,
     $output, $log,    $help, $ugp_id, $workers
 );
 GetOptions(
     "fastq_dir|fd=s"    => \$fq_dir,
     "config|cfg=s"      => \$config,
-    "tmp|t=s"           => \$tmp,
     "java_threads|jt=i" => \$jt,
     "java_memory|jm=i"  => \$jm,
     "new_config|nc=s"   => \$n_config,
@@ -60,7 +58,6 @@ croak $usage if ($help);
 
 # set or add default;
 $config   //= '../data/capture.cfg';
-$tmp      //= '/tmp';
 $n_config //= 'tmp.cfg';
 $jt       //= '1';
 
@@ -95,14 +92,11 @@ $config{main}{workers} = $workers;
 $config{main}{java_xmx} = $jm . 'g';
 $config{main}{java_thread} = $jt;
 
-# add tmp dir
-$config{main}{tmp} = $tmp;
-
 # add output dir if supplyed
 $config{main}{output} = $output if $output;
 
 # add log file if supplyed
-$config{main}{'log'} = $output if $log;
+$config{main}{'log'} = $log if $log;
 
 # some UGP specific additions
 $config{main}{ugp_id} = "cApTUrE_$ugp_id";

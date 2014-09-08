@@ -76,7 +76,7 @@ sub fastqc_check {
 			if ( $view[0] eq 'Encoding' and $view[1] ne 'Sanger / Illumina 1.9' ) { $fail++; next }
 			if ( $view[0] eq 'Total Sequences' and $view[1] < 30000000 ) { $fail++; next }
 			if ( $view[0] eq 'Filtered Sequences' and $view[1] >= 5 ) { $fail++; next }
-			if ( $view[0] eq 'Sequence length' and $view[1] < 100 ) { $fail++; next }
+			if ( $view[0] eq 'Sequence length' and $view[1] ne '100' ) { $fail++; next }
 			if ( $view[0] eq '%GC' and ( $view[1] > 55 or $view[1] < 45) ) { $fail++; next }
 			if ( $view[0] eq 'Total Duplicate Percentage' and $view[1] > '60.0' ) { $fail++; next }
 

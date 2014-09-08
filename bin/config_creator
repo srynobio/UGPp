@@ -119,6 +119,9 @@ $config{main}{resource_INDEL} = [
 # add backgrounds
 $config{main}{backgrounds} = $backgrounds;
 
+# add tmp
+$config{main}{tmp} = $tmp;
+
 # write file
 write_config %config, $new_config;
 
