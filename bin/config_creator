@@ -107,9 +107,7 @@ $config{main}{known_dbsnp} = "$bundle/dbsnp_137.b37.vcf";
 
 $config{main}{resource_SNP} = [
 "hapmap,known=false,training=true,truth=true,prior=15.0 $bundle/hapmap_3.3.b37.vcf",
-"omni,known=false,training=true,truth=true,prior=12.0 $bundle/1000G_omni2.5.b37.vcf"
-];
-$config{main}{resource_SNP} = [
+"omni,known=false,training=true,truth=true,prior=12.0 $bundle/1000G_omni2.5.b37.vcf",
 "1000G,known=false,training=true,truth=false,prior=10.0 $bundle/1000G_phase1.snps.high_confidence.b37.vcf"
 ];
 
