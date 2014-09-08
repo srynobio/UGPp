@@ -173,11 +173,6 @@ sub LOG {
     my $LOG = IO::File->new( $log_file, 'a+' );
 
     if ( $type eq 'config' ) {
-
-        my $soft_list;
-        while ( my ( $key, $value ) = each %{ $self->programs } ) {
-            $soft_list .= "$key\t$value\n";
-        }
         print $LOG "-" x 55;
         print $LOG "\n----- UGP Pipeline -----\n";
         print $LOG "-" x 55;

@@ -93,6 +93,7 @@ $config{main}{workers} = $workers;
 
 # configure java memory Xmx
 $config{main}{java_xmx} = $jm . 'g';
+$config{main}{java_thread} = $jt;
 
 # add tmp dir
 $config{main}{tmp} = $tmp;
@@ -101,7 +102,7 @@ $config{main}{tmp} = $tmp;
 $config{main}{output} = $output if $output;
 
 # add log file if supplyed
-$config{main}{log} = $output if $log;
+$config{main}{'log'} = $output if $log;
 
 # some UGP specific additions
 $config{main}{ugp_id} = "cApTUrE_$ugp_id";
