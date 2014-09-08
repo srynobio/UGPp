@@ -3,7 +3,7 @@
 
 <strong>VERSION</strong>
 
-This document describes version 1.0.4
+This document describes version 1.0.5
 
 <strong>SYNOPSIS</strong>
 
@@ -27,7 +27,6 @@ Currently it incorporates the following tools:
 </ul>
 
 cApTUrE requires a config file given as the first commandline argument.
-And all instructions and requirements are given therein.
 
 GATKs best practices (with some modifications) are followed throughout this pipeline please refer to their site and the UGP wiki for more information.
 
@@ -59,15 +58,16 @@ cApTUrE/data:
 <ul>
 	<li><em>exon_Region.list</em></li>
 	<li><em>exome.analysis.sequence.index</em></li>
-	<li><em>capture.cfg</em> - This is the main configure file used to run the UGP pipeline, but can also be used as an example template for future project.</li>
-	<li><em>cluster.cfg</em> - This is the main configure file used to run the UGP pipeline on the CHPC cluster.</li>
+	<li><em>capture.cfg</em> - This is the main template configure file use with config_creator.  This will create a new template based on file location per server/system.</li>
+	<li><em>PBS_template</em> - Template use for PBS job submission on the CHPC cluster.
 </ul>
 cApTUrE/bin:
 <ul>
 	<li><em>cApTUrE</em> - main script</li>
-	<li><em>config_creator</em>
+	<li><em>config_creator</em> - Interactive script which creates a hostname.cfg config file, which contains all path locations for a given machine.
+	<li><em>project_config</em> - Can use the above generated config file as a template for each dataset to run.
 </ul>
-cApTUrE/bin/capture_tools:
+cApTUrE/bin/UGP_tools:
 <ul>
 	<li><em>RegionMaker</em></li> 
 	<li><em>Thousand_genome_recreator.pl</em></li>
@@ -81,7 +81,9 @@ After downloading and installing all dependences, a typical setup and run would 
 <em>Setting up the config file</em>:
 
 config_creator has been created to help complete new configure files as needed.
-Often many of the values in the config file can be set on a per-machine basis, creating essentially a new master file.  Examples of these would be known indel files, VQSR VCFs, BAM background files, and software paths.  Therefore what you will change each run will be the ugp_id, fastq dir, and possibly the run order.
+Often many of the values in the config file can be set on a per-machine basis, creating essentially a new master file (hostname.cfg).  Examples of these would be known indel files, VQSR VCFs, BAM background files, and software paths.  
+
+project_config is used to create a new project based on the master file information.  The script will output a new .cfg file with fastq paths, output directories, worker number, memory usage and ugp_id.
 
 <em>Running cApTUrE:</em>
 
