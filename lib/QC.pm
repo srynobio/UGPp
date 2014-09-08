@@ -55,7 +55,7 @@ sub fastqc_check {
 	# Clean up
 	my @reports;
 	if ( @fails ) {
-		$tape->WARN("Fastqc reported FAIL files, please review QC-report.txt\n");
+		$tape->WARN("Fastqc reported contains FAIL files, please review QC-report.txt\n");
 		chomp @fails;
 		@reports = map { $_ } @fails; 
 	}

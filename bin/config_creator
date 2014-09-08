@@ -125,7 +125,7 @@ $config{main}{backgrounds} = $backgrounds;
 write_config %config, $new_config;
 
 print "\nFinished\n";
-print "Please run project_config for you individual project\n";
+print "Please run project_config for you individual project with the option --config 'hostname.cfg'.\n";
 
 ##--------------------------------------------------------
 
