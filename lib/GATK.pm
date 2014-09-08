@@ -546,11 +546,7 @@ sub GATK_CombineVariants {
     my $output = $opts->{output} . $opts->{ugp_id} . "_Final+Backgrounds.vcf";
 
     my $cmd = sprintf(
-<<<<<<< HEAD
-        "java -jar -Xmx%s -Djava.io.tmpdir=%s %s -T CombineVariants -R %s "
-=======
         "java -jar -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T CombineVariants -R %s "
->>>>>>> beta
           . "%s %s %s -o %s",
         $opts->{java_xmx}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta}, $tape->ddash,
         join( " ", @app_snp ),
