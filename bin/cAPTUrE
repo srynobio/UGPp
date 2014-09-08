@@ -14,11 +14,12 @@ my $usage = "
 Synopsis:
     ./cApTUrE --config file.cfg --interval_list file.list --run
     ./cApTUrE --config file.cfg --file sorted_bams.list --run
+    ./cApTUrE --error_check
     ./cApTUrE --clean
 
 Description:
 
-    cApTUrE:  vAriant collecTing UGP pipeline version: 1.0.4
+    cApTUrE:  vAriant collecTing UGP pipeline version: 1.0.5
 
     cApTUrE is a NGS pipeline written in Perl, created for the
     Utah Genome Project (UGP) http://weatherby.genetics.utah.edu/UGP/wiki/index.php/Main_Page
@@ -46,19 +47,18 @@ Additional options:
     -r, --run   Will take given command stack and run commands.
                 When this option off a display of commands will piped to STDOUT.
 
+    -ec, --error_check	Run quick check of log files for run errors.
+
     -c, --clean Will clean up all log, data, pbs, index and report files.
 
 \n";
 
 my %c_opts = ();
 GetOptions(
-    \%c_opts,
-    "config|cfg=s",
-    "run|r",
-    "interval_list|il=s",
-    "engine|e=s",
-    "clean|c",
-    "file|f=s",
+    \%c_opts,         "config|cfg=s",
+    "run|r",          "interval_list|il=s",
+    "engine|e=s",     "clean|c",
+    "error_check|ec", "file|f=s",
     "help|h"
 );
 croak $usage if $c_opts{help};
@@ -69,7 +69,13 @@ if ( $c_opts{clean} ) {
     exit(0);
 }
 
-croak "config file needed\n$usage" if ( ! $c_opts{config} );
+if ( $c_opts{error_check} ) {
+    system("grep -i 'error' *.log-*");
+    system("grep -i 'exceptions' *.log-*");
+    exit(0);
+}
+
+croak "config file needed\n$usage" if ( !$c_opts{config} );
 
 $c_opts{engine} //= 'MCE';
 

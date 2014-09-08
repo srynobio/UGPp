@@ -19,7 +19,7 @@ sub Picard_CreateSequenceDictionary {
     my $fa_file = $tape->file_frags( $opts->{fasta} );
     ( my $output = $fa_file->{full} ) =~ s/(.*)\.(fasta|fa)/$1.dict/;
 
-    my $cmd = sprintf( "java -jar %sCreateSequenceDictionary.jar R=%s O=%s\n",
+    my $cmd = sprintf( "java -jar %s/CreateSequenceDictionary.jar R=%s O=%s\n",
         $opts->{Picard}, $opts->{fasta}, $output );
     $tape->bundle( \$cmd );
 }
@@ -41,7 +41,7 @@ sub Picard_SortSam {
 
         my $cmd =
           sprintf( "java -jar -XX:ParallelGCThreads=%s -Xmx%s "
-              . "-Djava.io.tmpdir=%s %sSortSam.jar INPUT=%s "
+              . "-Djava.io.tmpdir=%s %s/SortSam.jar INPUT=%s "
               . "OUTPUT=%s %s\n",
             $opts->{java_thread}, $opts->{java_xmx},
             $opts->{tmp}, $opts->{Picard}, $s, $sort, $tape->equal_dash );
@@ -96,7 +96,7 @@ sub Picard_MergeSamFiles {
 
         my $cmd = sprintf(
             "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-              . "%sMergeSamFiles.jar %s %s %s\n",
+              . "%s/MergeSamFiles.jar %s %s %s\n",
             $opts->{java_xmx}, $opts->{java_thread},
             $opts->{tmp}, $opts->{Picard},
             $tape->equal_dash, $input, $output );
@@ -130,7 +130,7 @@ sub Picard_MarkDuplicates {
 
         my $cmd = sprintf(
             "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-              . "%sMarkDuplicates.jar INPUT=%s OUTPUT=%s METRICS_FILE=%s %s\n",
+              . "%s/MarkDuplicates.jar INPUT=%s OUTPUT=%s METRICS_FILE=%s %s\n",
             $opts->{java_xmx}, $opts->{java_thread},
             $opts->{tmp}, $opts->{Picard},
             $bam, $output, $metric, $tape->equal_dash );
@@ -155,7 +155,7 @@ sub Picard_CollectMultipleMetrics {
 
         my $cmd = sprintf(
             "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-              . "%sCollectMultipleMetrics.jar INPUT=%s %s REFERENCE_SEQUENCE=%s "
+              . "%s/CollectMultipleMetrics.jar INPUT=%s %s REFERENCE_SEQUENCE=%s "
               . "OUTPUT=%s\n",
             $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp},
             $opts->{Picard}, $bam, $tape->equal_dash, $opts->{fasta}, $w_file );
