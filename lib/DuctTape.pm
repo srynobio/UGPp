@@ -320,9 +320,9 @@ sub _MCE_run {
         $tape->LOG( 'cmd', $step );
         eval { run($step) };
         if ($@) {
-            $tape->ERROR("ERROR running command: $@");
-            MCE->shutdown;
-            MCE->exit( 0, 'failed run engine shutting down' );
+            $tape->ERROR("error running command: $@");
+            mce->shutdown;
+            mce->exit( 0, 'failed run engine shutting down' );
         }
     }
     return;
