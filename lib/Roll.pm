@@ -233,7 +233,7 @@ sub file_store {
 
     my $caller = ( caller(1) )[3];
     my ( $class, $method ) = split "::", $caller;
-    push @{ $stored{$method} }, $file if $file;
+    push @{ $stored{$method} }, $file unless $file ~~ [values %stored];
     return;
 }
 
