@@ -38,11 +38,13 @@ GetOptions(
     "padding|p=i" => \$pad,
     "help|h"      => \$help,
 );
-unless ( $feature ) { croak $usage }
+unless ($feature) { croak $usage }
 croak $usage if $help;
 
 print "Downloading BUILD.37.3 GFF3 file\n";
-system("wget ftp://ftp.ncbi.nlm.nih.gov/genomes/H_sapiens/ARCHIVE/BUILD.37.3/GFF/ref_GRCh37*level.gff3.gz");
+system(
+"wget ftp://ftp.ncbi.nlm.nih.gov/genomes/H_sapiens/ARCHIVE/BUILD.37.3/GFF/ref_GRCh37*level.gff3.gz"
+);
 system("mv ref_GRCh37*level.gff3.gz ref_GRCh37.gff3.gz");
 print "working...\n";
 system("gunzip ref_GRCh37.gff3.gz");
@@ -89,8 +91,8 @@ sub updateGATKGFF {
     foreach (<$inFH>) {
         chomp $_;
 
-        if ( $_ !~ /^NC_/ )   { next }
-        if ( $_ =~ /region/  && $feature ne 'region') { next }
+        if ( $_ !~ /^NC_/ ) { next }
+        if ( $_ =~ /region/ && $feature ne 'region' ) { next }
 
         # changing to MT, X, Y
         $_ =~ s/^NC_012920.1/MT/g;

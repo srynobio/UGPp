@@ -152,7 +152,7 @@ sub bundle {
     my ( $self, $cmd, $record ) = @_;
     $record //= 'on';
 
-    # get caller info to create log file. 
+    # get caller info to create log file.
     my $caller = ( caller(1) )[3];
     my ( $package, $sub ) = split /::/, $caller;
 
@@ -160,7 +160,7 @@ sub bundle {
     my $call_type = ref $cmd;
     unless ( $call_type and $call_type ne 'HASH' ) {
         $self->ERROR(
-            "bundled command from $sub command must be an scalar or array reference."
+"bundled command from $sub command must be an scalar or array reference."
         );
     }
 

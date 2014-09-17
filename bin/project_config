@@ -37,7 +37,7 @@ Additional options:
 \n";
 
 my (
-    $fq_dir, $config, $jt,     $jm, $n_config,
+    $fq_dir, $config, $jt,   $jm,     $n_config,
     $output, $log,    $help, $ugp_id, $workers
 );
 GetOptions(
@@ -89,7 +89,7 @@ $config{main}{data} = $fq_dir;
 $config{main}{workers} = $workers;
 
 # configure java memory Xmx
-$config{main}{java_xmx} = $jm . 'g';
+$config{main}{java_xmx}    = $jm . 'g';
 $config{main}{java_thread} = $jt;
 
 # add output dir if supplyed

@@ -16,8 +16,8 @@ sub BWA_index {
 
     my $opts = $tape->options;
 
-    my $cmd =
-      sprintf( "%s/bwa index %s %s\n", $opts->{BWA}, $tape->dash, $opts->{fasta} );
+    my $cmd = sprintf( "%s/bwa index %s %s\n",
+        $opts->{BWA}, $tape->dash, $opts->{fasta} );
     $tape->bundle( \$cmd );
 }
 
@@ -62,11 +62,9 @@ sub BWA_mem {
 
         my $cmd = sprintf(
             "%s/bwa mem %s -R %s %s %s %s | %s/samtools view -bSho %s -\n",
-            $opts->{BWA},                          $tape->dash,
-            $r_group,                              $opts->{fasta},
-            $file1->{full},                        $file2->{full},
-            $tape->software->{SamTools}, $path_bam
-        );
+            $opts->{BWA}, $tape->dash, $r_group, $opts->{fasta},
+            $file1->{full}, $file2->{full},
+            $tape->software->{SamTools}, $path_bam );
         push @cmds, $cmd;
         $id++;
     }

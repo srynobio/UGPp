@@ -210,20 +210,20 @@ sub LOG {
 #-----------------------------------------------------------
 
 sub QC_report {
-	my ($self, $message) = @_;
-    	my $caller = ( caller(1) )[3];
+    my ( $self, $message ) = @_;
+    my $caller = ( caller(1) )[3];
 
-	my $QC = IO::File->new('QC-report.txt', 'a+');
+    my $QC = IO::File->new( 'QC-report.txt', 'a+' );
 
-	$self->ERROR("QC_report message must be arrayref\n")
-		if (ref $message ne 'ARRAY');
+    $self->ERROR("QC_report message must be arrayref\n")
+      if ( ref $message ne 'ARRAY' );
 
-	print $QC "# ==== Quality Info from $caller ====#\n";
-	map { print $QC $_, "\n" } @$message;
-        print $QC "-" x 55, "\n";
-	
-	$QC->close;
-	return;
+    print $QC "# ==== Quality Info from $caller ====#\n";
+    map { print $QC $_, "\n" } @$message;
+    print $QC "-" x 55, "\n";
+
+    $QC->close;
+    return;
 }
 
 #-----------------------------------------------------------
@@ -233,7 +233,7 @@ sub file_store {
 
     my $caller = ( caller(1) )[3];
     my ( $class, $method ) = split "::", $caller;
-    push @{ $stored{$method} }, $file unless $file ~~ [values %stored];
+    push @{ $stored{$method} }, $file unless $file ~~ [ values %stored ];
     return;
 }
 
@@ -241,7 +241,7 @@ sub file_store {
 
 sub file_retrieve {
     my ( $self, $class ) = @_;
-    $self->ERROR( "Method file_retrieve must have request class" )
+    $self->ERROR("Method file_retrieve must have request class")
       unless $class;
 
     if ( $self->{commandline}->{file} and !-e 'CMD_stack.store' ) {
@@ -281,7 +281,7 @@ sub _make_storable {
     my $list = $self->{commandline}->{file};
 
     my $FH = IO::File->new($list)
-      or $self->ERROR( "Given File $list can not be opened or corrupt" );
+      or $self->ERROR("Given File $list can not be opened or corrupt");
 
     foreach my $file (<$FH>) {
         chomp $file;
@@ -297,7 +297,8 @@ sub DEMOLISH {
     my $self = shift;
 
     #if ( $self->execute ) {
-        store \%stored, 'CMD_stack.store';
+    store \%stored, 'CMD_stack.store';
+
     #}
 }
 

@@ -16,7 +16,8 @@ sub SamTools_index {
 
     my $opts = $tape->options;
 
-    my $cmd = sprintf( "%s/samtools faidx %s\n", $opts->{SamTools}, $opts->{fasta}, );
+    my $cmd =
+      sprintf( "%s/samtools faidx %s\n", $opts->{SamTools}, $opts->{fasta}, );
     $tape->bundle( \$cmd );
 }
 
