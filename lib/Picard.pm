@@ -10,7 +10,7 @@ extends 'Roll';
 ##------------------------ METHODS --------------------------
 ##-----------------------------------------------------------
 
-sub Picard_CreateSequenceDictionary {
+sub CreateSequenceDictionary {
     my $tape = shift;
     $tape->pull;
 
@@ -26,13 +26,13 @@ sub Picard_CreateSequenceDictionary {
 
 ##-----------------------------------------------------------
 
-sub Picard_SortSam {
+sub SortSam {
     my $tape = shift;
     $tape->pull;
 
     my $opts = $tape->options;
 
-    my $bwa_files = $tape->file_retrieve('BWA_mem');
+    my $bwa_files = $tape->file_retrieve('bwa_mem');
 
     my @cmds;
     foreach my $s ( @{$bwa_files} ) {
@@ -52,14 +52,14 @@ sub Picard_SortSam {
 
 ##-----------------------------------------------------------
 
-sub Picard_MergeSamFiles {
+sub MergeSamFiles {
     my $tape = shift;
     $tape->pull;
 
     my $opts = $tape->options;
 
     # the original collected step from sorting.
-    my $sam_files = $tape->file_retrieve('Picard_SortSam');
+    my $sam_files = $tape->file_retrieve('SortSam');
 
     # collect one or more files based on id of the set.
     my %id_collect;
@@ -106,15 +106,15 @@ sub Picard_MergeSamFiles {
 
 ##-----------------------------------------------------------
 
-sub Picard_MarkDuplicates {
+sub MarkDuplicates {
     my $tape = shift;
     $tape->pull;
 
     my $opts = $tape->options;
 
     # see how many files were used.
-    my $sam_files    = $tape->file_retrieve('Picard_SortSam');
-    my $merged_files = $tape->file_retrieve('Picard_MergeSamFiles');
+    my $sam_files    = $tape->file_retrieve('SortSam');
+    my $merged_files = $tape->file_retrieve('MergeSamFiles');
 
     my $file_stack;
     if   ($merged_files) { $file_stack = $merged_files }
@@ -140,12 +140,12 @@ sub Picard_MarkDuplicates {
 
 ##-----------------------------------------------------------
 
-sub Picard_CollectMultipleMetrics {
+sub CollectMultipleMetrics {
     my $tape = shift;
     $tape->pull;
 
     my $opts  = $tape->options;
-    my $recal = $tape->file_retrieve('GATK_PrintReads');
+    my $recal = $tape->file_retrieve('PrintReads');
 
     my @cmds;
     foreach my $bam ( @{$recal} ) {

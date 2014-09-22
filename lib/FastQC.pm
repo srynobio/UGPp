@@ -10,7 +10,7 @@ extends 'Roll';
 ##------------------------ METHODS --------------------------
 ##-----------------------------------------------------------
 
-sub FastQC_unzip {
+sub fastq_unzip {
     my $tape = shift;
     $tape->pull;
 
@@ -29,6 +29,9 @@ sub FastQC_unzip {
         elsif ( $file =~ /fastq/ ) {
             ( $output = $file ) =~ s/\.gz$//;
         }
+	elsif ( $file =~ /fastq.gz/ ) {
+            ( $output = $file ) =~ s/fastq.gz/fastq/;
+	}
 
         $tape->file_store($output);
 
@@ -40,12 +43,12 @@ sub FastQC_unzip {
 
 ##-----------------------------------------------------------
 
-sub FastQC_QC {
+sub fastqc_run {
     my $tape = shift;
     $tape->pull;
 
     my $opts  = $tape->options;
-    my $unzip = $tape->file_retrieve('FastQC_unzip');
+    my $unzip = $tape->file_retrieve('fastq_unzip');
 
     my @cmds;
     foreach my $z ( @{$unzip} ) {

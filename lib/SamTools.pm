@@ -10,7 +10,7 @@ extends 'Roll';
 ##------------------------ METHODS --------------------------
 ##-----------------------------------------------------------
 
-sub SamTools_index {
+sub samtools_index {
     my $tape = shift;
     $tape->pull;
 
@@ -23,12 +23,12 @@ sub SamTools_index {
 
 ##-----------------------------------------------------------
 
-sub SamTools_idxstats {
+sub idxstats {
     my $tape = shift;
     $tape->pull;
 
     my $opts   = $tape->options;
-    my $sorted = $tape->file_retrieve('Picard_SortSam');
+    my $sorted = $tape->file_retrieve('SortSam');
 
     my @cmds;
     foreach my $bam ( @{$sorted} ) {
@@ -44,12 +44,12 @@ sub SamTools_idxstats {
 
 ##-----------------------------------------------------------
 
-sub SamTools_flagstat {
+sub flagstat {
     my $tape = shift;
     $tape->pull;
 
     my $opts  = $tape->options;
-    my $files = $tape->file_retrieve("Picard_SortSam");
+    my $files = $tape->file_retrieve("SortSam");
 
     my @cmds;
     foreach my $sort ( @{$files} ) {

@@ -68,13 +68,13 @@ sub _build_dbsnp {
 
 ##-----------------------------------------------------------
 
-sub GATK_RealignerTargetCreator {
+sub RealignerTargetCreator {
     my $tape = shift;
     $tape->pull;
 
     my $opts = $tape->options;
 
-    my $dedup = $tape->file_retrieve('Picard_MarkDuplicates');
+    my $dedup = $tape->file_retrieve('MarkDuplicates');
 
     my $id;
     my @cmds;
@@ -101,14 +101,14 @@ sub GATK_RealignerTargetCreator {
 
 ##-----------------------------------------------------------
 
-sub GATK_IndelRealigner {
+sub IndelRealigner {
     my $tape = shift;
     $tape->pull;
 
     my $opts = $tape->options;
 
-    my $dedup  = $tape->file_retrieve('Picard_MarkDuplicates');
-    my $target = $tape->file_retrieve('GATK_RealignerTargetCreator');
+    my $dedup  = $tape->file_retrieve('MarkDuplicates');
+    my $target = $tape->file_retrieve('RealignerTargetCreator');
     ( my $known = $tape->indels ) =~ s/--known/-known/g;
 
     my @cmds;
@@ -131,12 +131,12 @@ sub GATK_IndelRealigner {
 
 ##-----------------------------------------------------------
 
-sub GATK_BaseRecalibrator {
+sub BaseRecalibrator {
     my $tape = shift;
     $tape->pull;
 
     my $opts  = $tape->options;
-    my $align = $tape->file_retrieve('GATK_IndelRealigner');
+    my $align = $tape->file_retrieve('IndelRealigner');
 
     my @cmds;
     foreach my $aln ( @{$align} ) {
@@ -159,13 +159,13 @@ sub GATK_BaseRecalibrator {
 
 ##-----------------------------------------------------------
 
-sub GATK_PrintReads {
+sub PrintReads {
     my $tape = shift;
     $tape->pull;
 
     my $opts  = $tape->options;
-    my $table = $tape->file_retrieve('GATK_BaseRecalibrator');
-    my $align = $tape->file_retrieve('GATK_IndelRealigner');
+    my $table = $tape->file_retrieve('BaseRecalibrator');
+    my $align = $tape->file_retrieve('IndelRealigner');
 
     my @cmds;
     foreach my $bam ( @{$align} ) {
@@ -196,14 +196,14 @@ sub GATK_PrintReads {
 
 ##-----------------------------------------------------------
 
-sub GATK_HaplotypeCaller {
+sub HaplotypeCaller {
     my $tape = shift;
     $tape->pull;
 
     my $opts = $tape->options;
 
     # collect files and stack them.
-    my $reads = $tape->file_retrieve('GATK_PrintReads');
+    my $reads = $tape->file_retrieve('PrintReads');
     my @inputs = map { "$_" } @{$reads};
 
     if ( $tape->intervals ) {
@@ -234,7 +234,7 @@ sub GATK_HaplotypeCaller {
 
     # foreach bam file run it across the individual region files and store the output.
     my @cmds;
-    my $regions = $tape->file_retrieve('GATK_HaplotypeCaller')
+    my $regions = $tape->file_retrieve('HaplotypeCaller')
       if $tape->intervals;
 
     foreach my $bam ( @{$reads} ) {
@@ -284,13 +284,13 @@ sub GATK_HaplotypeCaller {
 
 ##-----------------------------------------------------------
 
-sub GATK_CombineGVCF {
+sub CombineGVCF {
     my $tape = shift;
     $tape->pull;
 
     my $opts = $tape->options;
 
-    my $gvcf       = $tape->file_retrieve('GATK_HaplotypeCaller');
+    my $gvcf       = $tape->file_retrieve('HaplotypeCaller');
     my @iso        = grep { /\.gvcf$/ } @{$gvcf};
     my @sorted_iso = sort (@iso);
 
@@ -339,13 +339,13 @@ sub GATK_CombineGVCF {
 
 ##-----------------------------------------------------------
 
-sub GATK_CombineGVCF_Merge {
+sub CombineGVCF_Merge {
     my $tape = shift;
     $tape->pull;
 
     my $opts = $tape->options;
 
-    my $merged = $tape->file_retrieve('GATK_CombineGVCF');
+    my $merged = $tape->file_retrieve('CombineGVCF');
     my $variants = join( " --variant ", @{$merged} );
 
     # Single merged files dont need a master merge
@@ -365,15 +365,15 @@ sub GATK_CombineGVCF_Merge {
 
 ##-----------------------------------------------------------
 
-sub GATK_GenotypeGVCF {
+sub GenotypeGVCF {
     my $tape = shift;
     $tape->pull;
 
     my $opts = $tape->options;
 
     # will need to step through to get only gvcf
-    my $single = $tape->file_retrieve('GATK_CombineGVCF');
-    my $multi  = $tape->file_retrieve('GATK_CombineGVCF_Merge');
+    my $single = $tape->file_retrieve('CombineGVCF');
+    my $multi  = $tape->file_retrieve('CombineGVCF_Merge');
 
     my $combined;
     if   ($multi) { $combined = $multi }
@@ -412,13 +412,13 @@ sub GATK_GenotypeGVCF {
 
 ##-----------------------------------------------------------
 
-sub GATK_VariantRecalibrator_SNP {
+sub VariantRecalibrator_SNP {
     my $tape = shift;
     $tape->pull;
 
     my $opts = $tape->options;
 
-    my $genotpd = $tape->file_retrieve('GATK_GenotypeGVCF');
+    my $genotpd = $tape->file_retrieve('GenotypeGVCF');
 
     my $recalFile =
       '-recalFile ' . $tape->output . $opts->{ugp_id} . '_snp_recal';
@@ -448,13 +448,13 @@ sub GATK_VariantRecalibrator_SNP {
 
 ##-----------------------------------------------------------
 
-sub GATK_VariantRecalibrator_INDEL {
+sub VariantRecalibrator_INDEL {
     my $tape = shift;
     $tape->pull;
 
     my $opts = $tape->options;
 
-    my $genotpd = $tape->file_retrieve('GATK_GenotypeGVCF');
+    my $genotpd = $tape->file_retrieve('GenotypeGVCF');
 
     my $recalFile =
       '-recalFile ' . $tape->output . $opts->{ugp_id} . '_indel_recal';
@@ -484,14 +484,14 @@ sub GATK_VariantRecalibrator_INDEL {
 
 ##-----------------------------------------------------------
 
-sub GATK_ApplyRecalibration_SNP {
+sub ApplyRecalibration_SNP {
     my $tape = shift;
     $tape->pull;
 
     my $opts = $tape->options;
 
-    my $recal_files = $tape->file_retrieve('GATK_VariantRecalibrator_SNP');
-    my $get         = $tape->file_retrieve('GATK_GenotypeGVCF');
+    my $recal_files = $tape->file_retrieve('VariantRecalibrator_SNP');
+    my $get         = $tape->file_retrieve('GenotypeGVCF');
     my $genotpd     = shift @{$get};
 
     # need to add a copy because it here.
@@ -510,14 +510,14 @@ sub GATK_ApplyRecalibration_SNP {
 
 ##-----------------------------------------------------------
 
-sub GATK_ApplyRecalibration_INDEL {
+sub ApplyRecalibration_INDEL {
     my $tape = shift;
     $tape->pull;
 
     my $opts = $tape->options;
 
-    my $recal_files = $tape->file_retrieve('GATK_VariantRecalibrator_INDEL');
-    my $get         = $tape->file_retrieve('GATK_GenotypeGVCF');
+    my $recal_files = $tape->file_retrieve('VariantRecalibrator_INDEL');
+    my $get         = $tape->file_retrieve('GenotypeGVCF');
     my $genotpd     = shift @{$get};
 
     # need to add a copy because it here.
@@ -536,14 +536,14 @@ sub GATK_ApplyRecalibration_INDEL {
 
 ##-----------------------------------------------------------
 
-sub GATK_CombineVariants {
+sub CombineVariants {
     my $tape = shift;
     $tape->pull;
 
     my $opts = $tape->options;
 
-    my $snp_files   = $tape->file_retrieve('GATK_ApplyRecalibration_SNP');
-    my $indel_files = $tape->file_retrieve('GATK_ApplyRecalibration_INDEL');
+    my $snp_files   = $tape->file_retrieve('ApplyRecalibration_SNP');
+    my $indel_files = $tape->file_retrieve('ApplyRecalibration_INDEL');
 
     my @app_snp = map { "--variant $_ " } @{$snp_files};
     my @app_ind = map { "--variant $_ " } @{$indel_files};

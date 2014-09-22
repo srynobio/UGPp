@@ -10,7 +10,7 @@ extends 'Roll';
 ##------------------------ METHODS --------------------------
 ##-----------------------------------------------------------
 
-sub MD5_checksum {
+sub checksum {
     my $tape = shift;
     $tape->pull;
 
@@ -35,6 +35,7 @@ sub MD5_checksum {
         my $cmd = sprintf( "md5sum -c %stmp.md5 &> %s", $path, $output );
         push @cmds, $cmd;
     }
+    return unless (@cmds);
     $tape->WARN("No md5 file found") unless (@cmds);
     $tape->bundle( \@cmds, 'off' );
 }

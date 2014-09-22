@@ -10,7 +10,7 @@ extends 'Roll';
 ##------------------------ METHODS --------------------------
 ##-----------------------------------------------------------
 
-sub BWA_index {
+sub bwa_index {
     my $tape = shift;
     $tape->pull;
 
@@ -23,7 +23,7 @@ sub BWA_index {
 
 ##-----------------------------------------------------------
 
-sub BWA_mem {
+sub bwa_mem {
     my $tape = shift;
     $tape->pull;
 

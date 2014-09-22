@@ -348,33 +348,44 @@ sub _cluster {
     my %stack = %{ $self->{cmd_list} };
     my ( $sub, $stack_data ) = each %stack;
 
-    $self->LOG( 'start', $sub );
+    #jobs per node
+    my $jpn = $self->{jpn};
 
-    my $id = 1;
-    my @qsubs;
-    foreach my $step ( @{$stack_data} ) {
-        my $tmp = "$sub" . "_" . $id . ".pbs";
+    # add the & to end of each command.
+    my @appd_runs = map { "$_ &" } @{$stack_data};
 
-        $self->LOG( 'cmd', $step );
+    my $id;
+    my ( @parts, @pbs_stack );
+    while (@appd_runs) {
+        my $tmp = $sub . "_" . ++$id . ".pbs";
 
-        my $PBS = IO::File->new( $self->{main}->{pbs_template}, 'r' )
+        my $PBS = IO::File->new( $self->{pbs_temp}, 'r' )
           or $self->ERROR('Can not open PBS template file or not found');
 
         my $RUN = IO::File->new( $tmp, 'w' )
           or $self->ERROR('Can not create needed pbs file [cluster]');
 
+        # don't go over total file amount.
+        if ( $jpn > scalar @appd_runs ) {
+            $jpn = scalar @appd_runs;
+        }
+
+        @parts = splice( @appd_runs, 0, $jpn );
+
         map { print $RUN $_ } <$PBS>;
-        print $RUN $step, "\n";
+        print $RUN join( "\n", @parts );
+        print $RUN "\nwait\n";
+        print $RUN "\ndate\n";
 
-        push @qsubs, $tmp;
-        $id++;
+        push @pbs_stack, $tmp;
 
-        $RUN->close;
         $PBS->close;
+        $RUN->close;
     }
 
     if ( -e 'launch.index' ) {
         my @jobs = `cat launch.index`;
+        chomp @jobs;
         `rm launch.index`;
 
         my @before;
@@ -384,13 +395,13 @@ sub _cluster {
         }
         my $wait = join( ":", @before );
 
-        foreach my $launch (@qsubs) {
+        foreach my $launch (@pbs_stack) {
             print "qsub -W depend=afterok:$wait $launch\n";
             system "qsub -W depend=afterok:$wait $launch &>> launch.index";
         }
     }
     else {
-        foreach my $launch (@qsubs) {
+        foreach my $launch (@pbs_stack) {
             print "qsub $launch &>> launch.index\n";
             system "qsub $launch &>> launch.index";
         }
@@ -400,6 +411,7 @@ sub _cluster {
     $self->LOG( 'progress', $sub );
     sleep(10);
     return;
+
 }
 
 ##-----------------------------------------------------------

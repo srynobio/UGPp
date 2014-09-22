@@ -10,18 +10,14 @@ use Getopt::Long;
 my $usage = "
 
 Synopsis:
-	./machine_config --step deps
 	./machine_config --step config
 
 Description:
 
-	Two action available from script are to install needed Perl dependencies 
-	and to build a configure file for the machine.
+	Script used to build a configure file for the machine.
 
 
 Required Option:
-
-	-s, --step	Which step to preform [deps or config].
 
 \n";
 
@@ -34,17 +30,16 @@ GetOptions(
 croak $usage if $c_opts{help};
 croak $usage unless %c_opts;
 
-if ( $c_opts{step} eq 'deps' ) { build_perl_deps(); }
-elsif ( $c_opts{step} eq 'config' ) { build_machine_config(); }
+if ( $c_opts{step} eq 'config' ) { build_machine_config(); }
 else { croak "Correct option not given\n$usage\n"; }
 
-sub build_perl_deps {
-	print "Attempting to install needed Perl modules\n";
-	system("perl -MCPAN -e 'get Moo'");
-	system("perl -MCPAN -e 'get MCE'");
-	system("perl -MCPAN -e 'get Config::Std'");
-	system("perl -MCPAN -e 'get IPC::System::Simple'");
-}
+#sub build_perl_deps {
+#	print "Attempting to install needed Perl modules\n";
+#	system("perl -MCPAN -e 'get Moo'");
+#	system("perl -MCPAN -e 'get MCE'");
+#	system("perl -MCPAN -e 'get Config::Std'");
+#	system("perl -MCPAN -e 'get IPC::System::Simple'");
+#}
 
 sub build_machine_config {
 	print
