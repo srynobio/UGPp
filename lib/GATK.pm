@@ -249,8 +249,8 @@ sub HaplotypeCaller {
                 ( my $output = $list ) =~
                   s/_file.list/_$name.raw.snps.indels.gvcf/;
 
-                #next if ( -e $output and $tape->execute );
                 $tape->file_store($output);
+                #next if ( -e $output and $tape->execute );
 
                 my $cmd = sprintf(
 			"java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
@@ -268,8 +268,8 @@ sub HaplotypeCaller {
             ( my $updated = $file->{name} ) =~ s/\.bam/\.raw.snps.indels.gvcf/;
             my $output = $tape->output . $updated;
 
-            #next if ( -e $output and $tape->execute );
             $tape->file_store($output);
+            #next if ( -e $output and $tape->execute );
 
             my $cmd = sprintf(
                 "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
