@@ -65,6 +65,22 @@ has engine => (
     },
 );
 
+has 'jpn' => (
+	is => 'ro',
+	default => sub {
+		my $self = shift;
+		return $self->commandline->{jpn};
+	},
+);
+
+has 'pbs_temp' => (
+	is => 'ro',
+	default => sub {
+		my $self = shift;
+		return $self->commandline->{pbs_tmp};
+	},
+);
+
 ##-----------------------------------------------------------
 ##---------------------- METHODS ----------------------------
 ##-----------------------------------------------------------
