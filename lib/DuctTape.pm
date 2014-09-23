@@ -73,11 +73,11 @@ has 'jpn' => (
 	},
 );
 
-has 'pbs_temp' => (
+has 'pbs' => (
 	is => 'ro',
 	default => sub {
 		my $self = shift;
-		return $self->commandline->{pbs_tmp};
+		return $self->commandline->{pbs};
 	},
 );
 
@@ -375,7 +375,7 @@ sub _cluster {
     while (@appd_runs) {
         my $tmp = $sub . "_" . ++$id . ".pbs";
 
-        my $PBS = IO::File->new( $self->{pbs_temp}, 'r' )
+        my $PBS = IO::File->new( $self->{pbs}, 'r' )
           or $self->ERROR('Can not open PBS template file or not found');
 
         my $RUN = IO::File->new( $tmp, 'w' )
