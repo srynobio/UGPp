@@ -366,7 +366,7 @@ sub _cluster {
     my ( $sub, $stack_data ) = each %stack;
 
     #jobs per node
-    my $jpn = $self->{jobs_per_node};
+    my $jpn = $self->jobs_per_node;
 
     # add the & to end of each command.
     my @appd_runs = map { "$_ &" } @{$stack_data};
@@ -376,7 +376,7 @@ sub _cluster {
     while (@appd_runs) {
         my $tmp = $sub . "_" . ++$id . ".pbs";
 
-        my $PBS = IO::File->new( $self->{pbs_template}, 'r' )
+        my $PBS = IO::File->new( $self->pbs_template, 'r' )
           or $self->ERROR('Can not open PBS template file or not found');
 
         my $RUN = IO::File->new( $tmp, 'w' )

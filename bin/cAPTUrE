@@ -60,7 +60,7 @@ GetOptions(
     "engine|e=s",     "clean|c",
     "error_check|ec", "file|f=s",
     "jobs_per_node|jpn=i",
-    "pbs_template|pbs",
+    "pbs_template|pbs=s",
     "help|h"
 );
 croak $usage if $c_opts{help};
