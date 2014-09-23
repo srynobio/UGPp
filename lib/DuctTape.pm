@@ -376,7 +376,7 @@ sub _cluster {
     while (@appd_runs) {
         my $tmp = $sub . "_" . ++$id . ".pbs";
 
-        my $PBS = IO::File->new( $self->{pbs_template'}, 'r' )
+        my $PBS = IO::File->new( $self->{pbs_template}, 'r' )
           or $self->ERROR('Can not open PBS template file or not found');
 
         my $RUN = IO::File->new( $tmp, 'w' )
