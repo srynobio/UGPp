@@ -65,19 +65,19 @@ has engine => (
     },
 );
 
-has 'jpn' => (
+has 'jobs_per_node' => (
 	is => 'ro',
 	default => sub {
 		my $self = shift;
-		return $self->commandline->{jpn};
+		return $self->commandline->{jobs_per_node};
 	},
 );
 
-has 'pbs' => (
+has 'pbs_template' => (
 	is => 'ro',
 	default => sub {
 		my $self = shift;
-		return $self->commandline->{pbs};
+		return $self->commandline->{pbs_template};
 	},
 );
 
@@ -114,6 +114,7 @@ sub wrap {
 
         eval { $self->$sub };
         if ($@) { $self->ERROR("Error when calling $sub: $@") }
+
 
         if ( $progress_list{$sub} and $progress_list{$sub} eq 'complete' ) {
             delete $self->{cmd_list}->{$sub};
@@ -365,7 +366,7 @@ sub _cluster {
     my ( $sub, $stack_data ) = each %stack;
 
     #jobs per node
-    my $jpn = $self->{jpn};
+    my $jpn = $self->{jobs_per_node};
 
     # add the & to end of each command.
     my @appd_runs = map { "$_ &" } @{$stack_data};
@@ -375,7 +376,7 @@ sub _cluster {
     while (@appd_runs) {
         my $tmp = $sub . "_" . ++$id . ".pbs";
 
-        my $PBS = IO::File->new( $self->{pbs}, 'r' )
+        my $PBS = IO::File->new( $self->{pbs_template'}, 'r' )
           or $self->ERROR('Can not open PBS template file or not found');
 
         my $RUN = IO::File->new( $tmp, 'w' )
