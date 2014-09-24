@@ -76,7 +76,6 @@ if ( $c_opts{error_check} ) {
     system("grep -i 'exceptions' *.log-*");
     exit(0);
 }
-
 croak "config file needed\n$usage" if ( !$c_opts{config} );
 
 $c_opts{engine} //= 'MCE';
