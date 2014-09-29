@@ -88,7 +88,7 @@ croak "config file needed\n$usage" if ( !$c_opts{config} );
 
 # Clean up and default setting. 
 $c_opts{engine} //= 'MCE';
-if ( $c_opts{file} ) { `rm CMD_stack.store` }
+if ( $c_opts{file} and -e 'CMD_stack.store' ) { `rm CMD_stack.store` }
 
 my $t = DuctTape->new( commandline => \%c_opts, );
 
