@@ -64,7 +64,7 @@ cApTUrE/data:
 cApTUrE/bin:
 <ul>
 	<li><em>cApTUrE</em> - main script</li>
-	<li><em>config_creator</em> - Interactive script which creates a hostname.cfg config file, which contains all path locations for a given machine.
+	<li><em>machine_config</em> - Interactive script which creates a hostname.cfg config file, which contains all path locations for a given machine.
 	<li><em>project_config</em> - Can use the above generated config file as a template for each dataset to run.
 </ul>
 cApTUrE/bin/UGP_tools:
@@ -72,6 +72,7 @@ cApTUrE/bin/UGP_tools:
 	<li><em>RegionMaker</em></li> 
 	<li><em>Thousand_genome_recreator.pl</em></li>
 	<li><em>UGP-SCP.pl</em></li>
+	<li><em>UGP-Result-Clean.pl</em></li>
 </ul>
 
 <strong>RUNNING CAPTURE:</strong>
@@ -80,7 +81,7 @@ After downloading and installing all dependences, a typical setup and run would 
 
 <em>Setting up the config file</em>:
 
-config_creator has been created to help complete new configure files as needed.
+machine_config has been created to help complete new configure files as needed.
 Often many of the values in the config file can be set on a per-machine basis, creating essentially a new master file (hostname.cfg).  Examples of these would be known indel files, VQSR VCFs, BAM background files, and software paths.  
 
 project_config is used to create a new project based on the master file information.  The script will output a new .cfg file with fastq paths, output directories, worker number, memory usage and ugp_id.

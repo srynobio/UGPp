@@ -250,6 +250,7 @@ sub HaplotypeCaller {
                   s/_file.list/_$name.raw.snps.indels.gvcf/;
 
                 $tape->file_store($output);
+
                 #next if ( -e $output and $tape->execute );
 
                 my $cmd = sprintf(
@@ -269,6 +270,7 @@ sub HaplotypeCaller {
             my $output = $tape->output . $updated;
 
             $tape->file_store($output);
+
             #next if ( -e $output and $tape->execute );
 
             my $cmd = sprintf(
@@ -349,7 +351,7 @@ sub CombineGVCF_Merge {
     my $variants = join( " --variant ", @{$merged} );
 
     # Single merged files dont need a master merge
-    if ( $variants =~ /_final_mergeGvcf/ ) { return }
+    if ( $variants =~ /_final_mergeGvcf.vcf/ ) { return }
 
     my $output = $tape->output . $opts->{ugp_id} . '_final_mergeGvcf.vcf';
     $tape->file_store($output);
@@ -398,15 +400,49 @@ sub GenotypeGVCF {
     }
     my $variants = join( " --variant ", @merged );
 
-    my $output = $tape->output . $opts->{ugp_id} . "_genotyped.vcf";
+    my $hap_store = $tape->file_retrieve('HaplotypeCaller');
+    my @lists = grep { /list/ } @{$hap_store};
+
+    my @cmds;
+    my $id;
+    foreach my $region (@lists) {
+        $id++;
+        my $output = $tape->output . $opts->{ugp_id} . "\_$id\_genotyped.vcf";
+
+        $tape->file_store($output);
+
+        my $cmd =
+          sprintf(
+	        "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
+              . "%s --variant %s -L %s -o %s\n",
+            $opts->{java_xmx}, $opts->{java_thread}, $opts->{GATK},
+            $opts->{fasta}, $tape->ddash, $variants, $region, $output );
+        push @cmds, $cmd;
+    }
+    $tape->bundle( \@cmds );
+}
+
+##-----------------------------------------------------------
+
+sub Combine_Genotyped {
+    my $tape = shift;
+    $tape->pull;
+
+    my $opts = $tape->options;
+
+    my $genotpd = $tape->file_retrieve('GenotypeGVCF');
+
+    my $output = $tape->output . $opts->{ugp_id} . '_genotyped.vcf';
     $tape->file_store($output);
 
-    my $cmd =
-      sprintf(
-        "java -jar -Xmx%s %s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
-          . "%s --variant %s -o %s\n",
-        $opts->{java_xmx}, $opts->{GATK}, $opts->{fasta}, $tape->ddash,
-        $variants, $output );
+    my $cmd = sprintf(
+	    "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
+          . "-T CombineVariants -R %s %s --variant %s -o %s\n",
+        $opts->{java_xmx}, $opts->{java_thread},
+        $opts->{tmp},      $opts->{GATK},
+        $opts->{fasta},    $tape->ddash,
+        join( " --variant ", @{$genotpd} ), $output
+    );
     $tape->bundle( \$cmd );
 }
 
@@ -418,7 +454,7 @@ sub VariantRecalibrator_SNP {
 
     my $opts = $tape->options;
 
-    my $genotpd = $tape->file_retrieve('GenotypeGVCF');
+    my $genotpd = $tape->file_retrieve('Combine_Genotyped');
 
     my $recalFile =
       '-recalFile ' . $tape->output . $opts->{ugp_id} . '_snp_recal';
@@ -434,14 +470,14 @@ sub VariantRecalibrator_SNP {
     my $anno     = $opts->{use_annotation_SNP};
 
     my $cmd = sprintf(
-            "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
+	    "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
           . " -T VariantRecalibrator -R %s %s -resource:%s -an %s -input %s %s %s %s -mode SNP\n",
-        $opts->{java_xmx}, $opts->{tmp},
-        $opts->{GATK},     $opts->{fasta},
-        $tape->ddash, join( ' -resource:', @$resource ),
-        join( ' -an ', @$anno ), @$genotpd,
-        $recalFile, $tranchFile,
-        $rscriptFile
+        $opts->{java_xmx}, $opts->{java_thread},
+        $opts->{tmp},      $opts->{GATK},
+        $opts->{fasta},    $tape->ddash,
+        join( ' -resource:', @$resource ), join( ' -an ', @$anno ),
+        @$genotpd,   $recalFile,
+        $tranchFile, $rscriptFile
     );
     $tape->bundle( \$cmd );
 }
@@ -454,7 +490,7 @@ sub VariantRecalibrator_INDEL {
 
     my $opts = $tape->options;
 
-    my $genotpd = $tape->file_retrieve('GenotypeGVCF');
+    my $genotpd = $tape->file_retrieve('Combine_Genotyped');
 
     my $recalFile =
       '-recalFile ' . $tape->output . $opts->{ugp_id} . '_indel_recal';
@@ -470,14 +506,14 @@ sub VariantRecalibrator_INDEL {
     my $anno     = $opts->{use_annotation_INDEL};
 
     my $cmd = sprintf(
-	    "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T VariantRecalibrator "
+	    "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T VariantRecalibrator "
           . "-R %s %s -resource:%s -an %s -input %s %s %s %s -mode INDEL\n",
-        $opts->{java_xmx}, $opts->{tmp},
-        $opts->{GATK},     $opts->{fasta},
-        $tape->ddash, join( ' -resource:', @$resource ),
-        join( ' -an ', @$anno ), @$genotpd,
-        $recalFile, $tranchFile,
-        $rscriptFile
+        $opts->{java_xmx}, $opts->{java_thread},
+        $opts->{tmp},      $opts->{GATK},
+        $opts->{fasta},    $tape->ddash,
+        join( ' -resource:', @$resource ), join( ' -an ', @$anno ),
+        @$genotpd,   $recalFile,
+        $tranchFile, $rscriptFile
     );
     $tape->bundle( \$cmd );
 }
@@ -491,7 +527,7 @@ sub ApplyRecalibration_SNP {
     my $opts = $tape->options;
 
     my $recal_files = $tape->file_retrieve('VariantRecalibrator_SNP');
-    my $get         = $tape->file_retrieve('GenotypeGVCF');
+    my $get         = $tape->file_retrieve('Combine_Genotyped');
     my $genotpd     = shift @{$get};
 
     # need to add a copy because it here.
@@ -517,7 +553,7 @@ sub ApplyRecalibration_INDEL {
     my $opts = $tape->options;
 
     my $recal_files = $tape->file_retrieve('VariantRecalibrator_INDEL');
-    my $get         = $tape->file_retrieve('GenotypeGVCF');
+    my $get         = $tape->file_retrieve('Combine_Genotyped');
     my $genotpd     = shift @{$get};
 
     # need to add a copy because it here.
@@ -548,7 +584,8 @@ sub CombineVariants {
     my @app_snp = map { "--variant $_ " } @{$snp_files};
     my @app_ind = map { "--variant $_ " } @{$indel_files};
 
-    my $output = $opts->{output} . $opts->{ugp_id} . "_Final+Backgrounds.vcf";
+    my $output = $opts->{output} . $opts->{ugp_id} . "_Combined.vcf";
+    $tape->file_store($output);
 
     my $cmd = sprintf(
 	    "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T CombineVariants -R %s "
@@ -558,6 +595,27 @@ sub CombineVariants {
         join( " ", @app_snp ),
         join( " ", @app_ind ), $output
     );
+    $tape->bundle( \$cmd );
+}
+
+##-----------------------------------------------------------
+
+sub SelectVariants {
+    my $tape = shift;
+    $tape->pull;
+
+    my $opts = $tape->options;
+
+    my $comb_files = $tape->file_retrieve('CombineVariants');
+
+    my $output = $opts->{output} . $opts->{ugp_id} . "_Final+Backgrounds.vcf";
+    $tape->file_store($output);
+
+    my $cmd = sprintf(
+	    "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T SelectVariants -R %s "
+          . "--variant %s  -select \"DP > 100\" -o %s",
+        $opts->{java_xmx}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta},
+        shift @{$comb_files}, $output );
     $tape->bundle( \$cmd );
 }
 

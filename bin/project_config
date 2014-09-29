@@ -70,11 +70,11 @@ foreach my $file ( $FH->read ) {
 }
 $FH->close;
 
-# quick file check
-if ( @fq_check % 2 ) { croak "Uneven fastq files detected.\n" }
-( @fq_check > 1 )
-  ? 1
-  : croak "No fastq files with extension .gz found in $fq_dir\n";
+## quick file check
+#if ( @fq_check % 2 ) { croak "Uneven fastq files detected.\n" }
+#( @fq_check > 1 )
+#  ? 1
+#  : croak "No fastq files with extension .gz found in $fq_dir\n";
 
 # default config which comes with capture and build config hash.
 $config //= '../data/capture.cfg';
