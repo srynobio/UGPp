@@ -85,7 +85,7 @@ foreach my $file ( $DIR->read ) {
 my @bams = `find $path -name "*.ba*"`;
 foreach my $bam (@bams) {
     chomp $bam;
-    next if ( $bam =~ /.*sorted_Dedup_realign_recal.*/ );
+    next if ( $bam =~ /_sorted_Dedup_realign_recal.ba*/ );)
     `rm $bam`;
 }
 

@@ -370,11 +370,16 @@ sub _cluster {
 
     # add the & to end of each command.
     my @appd_runs = map { "$_ &" } @{$stack_data};
+    #my @appd_runs = map { "$_ " } @{$stack_data};
+
+    $self->LOG( 'start', $sub );
 
     my $id;
     my ( @parts, @pbs_stack );
     while (@appd_runs) {
         my $tmp = $sub . "_" . ++$id . ".pbs";
+
+        $self->LOG( 'cmd', $sub );
 
         my $PBS = IO::File->new( $self->pbs_template, 'r' )
           or $self->ERROR('Can not open PBS template file or not found');
@@ -400,33 +405,37 @@ sub _cluster {
         $RUN->close;
     }
 
-    if ( -e 'launch.index' ) {
-        my @jobs = `cat launch.index`;
-        chomp @jobs;
-        `rm launch.index`;
-
-        my @before;
-        foreach my $i (@jobs) {
-            chomp $i;
-            push @before, $i;
-        }
-        my $wait = join( ":", @before );
 
         foreach my $launch (@pbs_stack) {
-            print "qsub -W depend=afterok:$wait $launch\n";
-            system "qsub -W depend=afterok:$wait $launch &>> launch.index";
-        }
-    }
-    else {
-        foreach my $launch (@pbs_stack) {
-            print "qsub $launch &>> launch.index\n";
-            system "qsub $launch &>> launch.index";
-        }
-    }
+		print "qsub $launch &>> launch.index\n";
+		system "qsub $launch &>> launch.index";
+	}
+
+	sleep(30);
+	my @indexs = `cat launch.index`;
+	chomp @indexs;
+	
+	foreach my $job ( @indexs ) {
+		my @parts = split /\./, $job;
+		
+		my $state = `checkjob $parts[0] |grep 'State'`;
+		print "first state: $state\n";
+		STATE: if ( $state =~ /Running/ ) {
+			print "JOB: $job is still running\n";
+			sleep(60);
+			$state = `checkjob $parts[0] |grep 'State'`;
+			print "inside state: $state\n";
+			goto STATE;
+		}
+		else { next }
+	}
+	print "stack $sub is done\n";
+	`rm launch.index`;
+
+
     map { delete $self->{cmd_list}->{$_} } keys %stack;
     $self->LOG( 'finish',   $sub );
     $self->LOG( 'progress', $sub );
-    sleep(10);
     return;
 
 }

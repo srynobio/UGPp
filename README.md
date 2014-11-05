@@ -3,7 +3,7 @@
 
 <strong>VERSION</strong>
 
-This document describes version 1.0.5
+This document describes version 1.0.6
 
 <strong>SYNOPSIS</strong>
 
@@ -71,7 +71,6 @@ cApTUrE/bin/UGP_tools:
 <ul>
 	<li><em>RegionMaker</em></li> 
 	<li><em>Thousand_genome_recreator.pl</em></li>
-	<li><em>UGP-SCP.pl</em></li>
 	<li><em>UGP-Result-Clean.pl</em></li>
 </ul>
 
