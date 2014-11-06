@@ -177,7 +177,7 @@ sub bundle {
     my $call_type = ref $cmd;
     unless ( $call_type and $call_type ne 'HASH' ) {
         $self->ERROR(
-"bundled command from $sub command must be an scalar or array reference."
+            "bundled command from $sub command must be an scalar or array reference."
         );
     }
 
