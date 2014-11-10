@@ -30,11 +30,43 @@ has 'intervals' => (
 ##------------------------ METHODS --------------------------
 ##-----------------------------------------------------------
 
-sub _build_intervals {
-    my $tape = shift;
-    my $itv  = $tape->commandline->{interval_list};
+#sub _build_intervals {
+#    my $tape = shift;
+#    my $itv  = $tape->commandline->{interval_list};
+#
+#    $tape->intervals($itv);
+#}
 
-    $tape->intervals($itv);
+sub _build_intervals {
+	my $tape = shift;
+	my $itv  = $tape->commandline->{interval_list};
+
+	return unless $itv;
+
+	# create, print and store regions.
+	my $REGION = IO::File->new( $itv, 'r' )
+	or $tape->ERROR('Interval file could not be found or opened');
+
+	my %regions;
+	foreach my $reg (<$REGION>) {
+		chomp $reg;
+		my @chrs = split /:/, $reg;
+		push @{ $regions{ $chrs[0] } }, $reg;
+	}
+
+	my @inv_file;
+	foreach my $chr ( keys %regions ) {
+		my $output_reg = $tape->output . "chr$chr" . "_region_file.list";
+		$tape->file_store($output_reg);
+
+		my $LISTFILE = IO::File->new( $output_reg, 'w' ) if $tape->execute;
+
+		foreach my $list ( @{ $regions{$chr} } ) {
+			print $LISTFILE "$list\n" if ($tape->execute and ! -e $list);
+		}
+		push @inv_file, $output_reg;
+	}
+	return \@inv_file;
 }
 
 ##-----------------------------------------------------------
@@ -206,6 +238,7 @@ sub HaplotypeCaller {
     my $reads = $tape->file_retrieve('PrintReads');
     my @inputs = map { "$_" } @{$reads};
 
+=cut
     if ( $tape->intervals ) {
 
         # create, print and store regions.
@@ -231,11 +264,14 @@ sub HaplotypeCaller {
             }
         }
     }
+=cut
 
     # foreach bam file run it across the individual region files and store the output.
     my @cmds;
-    my $regions = $tape->file_retrieve('HaplotypeCaller')
-      if $tape->intervals;
+   # my $regions = $tape->file_retrieve('HaplotypeCaller')
+    #  if $tape->intervals;
+   my $regions = $tape->intervals; #$tape->file_retrieve('HaplotypeCaller')
+      #if $tape->intervals;
 
     foreach my $bam ( @{$reads} ) {
         my $file = $tape->file_frags($bam);
@@ -265,7 +301,7 @@ sub HaplotypeCaller {
                 push @cmds, $cmd;
             }
         }
-        elsif ( !$tape->intervals ) {
+        elsif ( ! $tape->intervals ) {
             ( my $updated = $file->{name} ) =~ s/\.bam/\.raw.snps.indels.gvcf/;
             my $output = $tape->output . $updated;
 
@@ -400,12 +436,14 @@ sub GenotypeGVCF {
     }
     my $variants = join( " --variant ", @merged );
 
-    my $hap_store = $tape->file_retrieve('HaplotypeCaller');
-    my @lists = grep { /list/ } @{$hap_store};
+    # here I just get the list files.
+    #my $hap_store = $tape->file_retrieve('HaplotypeCaller');
+    #my @lists = grep { /list/ } @{$hap_store};
+	my $lists = $tape->intervals;
 
     my @cmds;
     my $id;
-    foreach my $region (@lists) {
+    foreach my $region ( @{$lists} ) {
         $id++;
         my $output = $tape->output . $opts->{ugp_id} . "\_$id\_genotyped.vcf";
 
