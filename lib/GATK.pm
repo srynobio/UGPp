@@ -24,49 +24,47 @@ has 'intervals' => (
     is      => 'rw',
     lazy    => 1,
     builder => '_build_intervals',
+
 );
 
 ##-----------------------------------------------------------
 ##------------------------ METHODS --------------------------
 ##-----------------------------------------------------------
 
-#sub _build_intervals {
-#    my $tape = shift;
-#    my $itv  = $tape->commandline->{interval_list};
-#
-#    $tape->intervals($itv);
-#}
-
 sub _build_intervals {
-	my $tape = shift;
-	my $itv  = $tape->commandline->{interval_list};
+    my $tape = shift;
+    my $itv  = $tape->commandline->{interval_list};
 
-	return unless $itv;
+    # create, print and store regions.
+    my $REGION = IO::File->new( $itv, 'r' )
+      or $tape->ERROR('Interval file could not be found or opened');
 
-	# create, print and store regions.
-	my $REGION = IO::File->new( $itv, 'r' )
-	or $tape->ERROR('Interval file could not be found or opened');
+    my %regions;
+    foreach my $reg (<$REGION>) {
+        chomp $reg;
+        my @chrs = split /:/, $reg;
+        push @{ $regions{ $chrs[0] } }, $reg;
+    }
 
-	my %regions;
-	foreach my $reg (<$REGION>) {
-		chomp $reg;
-		my @chrs = split /:/, $reg;
-		push @{ $regions{ $chrs[0] } }, $reg;
-	}
+    my @inv_file;
+    foreach my $chr ( keys %regions ) {
+        my $output_reg = $tape->output . "chr$chr" . "_region_file.list";
 
-	my @inv_file;
-	foreach my $chr ( keys %regions ) {
-		my $output_reg = $tape->output . "chr$chr" . "_region_file.list";
-		$tape->file_store($output_reg);
+        if ( -e $output_reg ) {
+            push @inv_file, $output_reg;
+            next;
+        }
+        else {
+            my $LISTFILE = IO::File->new( $output_reg, 'w' ) if $tape->execute;
 
-		my $LISTFILE = IO::File->new( $output_reg, 'w' ) if $tape->execute;
-
-		foreach my $list ( @{ $regions{$chr} } ) {
-			print $LISTFILE "$list\n" if ($tape->execute and ! -e $list);
-		}
-		push @inv_file, $output_reg;
-	}
-	return \@inv_file;
+            foreach my $list ( @{ $regions{$chr} } ) {
+                print $LISTFILE "$list\n" if $tape->execute;
+            }
+            push @inv_file, $output_reg;
+        }
+    }
+    my @sort_inv = sort @inv_file;
+    return \@sort_inv;
 }
 
 ##-----------------------------------------------------------
@@ -104,29 +102,36 @@ sub RealignerTargetCreator {
     my $tape = shift;
     $tape->pull;
 
-    my $opts = $tape->options;
+    my $opts      = $tape->options;
+    my $dedup     = $tape->file_retrieve('MarkDuplicates');
+    my $intervals = $tape->intervals;
 
-    my $dedup = $tape->file_retrieve('MarkDuplicates');
-
-    my $id;
     my @cmds;
     foreach my $in ( @{$dedup} ) {
-        $id++;
-
         my $parts = $tape->file_frags($in);
-        my $output =
-          $tape->output . $parts->{parts}[0] . $id . '_realign.intervals';
-        $tape->file_store($output);
 
-        my $cmd = sprintf(
-            "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-              . "%s/GenomeAnalysisTK.jar -T RealignerTargetCreator "
-              . "-R %s -I %s %s %s -o %s\n",
-            $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp},
-            $opts->{GATK},     $opts->{fasta},       $in,
-            $tape->ddash,      $tape->indels,        $output
-        );
-        push @cmds, $cmd;
+        foreach my $region ( @{ $tape->intervals } ) {
+
+            my $reg_parts = $tape->file_frags($region);
+            my $output =
+                $tape->output
+              . $parts->{parts}[0] . "_"
+              . $reg_parts->{parts}[0]
+              . '_realign.intervals';
+            $tape->file_store($output);
+
+            my $cmd = sprintf(
+                "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+                  . "%s/GenomeAnalysisTK.jar -T RealignerTargetCreator "
+                  . "-R %s -I %s %s %s -L %s -o %s\n",
+                $opts->{java_xmx}, $opts->{java_gatk_thread},
+                $opts->{tmp},      $opts->{GATK},
+                $opts->{fasta},    $in,
+                $tape->ddash,      $tape->indels,
+                $region,           $output
+            );
+            push @cmds, $cmd;
+        }
     }
     $tape->bundle( \@cmds );
 }
@@ -145,18 +150,31 @@ sub IndelRealigner {
 
     my @cmds;
     foreach my $dep ( @{$dedup} ) {
-        ( my $output = $dep ) =~ s/\.bam/_realign.bam/;
+        my $dep_parts = $tape->file_frags($dep);
 
-        $tape->file_store($output);
+        my @target_region = grep { /$dep_parts->{parts}[0]/ } @{$target};
+        foreach my $region (@target_region) {
 
-        my $cmd = sprintf(
-            "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-              . "%s/GenomeAnalysisTK.jar -T IndelRealigner -R %s -I %s -targetIntervals %s %s -o %s\n",
-            $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp},
-            $opts->{GATK},     $opts->{fasta},       $dep,
-            shift @$target,    $known,               $output
-        );
-        push @cmds, $cmd;
+            my $reg_parts = $tape->file_frags($region);
+            my $sub       = "_realign_$reg_parts->{parts}[1]\.bam";
+
+            # get call region from interval file
+            my @intv = grep { /$reg_parts->{parts}[1]/ } @{ $tape->intervals };
+
+            ( my $output = $dep ) =~ s/\.bam/$sub/;
+            $tape->file_store($output);
+
+            my $cmd = sprintf(
+                "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+                  . "%s/GenomeAnalysisTK.jar -T IndelRealigner -R %s -I %s -L %s -targetIntervals %s %s -o %s\n",
+                $opts->{java_xmx}, $opts->{java_gatk_thread},
+                $opts->{tmp},      $opts->{GATK},
+                $opts->{fasta},    $dep,
+                $intv[0],          $region,
+                $known,            $output
+            );
+            push @cmds, $cmd;
+        }
     }
     $tape->bundle( \@cmds );
 }
@@ -167,8 +185,9 @@ sub BaseRecalibrator {
     my $tape = shift;
     $tape->pull;
 
-    my $opts  = $tape->options;
-    my $align = $tape->file_retrieve('IndelRealigner');
+    my $opts      = $tape->options;
+    my $align     = $tape->file_retrieve('IndelRealigner');
+    my $intervals = $tape->intervals;
 
     my @cmds;
     foreach my $aln ( @{$align} ) {
@@ -180,9 +199,11 @@ sub BaseRecalibrator {
         my $cmd = sprintf(
             "java -jar -Xmx%s -XX:ParallelGCThreads=%s "
               . "-Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T BaseRecalibrator -R %s -I %s %s %s -o %s\n",
-            $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp},
-            $opts->{GATK},     $opts->{fasta},       $aln,
-            $tape->ddash,      $tape->dbsnp,         $output
+            $opts->{java_xmx}, $opts->{java_gatk_thread},
+            $opts->{tmp},      $opts->{GATK},
+            $opts->{fasta},    $aln,
+            $tape->ddash,      $tape->dbsnp,
+            $output
         );
         push @cmds, $cmd;
     }
@@ -217,9 +238,11 @@ sub PrintReads {
         my $cmd = sprintf(
             "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
               . "%s/GenomeAnalysisTK.jar -T PrintReads -R %s -I %s %s -BQSR %s -o %s\n",
-            $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp},
-            $opts->{GATK},     $opts->{fasta},       $bam,
-            $tape->ddash,      $recal_t,             $output
+            $opts->{java_xmx}, $opts->{java_gatk_thread},
+            $opts->{tmp},      $opts->{GATK},
+            $opts->{fasta},    $bam,
+            $tape->ddash,      $recal_t,
+            $output
         );
         push @cmds, $cmd;
     }
@@ -238,84 +261,23 @@ sub HaplotypeCaller {
     my $reads = $tape->file_retrieve('PrintReads');
     my @inputs = map { "$_" } @{$reads};
 
-=cut
-    if ( $tape->intervals ) {
-
-        # create, print and store regions.
-        my $inv_file = $tape->intervals;
-        my $REGION = IO::File->new( $inv_file, 'r' )
-          or $tape->ERROR('Interval file could not be found or opened');
-
-        my %regions;
-        foreach my $reg (<$REGION>) {
-            chomp $reg;
-            my @chrs = split /:/, $reg;
-            push @{ $regions{ $chrs[0] } }, $reg;
-        }
-
-        foreach my $chr ( keys %regions ) {
-            my $output_reg = $tape->output . "chr$chr" . "_region_file.list";
-            $tape->file_store($output_reg);
-
-            my $LISTFILE = IO::File->new( $output_reg, 'w' ) if $tape->execute;
-
-            foreach my $list ( @{ $regions{$chr} } ) {
-                print $LISTFILE "$list\n" if $tape->execute;
-            }
-        }
-    }
-=cut
-
-    # foreach bam file run it across the individual region files and store the output.
     my @cmds;
-   # my $regions = $tape->file_retrieve('HaplotypeCaller')
-    #  if $tape->intervals;
-   my $regions = $tape->intervals; #$tape->file_retrieve('HaplotypeCaller')
-      #if $tape->intervals;
-
     foreach my $bam ( @{$reads} ) {
         my $file = $tape->file_frags($bam);
 
-        # calls can be split up base on intervals given
-        if ( $tape->intervals ) {
-            foreach my $list ( @{$regions} ) {
-                next unless ( $list =~ /\.list/ );
+        ( my $updated = $file->{name} ) =~ s/\.bam/\.raw.snps.indels.gvcf/;
+        my $output = $tape->output . $updated;
 
-                my $name = $file->{parts}[0];
-                ( my $output = $list ) =~
-                  s/_file.list/_$name.raw.snps.indels.gvcf/;
+        $tape->file_store($output);
 
-                $tape->file_store($output);
-
-                #next if ( -e $output and $tape->execute );
-
-                my $cmd = sprintf(
-			"java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-                      . "%s/GenomeAnalysisTK.jar -T HaplotypeCaller -R %s %s -I %s -L %s -o %s\n",
-                    $opts->{java_xmx}, $opts->{java_thread},
-                    $opts->{tmp},      $opts->{GATK},
-                    $opts->{fasta},    $tape->ddash,
-                    $bam,              $list,
-                    $output
-                );
-                push @cmds, $cmd;
-            }
-        }
-        elsif ( ! $tape->intervals ) {
-            ( my $updated = $file->{name} ) =~ s/\.bam/\.raw.snps.indels.gvcf/;
-            my $output = $tape->output . $updated;
-
-            $tape->file_store($output);
-
-            #next if ( -e $output and $tape->execute );
-
-            my $cmd = sprintf(
-                "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-                  . "%s/GenomeAnalysisTK.jar -T HaplotypeCaller -R %s %s -I %s -o %s\n",
-                $opts->{java_xmx}, $opts->{java_thread}, $opts->{tmp},
-                $opts->{GATK}, $opts->{fasta}, $tape->ddash, $bam, $output );
-            push @cmds, $cmd;
-        }
+        my $cmd = sprintf(
+            "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+              . "%s/GenomeAnalysisTK.jar -T HaplotypeCaller -R %s %s -I %s -o %s\n",
+            $opts->{java_xmx}, $opts->{java_gatk_thread},
+            $opts->{tmp},
+            $opts->{GATK}, $opts->{fasta}, $tape->ddash, $bam, $output
+        );
+        push @cmds, $cmd;
     }
     $tape->bundle( \@cmds );
 }
@@ -332,10 +294,12 @@ sub CombineGVCF {
     my @iso        = grep { /\.gvcf$/ } @{$gvcf};
     my @sorted_iso = sort (@iso);
 
+    my $chunk = $tape->commandline->{chunk_size} || 100;
+
     my @cmds;
     if ( scalar @iso > 200 ) {
         my @var;
-        push @var, [ splice @iso, 0, 100 ] while @iso;
+        push @var, [ splice @iso, 0, $chunk ] while @iso;
 
         my $id;
         foreach my $chunk (@var) {
@@ -345,13 +309,13 @@ sub CombineGVCF {
             my $output = $tape->output . $opts->{ugp_id} . ".$id.mergeGvcf.vcf";
             $tape->file_store($output);
 
-            my $cmd =
-              sprintf(
+            my $cmd = sprintf(
 		    "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
                   . " -T CombineGVCFs -R %s "
                   . "--variant %s -o %s\n",
-                $opts->{java_xmx}, $opts->{java_thread}, $opts->{GATK},
-                $opts->{fasta}, $variants, $output );
+                $opts->{java_xmx}, $opts->{java_gatk_thread},
+                $opts->{GATK}, $opts->{fasta}, $variants, $output
+            );
 
             push @cmds, $cmd;
         }
@@ -362,12 +326,12 @@ sub CombineGVCF {
         my $output = $tape->output . $opts->{ugp_id} . '_final_mergeGvcf.vcf';
         $tape->file_store($output);
 
-        my $cmd =
-          sprintf(
+        my $cmd = sprintf(
             "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
               . " -T CombineGVCFs -R %s --variant %s -o %s\n",
-            $opts->{java_xmx}, $opts->{java_thread}, $opts->{GATK},
-            $opts->{fasta}, $variants, $output );
+            $opts->{java_xmx}, $opts->{java_gatk_thread},
+            $opts->{GATK}, $opts->{fasta}, $variants, $output
+        );
 
         push @cmds, $cmd;
     }
@@ -392,12 +356,12 @@ sub CombineGVCF_Merge {
     my $output = $tape->output . $opts->{ugp_id} . '_final_mergeGvcf.vcf';
     $tape->file_store($output);
 
-    my $cmd =
-      sprintf(
+    my $cmd = sprintf(
         "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
           . " -T CombineGVCFs -R %s --variant %s -o %s\n",
-        $opts->{java_xmx}, $opts->{java_thread}, $opts->{GATK}, $opts->{fasta},
-        $variants, $output );
+        $opts->{java_xmx}, $opts->{java_gatk_thread},
+        $opts->{GATK}, $opts->{fasta}, $variants, $output
+    );
     $tape->bundle( \$cmd );
 }
 
@@ -436,25 +400,21 @@ sub GenotypeGVCF {
     }
     my $variants = join( " --variant ", @merged );
 
-    # here I just get the list files.
-    #my $hap_store = $tape->file_retrieve('HaplotypeCaller');
-    #my @lists = grep { /list/ } @{$hap_store};
-	my $lists = $tape->intervals;
-
     my @cmds;
     my $id;
-    foreach my $region ( @{$lists} ) {
+    foreach my $region ( @{ $tape->intervals } ) {
         $id++;
         my $output = $tape->output . $opts->{ugp_id} . "\_$id\_genotyped.vcf";
 
         $tape->file_store($output);
 
-        my $cmd =
-          sprintf(
-	        "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
+        my $cmd = sprintf(
+		"java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
               . "%s --variant %s -L %s -o %s\n",
-            $opts->{java_xmx}, $opts->{java_thread}, $opts->{GATK},
-            $opts->{fasta}, $tape->ddash, $variants, $region, $output );
+            $opts->{java_xmx}, $opts->{java_gatk_thread},
+            $opts->{GATK},
+            $opts->{fasta}, $tape->ddash, $variants, $region, $output
+        );
         push @cmds, $cmd;
     }
     $tape->bundle( \@cmds );
@@ -476,7 +436,7 @@ sub Combine_Genotyped {
     my $cmd = sprintf(
 	    "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
           . "-T CombineVariants -R %s %s --variant %s -o %s\n",
-        $opts->{java_xmx}, $opts->{java_thread},
+        $opts->{java_xmx}, $opts->{java_gatk_thread},
         $opts->{tmp},      $opts->{GATK},
         $opts->{fasta},    $tape->ddash,
         join( " --variant ", @{$genotpd} ), $output
@@ -508,9 +468,9 @@ sub VariantRecalibrator_SNP {
     my $anno     = $opts->{use_annotation_SNP};
 
     my $cmd = sprintf(
-	    "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
+            "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
           . " -T VariantRecalibrator -R %s %s -resource:%s -an %s -input %s %s %s %s -mode SNP\n",
-        $opts->{java_xmx}, $opts->{java_thread},
+        $opts->{java_xmx}, $opts->{java_gatk_thread},
         $opts->{tmp},      $opts->{GATK},
         $opts->{fasta},    $tape->ddash,
         join( ' -resource:', @$resource ), join( ' -an ', @$anno ),
@@ -546,7 +506,7 @@ sub VariantRecalibrator_INDEL {
     my $cmd = sprintf(
 	    "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T VariantRecalibrator "
           . "-R %s %s -resource:%s -an %s -input %s %s %s %s -mode INDEL\n",
-        $opts->{java_xmx}, $opts->{java_thread},
+        $opts->{java_xmx}, $opts->{java_gatk_thread},
         $opts->{tmp},      $opts->{GATK},
         $opts->{fasta},    $tape->ddash,
         join( ' -resource:', @$resource ), join( ' -an ', @$anno ),
@@ -573,7 +533,7 @@ sub ApplyRecalibration_SNP {
     $tape->file_store($output);
 
     my $cmd = sprintf(
-	    "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
+            "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
           . "-R %s %s -input %s %s %s -mode SNP -o %s\n",
         $opts->{java_xmx},     $opts->{tmp},          $opts->{GATK},
         $opts->{fasta},        $tape->ddash,          $genotpd,
@@ -599,7 +559,7 @@ sub ApplyRecalibration_INDEL {
     $tape->file_store($output);
 
     my $cmd = sprintf(
-	    "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
+            "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
           . "-R %s %s -input %s %s %s -mode INDEL -o %s\n",
         $opts->{java_xmx},     $opts->{tmp},          $opts->{GATK},
         $opts->{fasta},        $tape->ddash,          $genotpd,
@@ -626,7 +586,7 @@ sub CombineVariants {
     $tape->file_store($output);
 
     my $cmd = sprintf(
-	    "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T CombineVariants -R %s "
+            "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T CombineVariants -R %s "
           . "%s %s %s -o %s",
         $opts->{java_xmx}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta},
         $tape->ddash,
@@ -650,7 +610,7 @@ sub SelectVariants {
     $tape->file_store($output);
 
     my $cmd = sprintf(
-	    "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T SelectVariants -R %s "
+            "java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T SelectVariants -R %s "
           . "--variant %s  -select \"DP > 100\" -o %s",
         $opts->{java_xmx}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta},
         shift @{$comb_files}, $output );

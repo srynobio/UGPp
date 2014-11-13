@@ -1,5 +1,4 @@
 #!/usr/bin/env perl
-# cAPTUrE 1.0.3
 use strict;
 use warnings;
 use v5.10;
@@ -19,7 +18,7 @@ Synopsis:
 
 Description:
 
-    cApTUrE:  vAriant collecTing UGP pipeline version: 1.0.6
+    cApTUrE:  vAriant collecTing UGP pipeline version: 1.1.6
 
     cApTUrE is a NGS pipeline written in Perl, created for the
     Utah Genome Project (UGP) http://weatherby.genetics.utah.edu/UGP/wiki/index.php/Main_Page
@@ -37,9 +36,9 @@ Required options:
 
     -cfg, --config  UGP configuration file.
 
-Additional options:
-
     -il, --interval_list    Region list file for GATK variant calling.
+
+Additional options:
 
     -f, --file  Will take file list as input if beginning cApTUrE with previously
                 collected files.  File must match previous step cApTUrE would have ran.
@@ -84,7 +83,7 @@ if ( $c_opts{error_check} ) {
     system("grep -i 'exceptions' *.log-*");
     exit(0);
 }
-croak "config file needed\n$usage" if ( !$c_opts{config} );
+croak "Required options not met\n$usage" unless ( $c_opts{interval_list} and $c_opts{config} );
 
 # Clean up and default setting.
 $c_opts{engine} //= 'MCE';

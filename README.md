@@ -3,7 +3,7 @@
 
 <strong>VERSION</strong>
 
-This document describes version 1.0.6
+This document describes version 1.1.6
 
 <strong>SYNOPSIS</strong>
 
@@ -72,6 +72,7 @@ cApTUrE/bin/UGP_tools:
 	<li><em>RegionMaker</em></li> 
 	<li><em>Thousand_genome_recreator.pl</em></li>
 	<li><em>UGP-Result-Clean.pl</em></li>
+	<li><em>Genotype_rerun_collector.pl</em></li>
 </ul>
 
 <strong>RUNNING CAPTURE:</strong>

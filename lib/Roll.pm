@@ -15,7 +15,7 @@ state %stored;
 
 has VERSION => (
     is      => 'ro',
-    default => sub { '1.0.6' },
+    default => sub { '1.1.6' },
 );
 
 has commandline => (
@@ -253,7 +253,7 @@ sub file_retrieve {
     unless ( keys %stored ) {
         $self->ERROR(
                 'Must have stack store file or pass file (-f) list in. '
-              . ' Are you sure of your config steps?' )
+              . ' Are you sure you have entered data path in config file?' )
           if ( !-e 'CMD_stack.store' );
 
         my $stack = retrieve('CMD_stack.store');
@@ -295,11 +295,7 @@ sub _make_storable {
 
 sub DEMOLISH {
     my $self = shift;
-
-    #if ( $self->execute ) {
     store \%stored, 'CMD_stack.store';
-
-    #}
 }
 
 #-----------------------------------------------------------

@@ -29,9 +29,9 @@ sub fastq_unzip {
         elsif ( $file =~ /fastq/ ) {
             ( $output = $file ) =~ s/\.gz$//;
         }
-	elsif ( $file =~ /fastq.gz/ ) {
+        elsif ( $file =~ /fastq.gz/ ) {
             ( $output = $file ) =~ s/fastq.gz/fastq/;
-	}
+        }
 
         $tape->file_store($output);
 

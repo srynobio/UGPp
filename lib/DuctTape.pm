@@ -66,19 +66,19 @@ has engine => (
 );
 
 has 'jobs_per_node' => (
-	is => 'ro',
-	default => sub {
-		my $self = shift;
-		return $self->commandline->{jobs_per_node};
-	},
+    is      => 'ro',
+    default => sub {
+        my $self = shift;
+        return $self->commandline->{jobs_per_node};
+    },
 );
 
 has 'pbs_template' => (
-	is => 'ro',
-	default => sub {
-		my $self = shift;
-		return $self->commandline->{pbs_template};
-	},
+    is      => 'ro',
+    default => sub {
+        my $self = shift;
+        return $self->commandline->{pbs_template};
+    },
 );
 
 ##-----------------------------------------------------------
@@ -114,7 +114,6 @@ sub wrap {
 
         eval { $self->$sub };
         if ($@) { $self->ERROR("Error when calling $sub: $@") }
-
 
         if ( $progress_list{$sub} and $progress_list{$sub} eq 'complete' ) {
             delete $self->{cmd_list}->{$sub};
@@ -176,9 +175,7 @@ sub bundle {
     # what type of call
     my $call_type = ref $cmd;
     unless ( $call_type and $call_type ne 'HASH' ) {
-        $self->ERROR(
-            "bundled command from $sub command must be an scalar or array reference."
-        );
+        $self->ERROR("bundled command from $sub command must be an scalar or array reference.");
     }
 
     # place in list and add log file;
@@ -370,7 +367,6 @@ sub _cluster {
 
     # add the & to end of each command.
     my @appd_runs = map { "$_ &" } @{$stack_data};
-    #my @appd_runs = map { "$_ " } @{$stack_data};
 
     $self->LOG( 'start', $sub );
 
@@ -405,33 +401,26 @@ sub _cluster {
         $RUN->close;
     }
 
+    foreach my $launch (@pbs_stack) {
+        system "qsub $launch &>> launch.index";
+    }
 
-        foreach my $launch (@pbs_stack) {
-		print "qsub $launch &>> launch.index\n";
-		system "qsub $launch &>> launch.index";
-	}
+    sleep(30);
+    my @indexs = `cat launch.index`;
+    chomp @indexs;
 
-	sleep(30);
-	my @indexs = `cat launch.index`;
-	chomp @indexs;
-	
-	foreach my $job ( @indexs ) {
-		my @parts = split /\./, $job;
-		
-		my $state = `checkjob $parts[0] |grep 'State'`;
-		print "first state: $state\n";
-		STATE: if ( $state =~ /Running/ ) {
-			print "JOB: $job is still running\n";
-			sleep(60);
-			$state = `checkjob $parts[0] |grep 'State'`;
-			print "inside state: $state\n";
-			goto STATE;
-		}
-		else { next }
-	}
-	print "stack $sub is done\n";
-	`rm launch.index`;
+    foreach my $job (@indexs) {
+        my @parts = split /\./, $job;
 
+        my $state = `checkjob $parts[0] |grep 'State'`;
+      STATE: if ( $state =~ /Running/ ) {
+            sleep(60);
+            $state = `checkjob $parts[0] |grep 'State'`;
+            goto STATE;
+        }
+        else { next }
+    }
+    `rm launch.index`;
 
     map { delete $self->{cmd_list}->{$_} } keys %stack;
     $self->LOG( 'finish',   $sub );

@@ -105,9 +105,7 @@ sub fastqc_check {
                 next;
             }
 
-            $tape->WARN(
-		"One or more QC data report values failed review QC-report.txt file"
-            ) if $fail;
+            $tape->WARN("One or more QC data report values failed review QC-report.txt file") if $fail;
         }
         push @reports, $d if $fail;
     }
@@ -145,7 +143,7 @@ sub idxstats_check {
 
             if ( $results[2] <= $results[3] ) {
                 my $record =
-		"File $stat shows a high number of unmapped reads compared to mapped at chromosome $results[0]";
+			"File $stat shows a high number of unmapped reads compared to mapped at chromosome $results[0]";
                 push @report, $record;
             }
         }
@@ -156,6 +154,7 @@ sub idxstats_check {
 
 ##-----------------------------------------------------------
 
+#TODO
 sub metrics_check {
     my $tape = shift;
     $tape->pull;
