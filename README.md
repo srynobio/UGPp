@@ -59,7 +59,7 @@ cApTUrE/data:
 	<li><em>exon_Region.list</em></li>
 	<li><em>exome.analysis.sequence.index</em></li>
 	<li><em>capture.cfg</em> - This is the main template configure file use with config_creator.  This will create a new template based on file location per server/system.</li>
-	<li><em>PBS_template</em> - Template use for PBS job submission on the CHPC cluster.
+
 </ul>
 cApTUrE/bin:
 <ul>
@@ -73,6 +73,8 @@ cApTUrE/bin/UGP_tools:
 	<li><em>Thousand_genome_recreator.pl</em></li>
 	<li><em>UGP-Result-Clean.pl</em></li>
 	<li><em>Genotype_rerun_collector.pl</em></li>
+	<li><em>ember_template</em></li>
+	<li><em>kingspeak_template</em></li>
 </ul>
 
 <strong>RUNNING CAPTURE:</strong>
