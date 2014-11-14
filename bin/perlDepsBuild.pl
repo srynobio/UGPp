@@ -9,8 +9,8 @@ BEGIN {
 };
 
 print "Attempting to install needed Perl modules\n";
-system("perl -MCPAN -e 'get Moo'");
-system("perl -MCPAN -e 'get MCE'");
-system("perl -MCPAN -e 'get Config::Std'");
-system("perl -MCPAN -e 'get IPC::System::Simple'");
+system("perl -MCPAN -e 'install Moo'");
+system("perl -MCPAN -e 'install MCE'");
+system("perl -MCPAN -e 'install Config::Std'");
+system("perl -MCPAN -e 'install IPC::System::Simple'");
 
