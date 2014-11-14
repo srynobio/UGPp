@@ -29,22 +29,18 @@ Additional options:
     -cfg, --config:         Configure file you would like to build from [default capture.cfg].
     -l,   --log:            Log file name for a given run.  [default to cmd.log]
     -nc,  --new_config:     Name of the new config file generated. [default tmp.cfg]
-    -jt,  --java_threads:   How many threads you would like java to have access to [default 1]
-    -jm,  --java_memory:    How much memory java can access. [default 10g]
     -o,   --output_dir:     Path to write output files to.  [default to fastq dir via cApTUrE]
     -w,	  --workers:	    Number of CPUs to distribute work across. [default 1]
 
 \n";
 
 my (
-    $fq_dir, $config, $jt,   $jm,     $n_config,
+    $fq_dir, $config, $n_config,
     $output, $log,    $help, $ugp_id, $workers
 );
 GetOptions(
     "fastq_dir|fd=s"    => \$fq_dir,
     "config|cfg=s"      => \$config,
-    "java_threads|jt=i" => \$jt,
-    "java_memory|jm=i"  => \$jm,
     "new_config|nc=s"   => \$n_config,
     "output_dir|o=s"    => \$output,
     "log|l=s"           => \$log,
@@ -59,7 +55,6 @@ croak $usage if ($help);
 # set or add default;
 $config   //= '../data/capture.cfg';
 $n_config //= 'tmp.cfg';
-$jt       //= '1';
 
 my $FH = IO::Dir->new($fq_dir) or croak "Fastq directory or file not correct\n";
 my @fq_check;
@@ -70,27 +65,16 @@ foreach my $file ( $FH->read ) {
 }
 $FH->close;
 
-## quick file check
-#if ( @fq_check % 2 ) { croak "Uneven fastq files detected.\n" }
-#( @fq_check > 1 )
-#  ? 1
-#  : croak "No fastq files with extension .gz found in $fq_dir\n";
-
 # default config which comes with capture and build config hash.
 $config //= '../data/capture.cfg';
 read_config $config => my %config;
 
 ## Build the sections of the config file ##
-
 # add data directory
 $config{main}{data} = $fq_dir;
 
 # configure workers based on how many fq files
 $config{main}{workers} = $workers;
-
-# configure java memory Xmx
-$config{main}{java_xmx}    = $jm . 'g';
-$config{main}{java_thread} = $jt;
 
 # add output dir if supplyed
 $config{main}{output} = $output if $output;

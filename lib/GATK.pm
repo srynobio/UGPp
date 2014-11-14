@@ -286,10 +286,10 @@ sub CombineGVCF {
 	my @iso        = grep { /\.gvcf$/ } @{$gvcf};
 	my @sorted_iso = sort (@iso);
 
-	my $chunk = $tape->commandline->{chunk_size} || 100;
+	my $chunk = $tape->commandline->{combine_chunk} || 100;
 
 	my @cmds;
-	if ( scalar @iso > 200 ) {
+	if ( scalar @iso > 100 ) {
 		my @var;
 		push @var, [ splice @iso, 0, $chunk ] while @iso;
 

@@ -24,11 +24,9 @@ Required Option:
 my %c_opts = ();
 GetOptions(
 	\%c_opts,
-	"step|s=s",
 	"help|h",
 );
 croak $usage if $c_opts{help};
-croak $usage unless %c_opts;
 
 build_machine_config();
 
