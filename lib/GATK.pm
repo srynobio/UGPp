@@ -299,7 +299,7 @@ sub CatVariants {
 
 		# make a soft link so catvariants works (needs vcf)	
 		(my $vcf = $gvcf) =~ s/gvcf/vcf/;
-		system("ln -s $gvcf $vcf") unless (-e $vcf);
+		system("ln -s $gvcf $vcf") if ($tape->execute);
 
 		# then make a working version and collect path
 		(my $file = $frags->{name}) =~ s/gvcf/vcf/;
