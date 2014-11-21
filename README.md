@@ -3,7 +3,7 @@
 
 <strong>VERSION</strong>
 
-This document describes version 1.1.6
+This document describes version 1.1.7
 
 <strong>SYNOPSIS</strong>
 

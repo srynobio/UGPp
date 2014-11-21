@@ -180,6 +180,9 @@ sub BaseRecalibrator {
 	my $opts  = $tape->options;
 	my $align = $tape->file_retrieve('IndelRealigner');
 
+	my $known_indels = $tape->indels;
+	$known_indels =~ s/known/knownSites/g;
+
 	my @cmds;
 	foreach my $aln ( @{$align} ) {
 		my $file = $tape->file_frags($aln);
@@ -189,10 +192,10 @@ sub BaseRecalibrator {
 
 		my $cmd = sprintf(
 				"java -jar -Xmx%s -XX:ParallelGCThreads=%s "
-				. "-Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T BaseRecalibrator -R %s -I %s %s %s -o %s\n",
+				. "-Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T BaseRecalibrator -R %s -I %s %s %s %s -o %s\n",
 				$opts->{java_xmx}, $opts->{java_gatk_thread}, $opts->{tmp},
 				$opts->{GATK},     $opts->{fasta},       $aln,
-				$tape->ddash,      $tape->dbsnp,         $output
+				$tape->ddash,      $tape->dbsnp,         $known_indels,  $output
 				);
 		push @cmds, $cmd;
 	}
@@ -253,7 +256,9 @@ sub HaplotypeCaller {
 		my $file = $tape->file_frags($bam);
 
 		# get interval
+		#TODO change this back for standard runs
 		my @intv = grep { /$file->{parts}[5]\_/ } @{$tape->intervals};
+		#my @intv = grep { /$file->{parts}[4]\_/ } @{$tape->intervals};
 
 		my $name = $file->{parts}[0];
 		( my $output = $intv[0] ) =~  s/_file.list/_$name.raw.snps.indels.gvcf/;
@@ -276,7 +281,7 @@ sub HaplotypeCaller {
 
 ##-----------------------------------------------------------
 
-sub CombineGVCF {
+sub CatVariants {
 	my $tape = shift;
 	$tape->pull;
 
@@ -284,12 +289,74 @@ sub CombineGVCF {
 
 	my $gvcf       = $tape->file_retrieve('HaplotypeCaller');
 	my @iso        = grep { /\.gvcf$/ } @{$gvcf};
-	my @sorted_iso = sort (@iso);
 
-	my $chunk = $tape->commandline->{combine_chunk} || 100;
+	my %indiv;
+	my $path;
+	foreach my $gvcf (@iso) {
+		chomp $gvcf;
+
+		my $frags = $tape->file_frags($gvcf);
+
+		# make a soft link so catvariants works (needs vcf)	
+		(my $vcf = $gvcf) =~ s/gvcf/vcf/;
+		system("ln -s $gvcf $vcf") unless (-e $vcf);
+
+		# then make a working version and collect path
+		(my $file = $frags->{name}) =~ s/gvcf/vcf/;
+		$path = $frags->{path};
+
+		my $key = $frags->{parts}[2];
+		push @{$indiv{$key}}, $file;
+	}	
 
 	my @cmds;
-	if ( scalar @iso > 100 ) {
+	foreach my $samp ( keys %indiv ) {
+		chomp $samp;
+
+		# put the file in correct order.
+		my @ordered_list;
+		for ( 1 .. 22, 'X', 'Y', 'MT' ) {
+			my $chr = 'chr' . $_;
+			my @value = grep { /$chr\_/ } @{$indiv{$samp}};
+			my $fullPath = $path . $value[0]; 
+			push @ordered_list, $fullPath; 
+		}	
+
+		my $variant = join(" -V ", @ordered_list);
+		$variant =~ s/^/-V /;
+
+		(my $output = $samp) =~ s/vcf/Cat.vcf/;
+		my $pathFile = $path . $output;
+		$tape->file_store($pathFile);
+
+		my $cmd = sprintf(
+				"java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s %s %s -out %s\n",
+				$opts->{GATK},
+				$opts->{fasta},    $tape->ddash,
+				$variant, $pathFile
+				);
+		push @cmds, $cmd;
+	}
+	$tape->bundle(\@cmds);
+}
+
+##-----------------------------------------------------------
+
+sub CombineGVCF {
+	my $tape = shift;
+	$tape->pull;
+
+	my $opts = $tape->options;
+
+	my $gvcf       = $tape->file_retrieve('CatVariants');
+	my @iso        = grep { /\.vcf$/ } @{$gvcf};
+
+	my $chunk = $tape->commandline->{combine_chunk};
+	#my $chunk = $tape->commandline->{combine_chunk} || 100;
+
+	my @cmds;
+	if ( $chunk ) {
+	#if ( scalar @iso > 200 ) {
 		my @var;
 		push @var, [ splice @iso, 0, $chunk ] while @iso;
 
@@ -327,7 +394,6 @@ sub CombineGVCF {
 
 		push @cmds, $cmd;
 	}
-
 	$tape->bundle( \@cmds );
 }
 
@@ -394,8 +460,6 @@ sub GenotypeGVCF {
 	my $variants = join( " --variant ", @merged );
 
 	# here I just get the list files.
-	#my $hap_store = $tape->file_retrieve('HaplotypeCaller');
-	#my @lists = grep { /list/ } @{$hap_store};
 	my $lists = $tape->intervals;
 
 	my @cmds;
@@ -479,37 +543,37 @@ sub VariantRecalibrator_SNP {
 ##-----------------------------------------------------------
 
 sub VariantRecalibrator_INDEL {
-    my $tape = shift;
-    $tape->pull;
+	my $tape = shift;
+	$tape->pull;
 
-    my $opts = $tape->options;
+	my $opts = $tape->options;
 
-    my $genotpd = $tape->file_retrieve('Combine_Genotyped');
+	my $genotpd = $tape->file_retrieve('Combine_Genotyped');
 
-    my $recalFile =
-      '-recalFile ' . $tape->output . $opts->{ugp_id} . '_indel_recal';
-    my $tranchFile =
-      '-tranchesFile ' . $tape->output . $opts->{ugp_id} . '_indel_tranches';
-    my $rscriptFile =
-      '-rscriptFile ' . $tape->output . $opts->{ugp_id} . '_indel_plots.R';
+	my $recalFile =
+		'-recalFile ' . $tape->output . $opts->{ugp_id} . '_indel_recal';
+	my $tranchFile =
+		'-tranchesFile ' . $tape->output . $opts->{ugp_id} . '_indel_tranches';
+	my $rscriptFile =
+		'-rscriptFile ' . $tape->output . $opts->{ugp_id} . '_indel_plots.R';
 
-    $tape->file_store($recalFile);
-    $tape->file_store($tranchFile);
+	$tape->file_store($recalFile);
+	$tape->file_store($tranchFile);
 
-    my $resource = $opts->{resource_INDEL};
-    my $anno     = $opts->{use_annotation_INDEL};
+	my $resource = $opts->{resource_INDEL};
+	my $anno     = $opts->{use_annotation_INDEL};
 
-    my $cmd = sprintf(
-	    "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T VariantRecalibrator "
-          . "-R %s %s -resource:%s -an %s -input %s %s %s %s -mode INDEL\n",
-        $opts->{java_xmx}, $opts->{java_gatk_thread},
-        $opts->{tmp},      $opts->{GATK},
-        $opts->{fasta},    $tape->ddash,
-        join( ' -resource:', @$resource ), join( ' -an ', @$anno ),
-        @$genotpd,   $recalFile,
-        $tranchFile, $rscriptFile
-    );
-    $tape->bundle( \$cmd );
+	my $cmd = sprintf(
+			"java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T VariantRecalibrator "
+			. "-R %s %s -resource:%s -an %s -input %s %s %s %s -mode INDEL\n",
+			$opts->{java_xmx}, $opts->{java_gatk_thread},
+			$opts->{tmp},      $opts->{GATK},
+			$opts->{fasta},    $tape->ddash,
+			join( ' -resource:', @$resource ), join( ' -an ', @$anno ),
+			@$genotpd,   $recalFile,
+			$tranchFile, $rscriptFile
+			);
+	$tape->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------

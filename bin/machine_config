@@ -10,25 +10,27 @@ use Getopt::Long;
 my $usage = "
 
 Synopsis:
-	./machine_config 
+	./machine_config --run  
 
 Description:
 
 	Script used to build a configure file for the machine.
 
-Required Option:
-	None.
+Options:
+	--run, -r	Run the config process
+	--help, -h	This wonderful help message.
 
 \n";
 
 my %c_opts = ();
 GetOptions(
 	\%c_opts,
+	"run|r",
 	"help|h",
 );
-croak $usage if $c_opts{help};
+croak $usage if ($c_opts{help} or ! $c_opts{run} );
 
-build_machine_config();
+build_machine_config() if $c_opts{run};
 
 sub build_machine_config {
 	print
@@ -119,7 +121,8 @@ sub build_machine_config {
 	$config{main}{resource_SNP} = [
 	"hapmap,known=false,training=true,truth=true,prior=15.0 $bundle/hapmap_3.3.b37.vcf",
 	"omni,known=false,training=true,truth=true,prior=12.0 $bundle/1000G_omni2.5.b37.vcf",
-	"1000G,known=false,training=true,truth=false,prior=10.0 $bundle/1000G_phase1.snps.high_confidence.b37.vcf"
+	"1000G,known=false,training=true,truth=false,prior=10.0 $bundle/1000G_phase1.snps.high_confidence.b37.vcf",
+	"dbsnp,known=true,training=false,truth=false,prior=2.0 $bundle/dbsnp.b37.vcf",
 	];
 
 	$config{main}{resource_INDEL} = [
