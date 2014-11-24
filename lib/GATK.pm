@@ -256,9 +256,7 @@ sub HaplotypeCaller {
 		my $file = $tape->file_frags($bam);
 
 		# get interval
-		#TODO change this back for standard runs
 		my @intv = grep { /$file->{parts}[5]\_/ } @{$tape->intervals};
-		#my @intv = grep { /$file->{parts}[4]\_/ } @{$tape->intervals};
 
 		my $name = $file->{parts}[0];
 		( my $output = $intv[0] ) =~  s/_file.list/_$name.raw.snps.indels.gvcf/;
@@ -352,11 +350,9 @@ sub CombineGVCF {
 	my @iso        = grep { /\.vcf$/ } @{$gvcf};
 
 	my $chunk = $tape->commandline->{combine_chunk};
-	#my $chunk = $tape->commandline->{combine_chunk} || 100;
 
 	my @cmds;
-	if ( $chunk ) {
-	#if ( scalar @iso > 200 ) {
+	if ( $tape->commandline->{combine_chunk} ) {
 		my @var;
 		push @var, [ splice @iso, 0, $chunk ] while @iso;
 
