@@ -256,6 +256,7 @@ sub HaplotypeCaller {
 		my $file = $tape->file_frags($bam);
 
 		# get interval
+		#my @intv = grep { /$file->{parts}[4]\_/ } @{$tape->intervals};
 		my @intv = grep { /$file->{parts}[5]\_/ } @{$tape->intervals};
 
 		my $name = $file->{parts}[0];
@@ -490,6 +491,14 @@ sub Combine_Genotyped {
     $tape->file_store($output);
 
     my $cmd = sprintf(
+                    "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s %s -V %s -out %s\n",
+                    $opts->{GATK},
+                    $opts->{fasta},    $tape->ddash,
+                    join( " -V ", @{$genotpd} ), $output
+    );
+
+=cut
+    my $cmd = sprintf(
 	    "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
           . "-T CombineVariants -R %s %s --variant %s -o %s\n",
         $opts->{java_xmx}, $opts->{java_gatk_thread},
@@ -497,6 +506,8 @@ sub Combine_Genotyped {
         $opts->{fasta},    $tape->ddash,
         join( " --variant ", @{$genotpd} ), $output
     );
+=cut
+
     $tape->bundle( \$cmd );
 }
 
