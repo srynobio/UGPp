@@ -46,7 +46,7 @@ sub build_machine_config {
 	my $backgrounds = <STDIN>;
 	print "Enter path to BWA directory [REQUIRED]: ";
 	my $bwa = <STDIN>;
-	print "Enter path to Picard jar file [REQUIRED]: ";
+	print "Enter path to Picard jar file + jar file [REQUIRED]: ";
 	my $picard = <STDIN>;
 	print "Enter path to SamTools directory [REQUIRED]: ";
 	my $samtools = <STDIN>;
@@ -70,7 +70,7 @@ sub build_machine_config {
 	my $new_config ||= $host_tmp;
 
 	croak "fasta entered does not appear to be a file\n" unless ( -f $fasta );
-	unless ( -d $bwa and -d $picard and -d $samtools and -d $gatk and -d $fastqc ) {
+	unless ( -d $bwa and -e $picard and -d $samtools and -d $gatk and -d $fastqc ) {
 	    croak "Software paths enter are not directories\n";
 	}
 	$bwa =~ s/\/$//g;
