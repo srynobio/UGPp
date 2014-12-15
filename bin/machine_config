@@ -46,7 +46,7 @@ sub build_machine_config {
 	my $backgrounds = <STDIN>;
 	print "Enter path to BWA directory [REQUIRED]: ";
 	my $bwa = <STDIN>;
-	print "Enter path to Picard_Tools directory [REQUIRED]: ";
+	print "Enter path to Picard jar file [REQUIRED]: ";
 	my $picard = <STDIN>;
 	print "Enter path to SamTools directory [REQUIRED]: ";
 	my $samtools = <STDIN>;
@@ -119,14 +119,14 @@ sub build_machine_config {
 	$config{main}{known_dbsnp} = "$bundle/dbsnp_137.b37.vcf";
 
 	$config{main}{resource_SNP} = [
-	"hapmap,known=false,training=true,truth=true,prior=15.0 $bundle/hapmap_3.3.b37.vcf",
-	"omni,known=false,training=true,truth=true,prior=12.0 $bundle/1000G_omni2.5.b37.vcf",
-	"1000G,known=false,training=true,truth=false,prior=10.0 $bundle/1000G_phase1.snps.high_confidence.b37.vcf",
+		"hapmap,known=false,training=true,truth=true,prior=15.0 $bundle/hapmap_3.3.b37.vcf",
+		"omni,known=false,training=true,truth=true,prior=12.0 $bundle/1000G_omni2.5.b37.vcf",
+		"1000G,known=false,training=true,truth=false,prior=10.0 $bundle/1000G_phase1.snps.high_confidence.b37.vcf",
 	];
 
 	$config{main}{resource_INDEL} = [
-	"mills,known=false,training=true,truth=true,prior=12.0 $bundle/Mills_and_1000G_gold_standard.indels.b37.vcf",
-	"1000G,known=false,training=true,truth=true,prior=10.0 $bundle/1000G_phase1.indels.b37.vcf"
+		"mills,known=false,training=true,truth=true,prior=12.0 $bundle/Mills_and_1000G_gold_standard.indels.b37.vcf",
+		"1000G,known=false,training=true,truth=true,prior=10.0 $bundle/1000G_phase1.indels.b37.vcf"
 	];
 
 	# add backgrounds
@@ -168,7 +168,7 @@ sub bwa_version {
 
 sub picard_version {
     my $picard_p = shift;
-    my $cmd      = 'java -jar ' . $picard_p . '/CollectMultipleMetrics.jar';
+    my $cmd      = 'java -jar ' . $picard_p . 'CollectMultipleMetrics.jar';
 
     my $in = '';
     my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
