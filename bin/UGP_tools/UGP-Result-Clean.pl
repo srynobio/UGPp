@@ -104,7 +104,7 @@ my %emails = (
     Hunt        => 'steve.hunt@utah.edu',
     Kumanovics  => 'attila.kumanovics@path.utah.edu',
     Moore       => 'barry.utah@gmail.com',
-    Rynearson   => 'shawn.rynearson@gmail.com',
+    Test        => 'shawn.rynearson@gmail.com',
     Manuck      => 'tracy.manuck@hsc.utah.edu',
     Mason       => 'clint.mason@hci.utah.edu',
     Neklason    => 'deb.neklason@hci.utah.edu',
@@ -115,6 +115,6 @@ my %emails = (
 );
 
 system(
-"echo \"UGP: $path Analysis is complete and ready.\" | mailx -s \"Message from UGP-Gnomex\" $emails{$lab} $emails{Moore} $emails{Rynearson}"
+"echo \"UGP: $path Analysis is complete and ready.\" | mailx -s \"Message from UGP-Gnomex\" $emails{$lab} $emails{Test}"
 );
 
