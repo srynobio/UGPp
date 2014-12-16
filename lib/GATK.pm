@@ -158,14 +158,14 @@ sub IndelRealigner {
 			( my $output = $dep ) =~ s/\.bam/$sub/;
 			$tape->file_store($output);
 
-			my $cmd = sprintf(
-					"java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-					. "%s/GenomeAnalysisTK.jar -T IndelRealigner -R %s -I %s -L %s %s -targetIntervals %s %s -o %s\n",
-					$opts->{java_xmx}, $opts->{java_gatk_thread}, $opts->{tmp},
-					$opts->{GATK},     $opts->{fasta},       $dep,
-					$intv[0], $region, $tape->ddash, $known,               $output
-					);
-			push @cmds, $cmd;
+                        my $cmd = sprintf(
+                                        "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+                                        . "%s/GenomeAnalysisTK.jar -T IndelRealigner -R %s -I %s -L %s -targetIntervals %s %s -o %s\n",
+                                        $opts->{java_xmx}, $opts->{java_gatk_thread}, $opts->{tmp},
+                                        $opts->{GATK},     $opts->{fasta},       $dep,
+                                        $intv[0], $region, $known,               $output
+                                        );
+                        push @cmds, $cmd;
 		}
 	}
 	$tape->bundle( \@cmds );
