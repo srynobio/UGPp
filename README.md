@@ -3,7 +3,7 @@
 
 <strong>VERSION</strong>
 
-This document describes version 1.1.7
+This document describes version 1.2.0
 
 <strong>SYNOPSIS</strong>
 
@@ -22,7 +22,7 @@ Currently it incorporates the following tools:
 	<li>FastQC</li>
 	<li>BWA</li>
 	<li>SAMtools</li>
-	<li>Picard</li>
+	<li>Picard 1.127 (broadinstitute version)</li>
 	<li>GATK 3.0+</li>
 </ul>
 

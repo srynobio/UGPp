@@ -17,7 +17,7 @@ Synopsis:
 Description:
 
 	RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file
-	to be used with UnifiedGenotyper to decrease runtime when using a high number of 
+	to be used with GATK to decrease runtime when using a high number of 
 	background files.
 
 Required options:

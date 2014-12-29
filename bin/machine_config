@@ -168,7 +168,7 @@ sub bwa_version {
 
 sub picard_version {
     my $picard_p = shift;
-    my $cmd      = 'java -jar ' . $picard_p . 'CollectMultipleMetrics.jar';
+    my $cmd      = 'java -jar ' . $picard_p . 'CollectMultipleMetrics';
 
     my $in = '';
     my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );

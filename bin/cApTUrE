@@ -18,7 +18,7 @@ Synopsis:
 
 Description:
 
-    cApTUrE:  vAriant collecTing UGP pipeline version: 1.1.7
+    cApTUrE:  vAriant collecTing UGP pipeline version: 1.2.0
 
     cApTUrE is a NGS pipeline written in Perl, created for the
     Utah Genome Project (UGP) http://weatherby.genetics.utah.edu/UGP/wiki/index.php/Main_Page
@@ -27,7 +27,7 @@ Description:
         -FastQC
         -BWA
         -SamTools
-        -Picard
+	-Picard 1.127 (broadinstitute version)
         -GATK 3.0
 
     This version of cApTUrE is now updated to work with version 3.0+ of GATK.
