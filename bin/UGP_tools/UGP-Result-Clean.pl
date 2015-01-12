@@ -84,9 +84,9 @@ foreach my $file ( $DIR->read ) {
 # only want polished bams
 my @bams = `find $path -name "*.ba*"`;
 foreach my $bam (@bams) {
-    chomp $bam;
-    next if ( $bam =~ /_sorted_Dedup_realign_recal.ba*/ );)
-    `rm $bam`;
+	chomp $bam;
+	next if ( $bam =~ /sorted_Dedup_realign(.*)recal.ba*/ );
+	`rm $bam`;
 }
 
 # rm interval files
