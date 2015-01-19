@@ -1,7 +1,4 @@
-	GuPPy	  Genome Project Pipeline
-bAGPiPE	  utAh Genome Project PipEline	
 <strong>cApTUrE - vAriant collecTing UGP pipeline</strong>
-<strong>pUGP - <<</strong>
 
 <strong>VERSION</strong>
 
