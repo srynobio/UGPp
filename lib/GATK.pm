@@ -285,7 +285,6 @@ sub HaplotypeCaller {
                     $opts->{tmp},      $opts->{GATK},
                     $opts->{fasta},    $tape->ddash,
                     $bam,              $region,
-                    $bam,              $intv->[0],
                     $output
                 );
                 push @cmds, $cmd;
