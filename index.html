@@ -62,7 +62,6 @@ Currently it incorporates the following tools:
 	<li>GATK 3.0+</li>
 </ul>
 <br>
-<br>
 
 cApTUrE requires a config file given as the first commandline argument.
 GATKs best practices (with some modifications) are followed throughout this pipeline please refer to their site and the UGP wiki for more information.
@@ -113,27 +112,27 @@ cApTUrE/bin/UGP_tools:
 	<li><em>UGP-SCP.pl</em></li>
 </ul>
 
-<strong>RUNNING CAPTURE:</strong><br>
+<br><strong>RUNNING CAPTURE:</strong><br>
 After downloading and installing all dependences, a typical setup and run would follow these steps:
 
-<em>Setting up the config file</em><br>:
+<br><em>Setting up the config file</em><br>:
 config_creator has been created to help complete new configure files as needed.
 Often many of the values in the config file can be set on a per-machine basis, creating essentially a new master file (hostname.cfg).  Examples of these would be known indel files, VQSR VCFs, BAM background files, and software paths.
 project_config is used to create a new project based on the master file information.  The script will output a new .cfg file with fastq paths, output directories, worker number, memory usage and ugp_id.
 
-<em>Running cApTUrE:</em><br>
+<br><em>Running cApTUrE:</em><br>
 It is recommend that the unix command <a href="http://www.computerhope.com/unix/screen.htm" target="_blank">screen</a> be used. 
 When cApTUrE runs it will create a number of log, list, error and report file.  One of these will be PROGRESS.  This file will keep track of each step of the order process, and is one that will be used and reviewed often throughout the pipeline; typically if you have failed runs.  Furthermore, a cmd.log file will be generated which will keep track of the times of each command and the commandlines each used.
 Error tracking is usually done by reviewing error, log, progress and report files.
 
-<strong>INCOMPATIBILITIES</strong><br>
+<br><strong>INCOMPATIBILITIES</strong><br>
 None know, although not tested on Microsoft or OSX.
 
-<strong>BUGS AND LIMITATIONS</strong><br>
+<br><strong>BUGS AND LIMITATIONS</strong><br>
 Please report any bugs or feature requests to:
 shawn.rynearson@gmail.com
 
-<strong>AUTHOR</strong>
+<br><strong>AUTHOR</strong><br>
 Shawn Rynearson &lt;shawn.rynearson@gmail.com&gt;
   </body>
 </html>
