@@ -114,16 +114,19 @@ cApTUrE/bin/UGP_tools:
 
 <br><strong>RUNNING CAPTURE:</strong><br>
 After downloading and installing all dependences, a typical setup and run would follow these steps:<br>
+<br>
 
 <br><em><u>Setting up the config file</u>:</em><br>
 config_creator has been created to help complete new configure files as needed.
 Often many of the values in the config file can be set on a per-machine basis, creating essentially a new master file (hostname.cfg).  Examples of these would be known indel files, VQSR VCFs, BAM background files, and software paths.
 project_config is used to create a new project based on the master file information.  The script will output a new .cfg file with fastq paths, output directories, worker number, memory usage and ugp_id.
+<br>
 
 <br><em><u>Running cApTUrE</u>:</em><br>
 It is recommend that the unix command <a href="http://www.computerhope.com/unix/screen.htm" target="_blank">screen</a> be used. 
 When cApTUrE runs it will create a number of log, list, error and report file.  One of these will be PROGRESS.  This file will keep track of each step of the order process, and is one that will be used and reviewed often throughout the pipeline; typically if you have failed runs.  Furthermore, a cmd.log file will be generated which will keep track of the times of each command and the commandlines each used.
 Error tracking is usually done by reviewing error, log, progress and report files.
+<br>
 
 <br><strong>INCOMPATIBILITIES</strong><br>
 None know, although not tested on Microsoft or OSX.
