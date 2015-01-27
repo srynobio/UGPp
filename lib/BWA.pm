@@ -32,7 +32,7 @@ sub bwa_mem {
     my @z_list;
     while ( my $file = $tape->next ) {
         chomp $file;
-        next unless ( $file =~ /\.gz$/ );
+        next unless ( $file =~ /(gz|bz2)/ );
         push @z_list, $file;
     }
 

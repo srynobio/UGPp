@@ -20,12 +20,15 @@ sub fastq_unzip {
     while ( my $file = $tape->next ) {
         chomp $file;
 
-        next unless ( $file =~ /\.gz$/ );
+        next unless ( $file =~ /(gz|bz2)/ );
 
         my $output;
         if ( $file =~ /txt/ ) {
             ( $output = $file ) =~ s/\.gz$/\.fastq/;
         }
+	elsif ( $file =~ /bz2/ ) {
+            ( $output = $file ) =~ s/\.bz2$//;
+	}
         elsif ( $file =~ /fastq/ ) {
             ( $output = $file ) =~ s/\.gz$//;
         }

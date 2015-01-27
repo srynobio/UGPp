@@ -295,7 +295,6 @@ sub HaplotypeCaller {
 
             # get interval
             my @intv = grep { /$file->{parts}[4]\_/ } @{ $tape->intervals };
-            #my @intv = grep { /$file->{parts}[5]\_/ } @{$tape->intervals};
 
             my $name = $file->{parts}[0];
             ( my $output = $intv[0] ) =~
