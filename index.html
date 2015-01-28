@@ -34,7 +34,7 @@
 <br>
 
 <strong>VERSION</strong>
-This document describes version 1.0.5
+This document describes version 1.2.1
 <br>
 <br>
 
@@ -57,7 +57,7 @@ Currently it incorporates the following tools:
 	<li>FastQC</li>
 	<li>BWA</li>
 	<li>SAMtools</li>
-	<li>Picard</li>
+	<li>Picard 1.127 (broadinstitute version) </li>
 	<li>GATK 3.0+</li>
 </ul>
 
@@ -82,7 +82,7 @@ which cApTUrE requires.
 	<li><a href="http://www.bioinformatics.babraham.ac.uk/projects/fastqc/" target="_blank">FastQC</a></li>
 	<li><a href="http://bio-bwa.sourceforge.net" target="_blank">BWA</a></li>
 	<li><a href="http://samtools.sourceforge.net" target="_blank">SAMtools</a></li>
-	<li><a href="http://picard.sourceforge.net" target="_blank">Picard</a></li>
+	<li><a href="http://broadinstitute.github.io/picard/" target="_blank">Picard</a></li>
 	<li><a href="http://www.broadinstitute.org/gatk/" target="_blank">GATK</a></li>
 	<li><a href="http://www.r-project.org/" target="_blank">R</a></li>
 </ul>
@@ -94,34 +94,36 @@ cApTUrE/data:
 <ul>
 	<li><em>exon_Region.list</em></li>
 	<li><em>exome.analysis.sequence.index</em></li>
-	<li><em>capture.cfg</em> - This is the main template configure file use with config_creator.  This will create a new template based on file location per server/system.</li>
+	<li><em>capture.cfg</em> - This is the main template configure file use with machine_config.  This will create a new template based on file location per server/system.</li>
 	<li><em>PBS_template</em> - Template use for PBS job submission on the CHPC cluster.
 </ul>
 cApTUrE/bin:
 <ul>
 	<li><em>cApTUrE</em> - main script</li>
-	<li><em>config_creator</em> - Interactive script which creates a hostname.cfg config file, which contains all path locations for a given machine.
+	<li><em>machine_config</em> - Interactive script which creates a hostname.cfg config file, which contains all path locations for a given machine.
 	<li><em>project_config</em> - Can use the above generated config file as a template for each dataset to run.
+	<li><em>perlDepsBuild</em>  - Script to build and install all perl dependencies.  Root required.
 </ul>
 cApTUrE/bin/UGP_tools:
 <ul>
 	<li><em>RegionMaker</em></li> 
 	<li><em>Thousand_genome_recreator.pl</em></li>
-	<li><em>UGP-SCP.pl</em></li>
+	<li><em>UGP-Result-Clean.pl</em></li>
+	<li><em>Genotype_rerun_collector.pl</em></li>
 </ul>
 
 <br><strong>RUNNING CAPTURE:</strong><br>
 After downloading and installing all dependences, a typical setup and run would follow these steps:<br>
 
 <br><em><u>Setting up the config file</u>:</em><br>
-config_creator has been created to help complete new configure files as needed.
+machine_config has been created to help complete new configure files as needed.
 Often many of the values in the config file can be set on a per-machine basis, creating essentially a new master file (hostname.cfg).  Examples of these would be known indel files, VQSR VCFs, BAM background files, and software paths.
 project_config is used to create a new project based on the master file information.  The script will output a new .cfg file with fastq paths, output directories, worker number, memory usage and ugp_id.
 <br>
 
 <br><em><u>Running cApTUrE</u>:</em><br>
 It is recommend that the unix command <a href="http://www.computerhope.com/unix/screen.htm" target="_blank">screen</a> be used. 
-When cApTUrE runs it will create a number of log, list, error and report file.  One of these will be PROGRESS.  This file will keep track of each step of the order process, and is one that will be used and reviewed often throughout the pipeline; typically if you have failed runs.  Furthermore, a cmd.log file will be generated which will keep track of the times of each command and the commandlines each used.
+When cApTUrE runs it will create a number of log, list, error and report file.  One of these will be PROGRESS.  This file will keep track of each step of the order process, and is one that will be used and reviewed often throughout the pipeline; typically if you have failed runs.  Furthermore, a .log-txt file will be generated which will keep track of the times of each command and the command lines used.
 Error tracking is usually done by reviewing error, log, progress and report files.
 <br>
 
