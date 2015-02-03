@@ -259,8 +259,8 @@ sub HaplotypeCaller {
 
 	my $opts = $tape->options;
 
-	collect files and stack them.
-		my $reads = $tape->file_retrieve('PrintReads');
+	#collect files and stack them.
+	my $reads = $tape->file_retrieve('PrintReads');
 	my @inputs = map { "$_" } @{$reads};
 
 	my @cmds;
