@@ -22,6 +22,29 @@ sub fastq_unzip {
 
         next unless ( $file =~ /(gz|bz2)/ );
 
+        (my $output = $file) =~ s/$/.fastq/;
+
+        $tape->file_store($output);
+
+        my $cmd = sprintf( "gunzip -c %s > %s", $file, $output );
+        push @cmds, $cmd;
+    }
+    $tape->bundle( \@cmds, 'off' );
+}
+
+=cut
+sub fastq_unzip {
+    my $tape = shift;
+    $tape->pull;
+
+    my $opts = $tape->options;
+
+    my @cmds;
+    while ( my $file = $tape->next ) {
+        chomp $file;
+
+        next unless ( $file =~ /(gz|bz2)/ );
+
         my $output;
         if ( $file =~ /txt/ ) {
             ( $output = $file ) =~ s/\.gz$/\.fastq/;
@@ -43,6 +66,7 @@ sub fastq_unzip {
     }
     $tape->bundle( \@cmds, 'off' );
 }
+=cut
 
 ##-----------------------------------------------------------
 

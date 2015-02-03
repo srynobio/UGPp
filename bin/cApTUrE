@@ -50,6 +50,7 @@ Additional options:
 
     -cc, --combine_chunk	If more then 200 GVCF files were created (HaplotypeCaller), 
 				chunk size to use in CombineGVCF command [default 100].
+				** Smaller number creates larger chuncks. **
 
     -jpn, --job_per_node	When useing cluster environment, specifies number of jobs to add to each pbs script.
    

@@ -254,6 +254,51 @@ sub PrintReads {
 ##-----------------------------------------------------------
 
 sub HaplotypeCaller {
+	my $tape = shift;
+	$tape->pull;
+
+	my $opts = $tape->options;
+
+	collect files and stack them.
+		my $reads = $tape->file_retrieve('PrintReads');
+	my @inputs = map { "$_" } @{$reads};
+
+	my @cmds;
+	foreach my $bam ( @{$reads} ) {
+		my $file = $tape->file_frags($bam);
+
+		my $search;
+		foreach my $chr ( @{$file->{parts}} ) {
+			if ( $chr =~ /chr.*/ ) {
+				$search = $chr;
+			}
+		}
+
+		# get interval
+		my @intv = grep { /$search\_/ } @{ $tape->intervals };
+
+		my $name = $file->{parts}[0];
+		( my $output = $intv[0] ) =~
+			s/_file.list/_$name.raw.snps.indels.gvcf/;
+
+		$tape->file_store($output);
+
+		my $cmd = sprintf(
+				"java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+				. "%s/GenomeAnalysisTK.jar -T HaplotypeCaller -R %s %s -I %s -L %s -o %s\n",
+				$opts->{java_xmx}, $opts->{java_gatk_thread},
+				$opts->{tmp},      $opts->{GATK},
+				$opts->{fasta},    $tape->ddash,
+				$bam,              $intv[0],
+				$output
+				);
+		push @cmds, $cmd;
+	}
+	$tape->bundle( \@cmds );
+}
+
+=cut
+sub HaplotypeCaller {
     my $tape = shift;
     $tape->pull;
 
@@ -316,6 +361,7 @@ sub HaplotypeCaller {
     }
     $tape->bundle( \@cmds );
 }
+=cut
 
 ##-----------------------------------------------------------
 
@@ -367,11 +413,11 @@ sub CatVariants {
         my $pathFile = $path . $output;
         $tape->file_store($pathFile);
 
-        my $cmd = sprintf(
-"java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s %s %s -out %s\n",
-            $opts->{GATK}, $opts->{fasta}, $tape->ddash,
-            $variant,      $pathFile
-        );
+	my $cmd = sprintf(
+			"java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s %s %s -out %s\n",
+			$opts->{GATK}, $opts->{fasta}, $tape->ddash,
+			$variant,      $pathFile
+	);
         push @cmds, $cmd;
     }
     $tape->bundle( \@cmds );
