@@ -93,3 +93,4 @@ if ( $c_opts{file} and -e 'CMD_stack.store' ) { `rm CMD_stack.store` }
 my $t = DuctTape->new( commandline => \%c_opts, );
 
 $t->wrap;
+

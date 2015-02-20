@@ -50,6 +50,10 @@ sub build_machine_config {
 	my $picard = <STDIN>;
 	print "Enter path to SamTools directory [REQUIRED]: ";
 	my $samtools = <STDIN>;
+	print "Enter path to samblaster directory [REQUIRED]: ";
+	my $samblaster = <STDIN>;
+	print "Enter path to sambamba directory [REQUIRED]: ";
+	my $sambamba = <STDIN>;
 	print "Enter path to GATK directory [REQUIRED]: ";
 	my $gatk = <STDIN>;
 	print "Enter path to FastQC directory [REQUIRED]: ";
@@ -58,7 +62,7 @@ sub build_machine_config {
 
 	chomp(
 	    $tmp,    $fasta,    $bundle, $backgrounds, $bwa,
-	    $picard, $samtools, $gatk,   $fastqc
+	    $picard, $samtools, $samblaster, $sambamba, $gatk, $fastqc
 	);
 
 	# set defaults and clean up.
@@ -70,12 +74,14 @@ sub build_machine_config {
 	my $new_config ||= $host_tmp;
 
 	croak "fasta entered does not appear to be a file\n" unless ( -f $fasta );
-	unless ( -d $bwa and -e $picard and -d $samtools and -d $gatk and -d $fastqc ) {
+	unless ( -d $bwa and -e $picard and -d $samtools and -d $samblaster and -d $sambamba and -d $gatk and -d $fastqc ) {
 	    croak "Software paths enter are not directories\n";
 	}
 	$bwa =~ s/\/$//g;
 	$picard =~ s/\/$//g;
 	$samtools =~ s/\/$//g;
+	$samblaster =~ s/\/$//g;
+	$sambamba =~ s/\/$//g;
 	$gatk =~ s/\/$//g;
 	$fastqc =~ s/\/$//g;
 	$bundle =~ s/\/$//g;
@@ -83,12 +89,14 @@ sub build_machine_config {
 	croak "UGP background path not found\n" unless ( -d $backgrounds );
 
 	# add version infomation to config file
-	my $bwa_v      = bwa_version($bwa);
-	my $picard_v   = picard_version($picard);
-	my $samtools_v = samtools_version($samtools);
-	my $gatk_v     = gatk_version($gatk);
-	my $fastqc_v   = fastqc_version($fastqc);
-	chomp( $bwa_v, $picard_v, $samtools_v, $gatk_v, $fastqc_v );
+	my $bwa_v      	 = bwa_version($bwa);
+	my $picard_v     = picard_version($picard);
+	my $samtools_v   = samtools_version($samtools);
+	my $samblaster_v = samblaster_version($samblaster);
+	my $sambamba_v   = sambamba_version($sambamba);
+	my $gatk_v       = gatk_version($gatk);
+	my $fastqc_v     = fastqc_version($fastqc);
+	chomp( $bwa_v, $picard_v, $samtools_v, $samblaster, $sambamba, $gatk_v, $fastqc_v );
 
 	#### Build the sections of the config file ####
 
@@ -102,12 +110,16 @@ sub build_machine_config {
 	$config{main}{bwa_version}      = $bwa_v;
 	$config{main}{picard_version}   = $picard_v;
 	$config{main}{samtools_version} = $samtools_v;
+	$config{main}{samblaster_version} = $samblaster_v;
+	$config{main}{sambamba_version} = $sambamba_v;
 	$config{main}{gatk_version}     = $gatk_v;
 	$config{main}{fastqc_version}   = $fastqc_v;
 
 	$config{software}{BWA}      = $bwa;
 	$config{software}{Picard}   = $picard;
 	$config{software}{SamTools} = $samtools;
+	$config{software}{Samblaster} = $samblaster;
+	$config{software}{Sambamba} = $sambamba;
 	$config{software}{GATK}     = $gatk;
 	$config{software}{FastQC}   = $fastqc;
 
@@ -148,77 +160,115 @@ sub build_machine_config {
 ##--------------------------------------------------------
 
 sub bwa_version {
-    my $bwa_p = shift;
-    my $cmd   = $bwa_p . '/bwa';
+	my $bwa_p = shift;
+	my $cmd   = $bwa_p . '/bwa';
 
-    my $in = '';
-    my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
-    my $version;
-    while (<PH>) {
-        next unless ( $_ =~ /^Version/ );
-        my ( $name, $ver ) = split ":", $_;
-        $ver =~ s/^\s+$//g;
-        $version = $ver;
-    }
-    waitpid( $pid, 0 );
-    return $version;
+	my $in = '';
+	my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
+	my $version;
+	while (<PH>) {
+		next unless ( $_ =~ /^Version/ );
+		my ( $name, $ver ) = split ":", $_;
+		$ver =~ s/^\s+$//g;
+		$version = $ver;
+	}
+	waitpid( $pid, 0 );
+	return $version;
 }
 
 ##--------------------------------------------------------
 
 sub picard_version {
-    my $picard_p = shift;
-    my $cmd      = 'java -jar ' . $picard_p . 'CollectMultipleMetrics';
+	my $picard_p = shift;
+	my $cmd      = 'java -jar ' . $picard_p . ' CollectMultipleMetrics';
 
-    my $in = '';
-    my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
-    my $version;
-    while (<PH>) {
-        next unless ( $_ =~ /^Version/ );
-        my ( $name, $ver ) = split ":", $_;
-        $ver =~ s/^\s+$//g;
-        $version = $ver;
-    }
-    waitpid( $pid, 0 );
-    return $version;
+	my $in = '';
+	my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
+	my $version;
+	while (<PH>) {
+		next unless ( $_ =~ /^Version/ );
+		my ( $name, $ver ) = split ":", $_;
+		$ver =~ s/^\s+$//g;
+		$version = $ver;
+	}
+	waitpid( $pid, 0 );
+	return $version;
 }
 
 ##--------------------------------------------------------
 
 sub samtools_version {
-    my $samtools_p = shift;
-    my $cmd        = $samtools_p . '/samtools';
+	my $samtools_p = shift;
+	my $cmd        = $samtools_p . '/samtools';
 
-    my $in = '';
-    my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
-    my $version;
-    while (<PH>) {
-        next unless ( $_ =~ /^Version/ );
-        my ( $name, $ver ) = split ":", $_;
-        $ver =~ s/^\s+$//g;
-        $version = $ver;
-    }
-    waitpid( $pid, 0 );
-    return $version;
+	my $in = '';
+	my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
+	my $version;
+	while (<PH>) {
+		next unless ( $_ =~ /^Version/ );
+		my ( $name, $ver ) = split ":", $_;
+		$ver =~ s/^\s+$//g;
+		$version = $ver;
+	}
+	waitpid( $pid, 0 );
+	return $version;
+}
+
+##--------------------------------------------------------
+
+sub samblaster_version {
+	my $samblaster_p = shift;
+	my $cmd = $samblaster_p . '/samblaster -version';
+
+	my $in = '';
+	my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
+	my $version;
+	while (<PH>) {
+		next unless ( $_ =~ /Version/ );
+		my ( $name, $ver ) = split ":", $_;
+		$ver =~ s/^\s+$//g;
+		$version = $ver;
+	}
+	waitpid( $pid, 0 );
+	return $version;
+}
+
+##--------------------------------------------------------
+
+sub sambamba_version {
+	my $sambamba_p = shift;
+	my $cmd = $sambamba_p . '/sambamba';
+
+	my $in = '';
+	my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
+	my $version;
+	while (<PH>) {
+		next unless ( $_ =~ /^sambamba/ );
+		my ( $name, $ver ) = split /\s+/, $_;
+		$ver =~ s/^\s+$//g;
+		$version = $ver;
+	}
+	waitpid( $pid, 0 );
+	return $version;
 }
 
 ##--------------------------------------------------------
 
 sub gatk_version {
-    my $gatk_p  = shift;
-    my $cmd     = 'java -jar ' . $gatk_p . '/GenomeAnalysisTK.jar -version';
-    my $version = `$cmd`;
-    return $version;
+	my $gatk_p  = shift;
+	my $cmd     = 'java -jar ' . $gatk_p . '/GenomeAnalysisTK.jar -version';
+	my $version = `$cmd`;
+	return $version;
 }
 
 ##--------------------------------------------------------
 
 sub fastqc_version {
-    my $fastqc_p = shift;
-    my $cmd      = $fastqc_p . '/fastqc -version';
-    my $version  = `$cmd`;
-    $version =~ s/FastQC //g;
-    return $version;
+	my $fastqc_p = shift;
+	my $cmd      = $fastqc_p . '/fastqc -version';
+	my $version  = `$cmd`;
+	$version =~ s/FastQC //g;
+	return $version;
 }
 
 ##--------------------------------------------------------

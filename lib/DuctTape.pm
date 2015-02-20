@@ -10,8 +10,9 @@ extends qw|
   FastQC
   Picard
   SamTools
+  Sambamba
   GATK
-  BWA
+  Alignment
   MD5
   QC
   |;

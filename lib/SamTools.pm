@@ -28,7 +28,8 @@ sub idxstats {
     $tape->pull;
 
     my $opts   = $tape->options;
-    my $sorted = $tape->file_retrieve('SortSam');
+    my $sorted = $tape->file_retrieve('align_dedup_sort');
+    #my $sorted = $tape->file_retrieve('SortSam');
 
     my @cmds;
     foreach my $bam ( @{$sorted} ) {

@@ -103,10 +103,16 @@ sub RealignerTargetCreator {
     $tape->pull;
 
     my $opts  = $tape->options;
-    my $dedup = $tape->file_retrieve('MarkDuplicates');
+
+    my $merged = $tape->file_retrieve('sambamba_merge');
+    my $sort   = $tape->file_retrieve('sambamba_sort');
+
+    my $file_stack;
+    if   ($merged) { $file_stack = $merged }
+    else           { $file_stack = $sort }
 
     my @cmds;
-    foreach my $in ( @{$dedup} ) {
+    foreach my $in ( @{$file_stack} ) {
         my $parts = $tape->file_frags($in);
 
         foreach my $region ( @{ $tape->intervals } ) {
@@ -143,12 +149,24 @@ sub IndelRealigner {
 
     my $opts = $tape->options;
 
-    my $dedup  = $tape->file_retrieve('MarkDuplicates');
+    my $sort = $tape->file_retrieve('sambamba_sort');
+    my $merged = $tape->file_retrieve('sambamba_merge');
+
+    my $file_stack;
+    if   ($merged) { $file_stack = $merged }
+    else           { $file_stack = $sort }
+
+
+    #my $dedup  = $tape->file_retrieve('sambamba_dedup');
+    #my $dedup  = $tape->file_retrieve('MarkDuplicates');
     my $target = $tape->file_retrieve('RealignerTargetCreator');
     ( my $known = $tape->indels ) =~ s/--known/-known/g;
 
+
+
     my @cmds;
-    foreach my $dep ( @{$dedup} ) {
+    foreach my $dep ( @{$file_stack} ) {
+    #foreach my $dep ( @{$dedup} ) {
         my $dep_parts = $tape->file_frags($dep);
 
         my @target_region = grep { /$dep_parts->{parts}[0]\_/ } @{$target};
