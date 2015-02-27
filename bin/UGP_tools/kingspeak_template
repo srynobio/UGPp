@@ -8,6 +8,7 @@ date
 
 cd /scratch/local/
 rm -rf *
+hostname
 
 cd /uufs/chpc.utah.edu/common/home/u0413537/cApTUrE/bin
 

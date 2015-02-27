@@ -62,9 +62,8 @@ sub bwa_mem {
 
         my $cmd = sprintf(
             "%s/bwa mem %s -R %s %s %s %s | %s/samtools view -bSho %s -\n",
-            $opts->{BWA}, $tape->dash, $r_group, $opts->{fasta},
-            $file1->{full}, $file2->{full},
-            $tape->software->{SamTools}, $path_bam );
+            $opts->{BWA}, $tape->dash, $r_group, $opts->{fasta}, $file1->{full},
+            $file2->{full}, $tape->software->{SamTools}, $path_bam );
         push @cmds, $cmd;
         $id++;
     }

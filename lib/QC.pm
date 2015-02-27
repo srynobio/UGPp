@@ -105,7 +105,9 @@ sub fastqc_check {
                 next;
             }
 
-            $tape->WARN("One or more QC data report values failed review QC-report.txt file") if $fail;
+            $tape->WARN(
+		"One or more QC data report values failed review QC-report.txt file"
+            ) if $fail;
         }
         push @reports, $d if $fail;
     }

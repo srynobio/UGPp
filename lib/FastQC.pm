@@ -26,9 +26,9 @@ sub fastq_unzip {
         if ( $file =~ /txt/ ) {
             ( $output = $file ) =~ s/\.gz$/\.fastq/;
         }
-	elsif ( $file =~ /bz2/ ) {
+        elsif ( $file =~ /bz2/ ) {
             ( $output = $file ) =~ s/\.bz2$//;
-	}
+        }
         elsif ( $file =~ /fastq/ ) {
             ( $output = $file ) =~ s/\.gz$//;
         }
@@ -41,8 +41,8 @@ sub fastq_unzip {
         my $cmd = sprintf( "gunzip -c %s > %s", $file, $output );
         push @cmds, $cmd;
     }
-    unless (@cmds) { 
-	    $tape->ERROR("Could not find needed fastq files");
+    unless (@cmds) {
+        $tape->ERROR("Could not find needed fastq files");
     }
     $tape->bundle( \@cmds, 'off' );
 }

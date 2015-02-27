@@ -39,12 +39,14 @@ sub SortSam {
         ( my $sort = $s ) =~ s/\.bam$/\_sorted.bam/;
         $tape->file_store($sort);
 
-        my $cmd =
-          sprintf( "java -jar -XX:ParallelGCThreads=%s -Xmx%s "
+        my $cmd = sprintf(
+            "java -jar -XX:ParallelGCThreads=%s -Xmx%s "
               . "-Djava.io.tmpdir=%s %s SortSam INPUT=%s "
               . "OUTPUT=%s %s\n",
-            $opts->{java_picard_thread}, $opts->{java_xmx},
-            $opts->{tmp}, $opts->{Picard}, $s, $sort, $tape->equal_dash );
+            $opts->{java_picard_thread},
+            $opts->{java_xmx}, $opts->{tmp}, $opts->{Picard}, $s, $sort,
+            $tape->equal_dash
+        );
         push @cmds, $cmd;
     }
     $tape->bundle( \@cmds );
@@ -98,7 +100,8 @@ sub MergeSamFiles {
             "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
               . "%s MergeSamFiles %s %s %s\n",
             $opts->{java_xmx}, $opts->{java_picard_thread},
-            $opts->{tmp}, $opts->{Picard}, $tape->equal_dash, $input, $output );
+            $opts->{tmp}, $opts->{Picard}, $tape->equal_dash, $input, $output
+        );
         push @cmds, $cmd;
     }
     $tape->bundle( \@cmds );
@@ -131,8 +134,9 @@ sub MarkDuplicates {
             "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
               . "%s MarkDuplicates INPUT=%s OUTPUT=%s METRICS_FILE=%s %s\n",
             $opts->{java_xmx}, $opts->{java_picard_thread},
-            $opts->{tmp}, $opts->{Picard},
-            $bam, $output, $metric, $tape->equal_dash );
+            $opts->{tmp}, $opts->{Picard}, $bam, $output, $metric,
+            $tape->equal_dash
+        );
         push @cmds, $cmd;
     }
     $tape->bundle( \@cmds );
@@ -156,8 +160,10 @@ sub CollectMultipleMetrics {
             "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
               . "%s CollectMultipleMetrics INPUT=%s %s REFERENCE_SEQUENCE=%s "
               . "OUTPUT=%s\n",
-            $opts->{java_xmx}, $opts->{java_picard_thread}, $opts->{tmp},
-            $opts->{Picard}, $bam, $tape->equal_dash, $opts->{fasta}, $w_file );
+            $opts->{java_xmx}, $opts->{java_picard_thread},
+            $opts->{tmp}, $opts->{Picard}, $bam, $tape->equal_dash,
+            $opts->{fasta}, $w_file
+        );
         push @cmds, $cmd;
     }
     $tape->bundle( \@cmds );

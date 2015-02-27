@@ -11,27 +11,26 @@ my $usage = "
 
 Synopsis:
 
-    ./project_config --fasta_dir <string> --memory <int> --workers <int> --tmp <string> --log <string> --new_config <string>
-    ./project_config -fd /data2/srynearson/gcat -m 1000 -w 80 -t /tmp -l report.log -nc gcat_run.cfg
+	./project_config --fasta_dir <string> --workers <int> --tmp <string> --log <string> --new_config <string>
+	./project_config -fd /data2/srynearson/gcat -w 80 -t /tmp -l report.log -nc gcat_run.cfg
 
 Description:
 
-    General utility script to help create new configure files per project.
-    *Will not modify software options*
+	General utility script to help create new configure files per project.
+	*Will not modify software options*
 
 Required options:
 
-    -fd, --fastq_dir:   Path to location of fastq files.
-    -u,  --ugp_id:   	UGP id to add to config file.
+	-fd, 	--fastq_dir:   Path to location of fastq files.
+	-u, 	--ugp_id:   	UGP id to add to config file.
 
 Additional options:
 
-    -cfg, --config:         Configure file you would like to build from [default capture.cfg].
-    -l,   --log:            Log file name for a given run.  [default to cmd.log]
-    -nc,  --new_config:     Name of the new config file generated. [default tmp.cfg]
-    -o,   --output_dir:     Path to write output files to.  [default to fastq dir via cApTUrE]
-    -w,	  --workers:	    Number of CPUs to distribute work across. [default 1]
-
+	-cfg, 	--config:         Configure file you would like to build from [default capture.cfg].
+	-l, 	--log:            Log file name for a given run.  [default to cmd.log]
+	-nc, 	--new_config:     Name of the new config file generated. [default tmp.cfg]
+	-o, 	--output_dir:     Path to write output files to.  [default to fastq dir via cApTUrE]
+	-w,	--workers:	    Number of CPUs to distribute work across. [default 1]
 \n";
 
 my (

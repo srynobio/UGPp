@@ -24,7 +24,8 @@ sub checksum {
         my $path = $opts->{data};
 
         # add file path to file.
-        my $file_update = "perl -lane '\$F[1] =~ s?./??g; \$F[1] =~ s?^?  $path?; print \@F' $file > tmp.md5";
+        my $file_update =
+		"perl -lane '\$F[1] =~ s?./??g; \$F[1] =~ s?^?  $path?; print \@F' $file > tmp.md5";
 
         if ( $tape->execute ) {
             `$file_update`;

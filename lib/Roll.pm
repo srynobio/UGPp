@@ -251,8 +251,7 @@ sub file_retrieve {
     }
 
     unless ( keys %stored ) {
-        $self->ERROR(
-                'Must have stack store file or pass file (-f) list in. '
+        $self->ERROR( 'Must have stack store file or pass file (-f) list in. '
               . ' Are you sure you have entered data path in config file?' )
           if ( !-e 'CMD_stack.store' );
 
@@ -261,6 +260,7 @@ sub file_retrieve {
         return $stored{$class};
     }
     else {
+
         # just return a clone of the store so
         # original is not deleted
         my $clone;

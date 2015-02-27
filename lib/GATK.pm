@@ -254,51 +254,6 @@ sub PrintReads {
 ##-----------------------------------------------------------
 
 sub HaplotypeCaller {
-	my $tape = shift;
-	$tape->pull;
-
-	my $opts = $tape->options;
-
-	#collect files and stack them.
-	my $reads = $tape->file_retrieve('PrintReads');
-	my @inputs = map { "$_" } @{$reads};
-
-	my @cmds;
-	foreach my $bam ( @{$reads} ) {
-		my $file = $tape->file_frags($bam);
-
-		my $search;
-		foreach my $chr ( @{$file->{parts}} ) {
-			if ( $chr =~ /chr.*/ ) {
-				$search = $chr;
-			}
-		}
-
-		# get interval
-		my @intv = grep { /$search\_/ } @{ $tape->intervals };
-
-		my $name = $file->{parts}[0];
-		( my $output = $intv[0] ) =~
-			s/_file.list/_$name.raw.snps.indels.gvcf/;
-
-		$tape->file_store($output);
-
-		my $cmd = sprintf(
-				"java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-				. "%s/GenomeAnalysisTK.jar -T HaplotypeCaller -R %s %s -I %s -L %s -o %s\n",
-				$opts->{java_xmx}, $opts->{java_gatk_thread},
-				$opts->{tmp},      $opts->{GATK},
-				$opts->{fasta},    $tape->ddash,
-				$bam,              $intv[0],
-				$output
-				);
-		push @cmds, $cmd;
-	}
-	$tape->bundle( \@cmds );
-}
-
-=cut
-sub HaplotypeCaller {
     my $tape = shift;
     $tape->pull;
 
@@ -336,10 +291,18 @@ sub HaplotypeCaller {
             }
         }
         else {
+
             my $file = $tape->file_frags($bam);
 
+            my $search;
+            foreach my $chr ( @{ $file->{parts} } ) {
+                if ( $chr =~ /chr.*/ ) {
+                    $search = $chr;
+                }
+            }
+
             # get interval
-            my @intv = grep { /$file->{parts}[4]\_/ } @{ $tape->intervals };
+            my @intv = grep { /$search\_/ } @{ $tape->intervals };
 
             my $name = $file->{parts}[0];
             ( my $output = $intv[0] ) =~
@@ -361,7 +324,6 @@ sub HaplotypeCaller {
     }
     $tape->bundle( \@cmds );
 }
-=cut
 
 ##-----------------------------------------------------------
 
@@ -413,11 +375,11 @@ sub CatVariants {
         my $pathFile = $path . $output;
         $tape->file_store($pathFile);
 
-	my $cmd = sprintf(
-			"java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s %s %s -out %s\n",
-			$opts->{GATK}, $opts->{fasta}, $tape->ddash,
-			$variant,      $pathFile
-	);
+        my $cmd = sprintf(
+	    "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s %s %s -out %s\n",
+            $opts->{GATK}, $opts->{fasta}, $tape->ddash,
+            $variant,      $pathFile
+        );
         push @cmds, $cmd;
     }
     $tape->bundle( \@cmds );
@@ -450,7 +412,7 @@ sub CombineGVCF {
             $tape->file_store($output);
 
             my $cmd = sprintf(
-"java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
+		  "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
                   . " -T CombineGVCFs -R %s "
                   . "--variant %s -o %s\n",
                 $opts->{java_xmx}, $opts->{java_gatk_thread},
@@ -479,30 +441,30 @@ sub CombineGVCF {
 }
 
 ##-----------------------------------------------------------
-
-sub CombineGVCF_Merge {
-    my $tape = shift;
-    $tape->pull;
-
-    my $opts = $tape->options;
-
-    my $merged = $tape->file_retrieve('CombineGVCF');
-    my $variants = join( " --variant ", @{$merged} );
-
-    # Single merged files dont need a master merge
-    if ( $variants =~ /_final_mergeGvcf.vcf/ ) { return }
-
-    my $output = $tape->output . $opts->{ugp_id} . '_final_mergeGvcf.vcf';
-    $tape->file_store($output);
-
-    my $cmd = sprintf(
-        "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
-          . " -T CombineGVCFs -R %s --variant %s -o %s\n",
-        $opts->{java_xmx}, $opts->{java_gatk_thread},
-        $opts->{GATK}, $opts->{fasta}, $variants, $output
-    );
-    $tape->bundle( \$cmd );
-}
+#
+#sub CombineGVCF_Merge {
+#	my $tape = shift;
+#	$tape->pull;
+#
+#	my $opts = $tape->options;
+#
+#	my $merged = $tape->file_retrieve('CombineGVCF');
+#	my $variants = join( " --variant ", @{$merged} );
+#
+#	# Single merged files dont need a master merge
+#	if ( $variants =~ /_final_mergeGvcf.vcf/ ) { return }
+#
+#	my $output = $tape->output . $opts->{ugp_id} . '_final_mergeGvcf.vcf';
+#	$tape->file_store($output);
+#
+#	my $cmd = sprintf(
+#			"java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
+#			. " -T CombineGVCFs -R %s --variant %s -o %s\n",
+#			$opts->{java_xmx}, $opts->{java_gatk_thread},
+#			$opts->{GATK}, $opts->{fasta}, $variants, $output
+#			);
+#	$tape->bundle( \$cmd );
+#}
 
 ##-----------------------------------------------------------
 
@@ -512,15 +474,8 @@ sub GenotypeGVCF {
 
     my $opts = $tape->options;
 
-    # will need to step through to get only gvcf
     my $single = $tape->file_retrieve('CombineGVCF');
-    my $multi  = $tape->file_retrieve('CombineGVCF_Merge');
-
-    my $combined;
-    if   ($multi) { $combined = $multi }
-    else          { $combined = $single }
-
-    my @merged = grep { /_final_mergeGvcf.vcf$/ } @{$combined};
+    my @merged = grep { /mergeGvcf.vcf$/ } @{$single};
 
     # collect the 1k backgrounds.
     if ( $opts->{backgrounds} ) {
@@ -551,11 +506,14 @@ sub GenotypeGVCF {
         $tape->file_store($output);
 
         my $cmd = sprintf(
-"java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
+            "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+              . "%s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
               . "%s --variant %s -L %s -o %s\n",
             $opts->{java_xmx}, $opts->{java_gatk_thread},
-            $opts->{GATK},
-            $opts->{fasta}, $tape->ddash, $variants, $region, $output
+            $opts->{tmp},      $opts->{GATK},
+            $opts->{fasta},    $tape->ddash,
+            $variants,         $region,
+            $output
         );
         push @cmds, $cmd;
     }
@@ -576,21 +534,10 @@ sub Combine_Genotyped {
     $tape->file_store($output);
 
     my $cmd = sprintf(
-"java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s %s -V %s -out %s\n",
+	"java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s %s -V %s -out %s\n",
         $opts->{GATK}, $opts->{fasta}, $tape->ddash,
-        join( " -V ", @{$genotpd} ), $output );
-
-=cut
-    my $cmd = sprintf(
-	    "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
-          . "-T CombineVariants -R %s %s --variant %s -o %s\n",
-        $opts->{java_xmx}, $opts->{java_gatk_thread},
-        $opts->{tmp},      $opts->{GATK},
-        $opts->{fasta},    $tape->ddash,
-        join( " --variant ", @{$genotpd} ), $output
-    );
-=cut
-
+        join( " -V ", @{$genotpd} ), $output 
+   );
     $tape->bundle( \$cmd );
 }
 
@@ -618,7 +565,7 @@ sub VariantRecalibrator_SNP {
     my $anno     = $opts->{use_annotation_SNP};
 
     my $cmd = sprintf(
-"java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
+	  "java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
           . " -T VariantRecalibrator -R %s %s -resource:%s -an %s -input %s %s %s %s -mode SNP\n",
         $opts->{java_xmx}, $opts->{java_gatk_thread},
         $opts->{tmp},      $opts->{GATK},
@@ -654,8 +601,8 @@ sub VariantRecalibrator_INDEL {
     my $anno     = $opts->{use_annotation_INDEL};
 
     my $cmd = sprintf(
-"java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T VariantRecalibrator "
-          . "-R %s %s -resource:%s -an %s -input %s %s %s %s -mode INDEL\n",
+	"java -jar -Xmx%s -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T VariantRecalibrator "
+	. "-R %s %s -resource:%s -an %s -input %s %s %s %s -mode INDEL\n",
         $opts->{java_xmx}, $opts->{java_gatk_thread},
         $opts->{tmp},      $opts->{GATK},
         $opts->{fasta},    $tape->ddash,
@@ -683,8 +630,8 @@ sub ApplyRecalibration_SNP {
     $tape->file_store($output);
 
     my $cmd = sprintf(
-"java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
-          . "-R %s %s -input %s %s %s -mode SNP -o %s\n",
+	"java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
+	. "-R %s %s -input %s %s %s -mode SNP -o %s\n",
         $opts->{java_xmx},     $opts->{tmp},          $opts->{GATK},
         $opts->{fasta},        $tape->ddash,          $genotpd,
         shift @{$recal_files}, shift @{$recal_files}, $output
@@ -709,8 +656,8 @@ sub ApplyRecalibration_INDEL {
     $tape->file_store($output);
 
     my $cmd = sprintf(
-"java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
-          . "-R %s %s -input %s %s %s -mode INDEL -o %s\n",
+	"java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
+	. "-R %s %s -input %s %s %s -mode INDEL -o %s\n",
         $opts->{java_xmx},     $opts->{tmp},          $opts->{GATK},
         $opts->{fasta},        $tape->ddash,          $genotpd,
         shift @{$recal_files}, shift @{$recal_files}, $output
@@ -736,8 +683,8 @@ sub CombineVariants {
     $tape->file_store($output);
 
     my $cmd = sprintf(
-"java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T CombineVariants -R %s "
-          . "%s %s %s -o %s",
+	"java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T CombineVariants -R %s "
+	. "%s %s %s -o %s",
         $opts->{java_xmx}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta},
         $tape->ddash,
         join( " ", @app_snp ),
@@ -760,12 +707,14 @@ sub SelectVariants {
     $tape->file_store($output);
 
     my $cmd = sprintf(
-"java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T SelectVariants -R %s "
-          . "--variant %s  -select \"DP > 100\" -o %s",
+	"java -jar -Xmx%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T SelectVariants -R %s "
+	. "--variant %s  -select \"DP > 100\" -o %s",
         $opts->{java_xmx}, $opts->{tmp}, $opts->{GATK}, $opts->{fasta},
         shift @{$comb_files}, $output );
     $tape->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------
+
 1;
+

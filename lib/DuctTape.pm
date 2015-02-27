@@ -175,7 +175,9 @@ sub bundle {
     # what type of call
     my $call_type = ref $cmd;
     unless ( $call_type and $call_type ne 'HASH' ) {
-        $self->ERROR("bundled command from $sub command must be an scalar or array reference.");
+        $self->ERROR(
+		"bundled command from $sub command must be an scalar or array reference."
+        );
     }
 
     # place in list and add log file;
