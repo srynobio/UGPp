@@ -1,0 +1,11 @@
+#PBS -S /bin/bash
+#PBS -l nodes=1:ppn=20,walltime=50:00:00
+#PBS -A ucgd-kp
+#PBS -M shawn.rynearson@gmail.com
+
+source /uufs/chpc.utah.edu/common/home/u0413537/.bash_profile
+cd /uufs/chpc.utah.edu/common/home/u0413537/cApTUrE/bin
+
+date
+./cApTUrE -cfg pcgc.cfg -il ../data/exon_Region.list -f bam.list -cc 10 -jpn 2 -pbs UGP_tools/kingspeak_template -e cluster --run 
+date
