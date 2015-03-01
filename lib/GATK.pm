@@ -301,13 +301,13 @@ sub HaplotypeCaller {
 				my $cmd = sprintf(
 						"java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
 						. "%s/GenomeAnalysisTK.jar -T HaplotypeCaller -R %s "
-						. "num_cpu_threads_per_data_thread %s "
-						. "standard_min_confidence_threshold_for_calling %s "
-						. "standard_min_confidence_threshold_for_emitting %s "
-						. "emitRefConfidence %s "
-						. "variant_index_type %s "
-						. "variant_index_parameter %s "
-						. "min_base_quality_score %s "
+						. "--num_cpu_threads_per_data_thread %s "
+						. "--standard_min_confidence_threshold_for_calling %s "
+						. "--standard_min_confidence_threshold_for_emitting %s "
+						. "--emitRefConfidence %s "
+						. "--variant_index_type %s "
+						. "--variant_index_parameter %s "
+						. "--min_base_quality_score %s "
 						. "-I %s -L %s -o %s\n",
 						$opts->{xmx}, $opts->{gc_thread},
 						$config->{tmp},      $config->{GATK},
@@ -342,13 +342,13 @@ sub HaplotypeCaller {
 			my $cmd = sprintf(
 					"java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
 					. "%s/GenomeAnalysisTK.jar -T HaplotypeCaller -R %s "
-					. "num_cpu_threads_per_data_thread %s "
-					. "standard_min_confidence_threshold_for_calling %s "
-					. "standard_min_confidence_threshold_for_emitting %s "
-					. "emitRefConfidence %s "
-					. "variant_index_type %s "
-					. "variant_index_parameter %s "
-					. "min_base_quality_score %s "
+					. "--num_cpu_threads_per_data_thread %s "
+					. "--standard_min_confidence_threshold_for_calling %s "
+					. "--standard_min_confidence_threshold_for_emitting %s "
+					. "--emitRefConfidence %s "
+					. "--variant_index_type %s "
+					. "--variant_index_parameter %s "
+					. "--min_base_quality_score %s "
 					. "-I %s -L %s -o %s\n",
 					$opts->{xmx}, $opts->{gc_threads},
 					$config->{tmp},      $config->{GATK},
@@ -717,7 +717,7 @@ sub CombineVariants {
 
 	my $cmd = sprintf(
 			"java -jar -Xmx%sg -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T CombineVariants -R %s "
-			. "num_threads %s genotypemergeoption %s %s %s -o %s",
+			. "--num_threads %s --genotypemergeoption %s %s %s -o %s",
 			$opts->{xmx}, $config->{tmp}, $config->{GATK}, $config->{fasta},
 			$opts->{num_threads},
 			$opts->{genotypemergeoption},
