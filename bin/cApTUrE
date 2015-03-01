@@ -35,6 +35,7 @@ Description:
 Required options:
 
     -cfg, --config  UGP configuration file.
+
     -il, --interval_list    Region list file for GATK variant calling.
 
 Additional options:
@@ -92,3 +93,4 @@ if ( $c_opts{file} and -e 'CMD_stack.store' ) { `rm CMD_stack.store` }
 my $t = DuctTape->new( commandline => \%c_opts, );
 
 $t->wrap;
+

@@ -309,7 +309,7 @@ sub HaplotypeCaller {
 						. "--variant_index_parameter %s "
 						. "--min_base_quality_score %s "
 						. "-I %s -L %s -o %s\n",
-						$opts->{xmx}, $opts->{gc_thread},
+						$opts->{xmx}, $opts->{gc_threads},
 						$config->{tmp},      $config->{GATK},
 						$config->{fasta},    
 						$opts->{num_cpu_threads_per_data_thread}, $opts->{standard_min_confidence_threshold_for_calling},
