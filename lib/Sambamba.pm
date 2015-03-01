@@ -56,7 +56,7 @@ sub sambamba_merge {
 		my $cmd = sprintf(
 				"%s/sambamba merge --nthreads=%s %s %s -p",
 				$config->{Sambamba}, $opts->{nthreads}, $output, $input
-		);
+				);
 		push @cmds, $cmd;
 	}
 	$tape->bundle( \@cmds );
@@ -71,7 +71,7 @@ sub sambamba_dedup {
 
 	my $config = $tape->options;
 
-	# see how many files were used.
+# see how many files were used.
 	my $sam_files	 = $tape->file_retrieve('sambamba_sort');
 	my $merged_files = $tape->file_retrieve('sambamba_merge');
 
@@ -89,7 +89,7 @@ sub sambamba_dedup {
 				"%s/sambamba markdup --tmpdir=%s %s %s %s -p",
 				$config->{Sambamba}, $config->{tmp}, $tape->{ddash},
 				$bam, $output
-		);
+				);
 		push @cmds, $cmd;
 	}
 	$tape->bundle( \@cmds );
@@ -113,10 +113,10 @@ sub sambamba_sort {
 		$tape->file_store($sort);
 
 		my $cmd = sprintf(
-			"%s/sambamba sort --tmpdir=%s %s %s -o %s -p",
-			$config->{Sambamba}, $config->{tmp}, $tape->{ddash},
-			$s, $sort 
-		);
+				"%s/sambamba sort --tmpdir=%s %s %s -o %s -p",
+				$config->{Sambamba}, $config->{tmp}, $tape->{ddash},
+				$s, $sort 
+				);
 		push @cmds, $cmd;
 	}
 	$tape->bundle( \@cmds );
@@ -124,5 +124,5 @@ sub sambamba_sort {
 =cut
 
 ##-----------------------------------------------------------
-1;
 
+1;

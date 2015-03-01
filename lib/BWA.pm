@@ -38,7 +38,7 @@ sub bwa_mem {
 		push @z_list, $file;
 	}
 
-    # must have matching pairs.
+	# must have matching pairs.
 	if ( scalar @z_list % 2 ) {
 		$tape->ERROR("FQ files must be matching pairs");
 	}
@@ -50,7 +50,7 @@ sub bwa_mem {
 		my $file1 = $tape->file_frags( shift @z_list );
 		my $file2 = $tape->file_frags( shift @z_list );
 
-        	# collect tag and uniquify the files.
+		# collect tag and uniquify the files.
 		my $tags     = $file1->{parts}[0];
 		my $bam      = $file1->{parts}[0] . "_" . $pair++ . "_sorted_Dedup.bam";
 		my $path_bam = $config->{output} . $bam;
@@ -63,14 +63,14 @@ sub bwa_mem {
 			'\'@RG' . "\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\'";
 
 		my $cmd = sprintf(
-			"%s/bwa mem -t %s -R %s %s %s %s | %s/samblaster | "
-			. "%s/sambamba view -f bam -l 0 -S /dev/stdin | "
-			. "%s/sambamba sort -m %sG -o %s /dev/stdin",
-			$config->{BWA}, $opts->{t}, $r_group, $config->{fasta},
-			$file1->{full}, $file2->{full},
-			$tape->software->{Samblaster}, $tape->software->{Sambamba}, 
-			$tape->software->{Sambamba}, $opts->{memory_limit}, $path_bam
-		);
+				"%s/bwa mem -t %s -R %s %s %s %s | %s/samblaster | "
+				. "%s/sambamba view -f bam -l 0 -S /dev/stdin | "
+				. "%s/sambamba sort -m %sG -o %s /dev/stdin",
+				$config->{BWA}, $opts->{t}, $r_group, $config->{fasta},
+				$file1->{full}, $file2->{full},
+				$tape->software->{Samblaster}, $tape->software->{Sambamba}, 
+				$tape->software->{Sambamba}, $opts->{memory_limit}, $path_bam
+				);
 		push @cmds, $cmd;
 		$id++;
 	}

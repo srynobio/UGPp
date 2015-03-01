@@ -35,7 +35,7 @@ sub _build_intervals {
 	my $tape = shift;
 	my $itv  = $tape->commandline->{interval_list};
 
-# create, print and store regions.
+	# create, print and store regions.
 	my $REGION = IO::File->new( $itv, 'r' )
 		or $tape->ERROR('Interval file could not be found or opened');
 
@@ -127,17 +127,16 @@ sub RealignerTargetCreator {
 			$tape->file_store($output);
 
 			my $cmd = sprintf(
-				"java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-				. "%s/GenomeAnalysisTK.jar -T RealignerTargetCreator "
-				. "-R %s -I %s --num_threads %s %s -L %s -o %s\n",
-				
-				$opts->{xmx}, $opts->{gc_threads},
-				$config->{tmp},      $config->{GATK},
-				$config->{fasta},    $in,
-				$opts->{num_threads}, $tape->indels,
-				$region,           $output
-				);
-		push @cmds, $cmd;
+					"java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+					. "%s/GenomeAnalysisTK.jar -T RealignerTargetCreator "
+					. "-R %s -I %s --num_threads %s %s -L %s -o %s\n",
+					$opts->{xmx}, $opts->{gc_threads},
+					$config->{tmp},      $config->{GATK},
+					$config->{fasta},    $in,
+					$opts->{num_threads}, $tape->indels,
+					$region,           $output
+					);
+			push @cmds, $cmd;
 		}
 	}
 	$tape->bundle( \@cmds );
@@ -187,7 +186,7 @@ sub IndelRealigner {
 					$config->{fasta},    $dep,
 					$intv[0],          $region,
 					$known,            $output
-			);
+					);
 			push @cmds, $cmd;
 		}
 	}
@@ -215,16 +214,16 @@ sub BaseRecalibrator {
 		$tape->file_store($output);
 
 		my $cmd = sprintf(
-			"java -jar -Xmx%sg -XX:ParallelGCThreads=%s "
-			. "-Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T BaseRecalibrator -R %s -I %s "
-			."--num_cpu_threads_per_data_thread %s %s %s -o %s\n",
-			$opts->{xmx}, $opts->{gc_threads},
-			$config->{tmp},      $config->{GATK},
-			$config->{fasta},    $aln,
-			$opts->{num_cpu_threads_per_data_thread},
-			$tape->dbsnp,
-			$known_indels,     $output
-		);
+				"java -jar -Xmx%sg -XX:ParallelGCThreads=%s "
+				. "-Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T BaseRecalibrator -R %s -I %s "
+				."--num_cpu_threads_per_data_thread %s %s %s -o %s\n",
+				$opts->{xmx}, $opts->{gc_threads},
+				$config->{tmp},      $config->{GATK},
+				$config->{fasta},    $aln,
+				$opts->{num_cpu_threads_per_data_thread},
+				$tape->dbsnp,
+				$known_indels,     $output
+				);
 		push @cmds, $cmd;
 	}
 	$tape->bundle( \@cmds );
@@ -236,7 +235,7 @@ sub PrintReads {
 	my $tape = shift;
 	$tape->pull;
 
-	my $config  = $tape->options;
+	my $config = $tape->options;
 	my $opts = $tape->tool_options('PrintReads');
 	my $table = $tape->file_retrieve('BaseRecalibrator');
 	my $align = $tape->file_retrieve('IndelRealigner');
@@ -249,8 +248,7 @@ sub PrintReads {
 		my $r_frag = $tape->file_frags($recal_t);
 
 		unless ( $b_frag->{parts}[0] eq $r_frag->{parts}[0] ) {
-			$tape->ERROR(
-					'bam file and recal table not a match review commands');
+			$tape->ERROR('bam file and recal table not a match review commands');
 		}
 
 		( my $output = $bam ) =~ s/\.bam/_recal.bam/g;
@@ -281,7 +279,7 @@ sub HaplotypeCaller {
 	my $config = $tape->options;
 	my $opts = $tape->tool_options('HaplotypeCaller');
 
-# collect files and stack them.
+	# collect files and stack them.
 	my $reads = $tape->file_retrieve('PrintReads');
 	my @inputs = map { "$_" } @{$reads};
 
@@ -301,26 +299,26 @@ sub HaplotypeCaller {
 				$tape->file_store($output);
 
 				my $cmd = sprintf(
-					"java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-					. "%s/GenomeAnalysisTK.jar -T HaplotypeCaller -R %s "
-					. "num_cpu_threads_per_data_thread %s "
-					. "standard_min_confidence_threshold_for_calling %s "
-					. "standard_min_confidence_threshold_for_emitting %s "
-					. "emitRefConfidence %s "
-					. "variant_index_type %s "
-					. "variant_index_parameter %s "
-					. "min_base_quality_score %s "
-					. "-I %s -L %s -o %s\n",
-					$opts->{xmx}, $opts->{gc_thread},
-					$config->{tmp},      $config->{GATK},
-					$config->{fasta},    
-					$opts->{num_cpu_threads_per_data_thread}, $opts->{standard_min_confidence_threshold_for_calling},
-					$opts->{standard_min_confidence_threshold_for_emitting}, $opts->{emitRefConfidence},
-					$opts->{variant_index_type}, $opts->{variant_index_parameter},
-					$opts->{min_base_quality_score},
-					$bam,              $region,
-					$output
-				);
+						"java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+						. "%s/GenomeAnalysisTK.jar -T HaplotypeCaller -R %s "
+						. "num_cpu_threads_per_data_thread %s "
+						. "standard_min_confidence_threshold_for_calling %s "
+						. "standard_min_confidence_threshold_for_emitting %s "
+						. "emitRefConfidence %s "
+						. "variant_index_type %s "
+						. "variant_index_parameter %s "
+						. "min_base_quality_score %s "
+						. "-I %s -L %s -o %s\n",
+						$opts->{xmx}, $opts->{gc_thread},
+						$config->{tmp},      $config->{GATK},
+						$config->{fasta},    
+						$opts->{num_cpu_threads_per_data_thread}, $opts->{standard_min_confidence_threshold_for_calling},
+						$opts->{standard_min_confidence_threshold_for_emitting}, $opts->{emitRefConfidence},
+						$opts->{variant_index_type}, $opts->{variant_index_parameter},
+						$opts->{min_base_quality_score},
+						$bam,              $region,
+						$output
+						);
 				push @cmds, $cmd;
 			}
 		}
@@ -337,8 +335,7 @@ sub HaplotypeCaller {
 			my @intv = grep { /$search\_/ } @{ $tape->intervals };
 
 			my $name = $file->{parts}[0];
-			( my $output = $intv[0] ) =~
-				s/_file.list/_$name.raw.snps.indels.gvcf/;
+			( my $output = $intv[0] ) =~ s/_file.list/_$name.raw.snps.indels.gvcf/;
 
 			$tape->file_store($output);
 
@@ -362,7 +359,7 @@ sub HaplotypeCaller {
 					$opts->{min_base_quality_score},
 					$bam,              $intv[0],
 					$output
-						);
+					);
 			push @cmds, $cmd;
 		}
 	}
@@ -387,11 +384,11 @@ sub CatVariants {
 
 		my $frags = $tape->file_frags($gvcf);
 
-# make a soft link so catvariants works (needs vcf)
+		# make a soft link so catvariants works (needs vcf)
 		( my $vcf = $gvcf ) =~ s/gvcf/vcf/;
 		system("ln -s $gvcf $vcf") if ( $tape->execute );
 
-# then make a working version and collect path
+		# then make a working version and collect path
 		( my $file = $frags->{name} ) =~ s/gvcf/vcf/;
 		$path = $frags->{path};
 
@@ -403,7 +400,7 @@ sub CatVariants {
 	foreach my $samp ( keys %indiv ) {
 		chomp $samp;
 
-# put the file in correct order.
+		# put the file in correct order.
 		my @ordered_list;
 		for ( 1 .. 22, 'X', 'Y', 'MT' ) {
 			my $chr      = 'chr' . $_;
@@ -486,32 +483,6 @@ sub CombineGVCF {
 }
 
 ##-----------------------------------------------------------
-#
-#sub CombineGVCF_Merge {
-#	my $tape = shift;
-#	$tape->pull;
-#
-#	my $config = $tape->options;
-#
-#	my $merged = $tape->file_retrieve('CombineGVCF');
-#	my $variants = join( " --variant ", @{$merged} );
-#
-#	# Single merged files dont need a master merge
-#	if ( $variants =~ /_final_mergeGvcf.vcf/ ) { return }
-#
-#	my $output = $tape->output . $config->{ugp_id} . '_final_mergeGvcf.vcf';
-#	$tape->file_store($output);
-#
-#	my $cmd = sprintf(
-#			"java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
-#			. " -T CombineGVCFs -R %s --variant %s -o %s\n",
-#			$config->{java_xmx}, $config->{java_gatk_thread},
-#			$config->{GATK}, $config->{fasta}, $variants, $output
-#			);
-#	$tape->bundle( \$cmd );
-#}
-
-##-----------------------------------------------------------
 
 sub GenotypeGVCF {
 	my $tape = shift;
@@ -523,14 +494,14 @@ sub GenotypeGVCF {
 	my $single = $tape->file_retrieve('CombineGVCF');
 	my @merged = grep { /mergeGvcf.vcf$/ } @{$single};
 
-# collect the 1k backgrounds.
+	# collect the 1k backgrounds.
 	if ( $config->{backgrounds} ) {
 
 		my $BK = IO::Dir->new( $config->{backgrounds} )
 			or $tape->ERROR('Could not find/open background directory');
 
-# push 'em on!
-# http://open.spotify.com/track/2RnWnqnMqBuFosND1hbGjk
+		# push 'em on!
+		# http://open.spotify.com/track/2RnWnqnMqBuFosND1hbGjk
 		foreach my $back ( $BK->read ) {
 			next unless ( $back =~ /mergeGvcf.vcf$/ );
 			chomp $back;
@@ -541,7 +512,7 @@ sub GenotypeGVCF {
 	}
 	my $variants = join( " --variant ", @merged );
 
-# here I just get the list files.
+	# here I just get the list files.
 	my $lists = $tape->intervals;
 
 	my @cmds;
@@ -580,7 +551,8 @@ sub Combine_Genotyped {
 	$tape->file_store($output);
 
 	my $cmd = sprintf(
-			"java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s --assumeSorted -V %s -out %s\n",
+			"java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants "
+			. "-R %s --assumeSorted -V %s -out %s\n",
 			$config->{GATK}, $config->{fasta}, 
 			join( " -V ", @{$genotpd} ), $output 
 			);
@@ -612,18 +584,18 @@ sub VariantRecalibrator_SNP {
 	my $anno     = $config->{use_annotation_SNP};
 
 	my $cmd = sprintf(
-		"java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
-		. " -T VariantRecalibrator -R %s --minNumBadVariants %s --num_threads %s "
-		. "-resource:%s -an %s -input %s %s %s %s -mode SNP\n",
-		$opts->{xmx}, $opts->{gc_threads},
-		$config->{tmp},      $config->{GATK},
-		$config->{fasta},   
-		$opts->{minNumBadVariants},
-		$opts->{num_threads},
-		join( ' -resource:', @$resource ), join( ' -an ', @$anno ),
-		@$genotpd,   $recalFile,
-		$tranchFile, $rscriptFile
-	);
+			"java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
+			. " -T VariantRecalibrator -R %s --minNumBadVariants %s --num_threads %s "
+			. "-resource:%s -an %s -input %s %s %s %s -mode SNP\n",
+			$opts->{xmx}, $opts->{gc_threads},
+			$config->{tmp},      $config->{GATK},
+			$config->{fasta},   
+			$opts->{minNumBadVariants},
+			$opts->{num_threads},
+			join( ' -resource:', @$resource ), join( ' -an ', @$anno ),
+			@$genotpd,   $recalFile,
+			$tranchFile, $rscriptFile
+			);
 	$tape->bundle( \$cmd );
 }
 
@@ -652,17 +624,17 @@ sub VariantRecalibrator_INDEL {
 	my $anno     = $config->{use_annotation_INDEL};
 
 	my $cmd = sprintf(
-		"java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T VariantRecalibrator "
-		. "-R %s --minNumBadVariants %s --num_threads %s -resource:%s -an %s -input %s %s %s %s -mode INDEL\n",
-		$opts->{xmx}, $opts->{gc_threads},
-		$config->{tmp},      $config->{GATK},
-		$config->{fasta},    
-		$opts->{minNumBadVariants},
-		$opts->{num_threads},
-		join( ' -resource:', @$resource ), join( ' -an ', @$anno ),
-		@$genotpd,   $recalFile,
-		$tranchFile, $rscriptFile
-	);
+			"java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T VariantRecalibrator "
+			. "-R %s --minNumBadVariants %s --num_threads %s -resource:%s -an %s -input %s %s %s %s -mode INDEL\n",
+			$opts->{xmx}, $opts->{gc_threads},
+			$config->{tmp},      $config->{GATK},
+			$config->{fasta},    
+			$opts->{minNumBadVariants},
+			$opts->{num_threads},
+			join( ' -resource:', @$resource ), join( ' -an ', @$anno ),
+			@$genotpd,   $recalFile,
+			$tranchFile, $rscriptFile
+			);
 	$tape->bundle( \$cmd );
 }
 
@@ -679,20 +651,20 @@ sub ApplyRecalibration_SNP {
 	my $get         = $tape->file_retrieve('Combine_Genotyped');
 	my $genotpd     = shift @{$get};
 
-# need to add a copy because it here.
+	# need to add a copy because it here.
 	( my $output = $genotpd ) =~ s/_genotyped.vcf$/_recal_SNP.vcf/g;
 	$tape->file_store($output);
 
 	my $cmd = sprintf(
-		"java -jar -Xmx%sg -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
-		. "-R %s --ts_filter_level %s --num_threads %s --excludeFiltered -input %s %s %s -mode SNP -o %s\n",
-		$opts->{xmx},     $config->{tmp},          $config->{GATK},
-		$config->{fasta},        
-		$opts->{ts_filter_level},
-		$opts->{num_threads},
-		$genotpd,
-		shift @{$recal_files}, shift @{$recal_files}, $output
-	);
+			"java -jar -Xmx%sg -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
+			. "-R %s --ts_filter_level %s --num_threads %s --excludeFiltered -input %s %s %s -mode SNP -o %s\n",
+			$opts->{xmx},     $config->{tmp},          $config->{GATK},
+			$config->{fasta},        
+			$opts->{ts_filter_level},
+			$opts->{num_threads},
+			$genotpd,
+			shift @{$recal_files}, shift @{$recal_files}, $output
+			);
 	$tape->bundle( \$cmd );
 }
 
@@ -708,20 +680,20 @@ sub ApplyRecalibration_INDEL {
 	my $get         = $tape->file_retrieve('Combine_Genotyped');
 	my $genotpd     = shift @{$get};
 
-# need to add a copy because it here.
+	# need to add a copy because it here.
 	( my $output = $genotpd ) =~ s/_genotyped.vcf$/_recal_INDEL.vcf/g;
 	$tape->file_store($output);
 
 	my $cmd = sprintf(
-		"java -jar -Xmx%sg -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
-		. "-R %s --ts_filter_level %s --num_threads %s --excludeFiltered -input %s %s %s -mode INDEL -o %s\n",
-		$opts->{xmx},     $config->{tmp},          $config->{GATK},
-		$config->{fasta},        
-		$opts->{ts_filter_level},
-		$opts->{num_threads},
-		$genotpd,
-		shift @{$recal_files}, shift @{$recal_files}, $output
-	);
+			"java -jar -Xmx%sg -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
+			. "-R %s --ts_filter_level %s --num_threads %s --excludeFiltered -input %s %s %s -mode INDEL -o %s\n",
+			$opts->{xmx},     $config->{tmp},          $config->{GATK},
+			$config->{fasta},        
+			$opts->{ts_filter_level},
+			$opts->{num_threads},
+			$genotpd,
+			shift @{$recal_files}, shift @{$recal_files}, $output
+			);
 	$tape->bundle( \$cmd );
 }
 
@@ -751,7 +723,7 @@ sub CombineVariants {
 			$opts->{genotypemergeoption},
 			join( " ", @app_snp ),
 			join( " ", @app_ind ), $output
-	);
+			);
 	$tape->bundle( \$cmd );
 }
 
@@ -774,12 +746,10 @@ sub SelectVariants {
 			. "--variant %s  -select \"DP > 100\" -o %s",
 			$opts->{xmx}, $config->{tmp}, $config->{GATK}, $config->{fasta},
 			shift @{$comb_files}, $output 
-	);
+			);
 	$tape->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------
 
 1;
-
-

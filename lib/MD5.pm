@@ -11,34 +11,34 @@ extends 'Roll';
 ##-----------------------------------------------------------
 
 sub checksum {
-    my $tape = shift;
-    $tape->pull;
+	my $tape = shift;
+	$tape->pull;
 
-    my $config = $tape->options;
+	my $config = $tape->options;
 
-    my @cmds;
-    while ( my $file = $tape->next ) {
-        chomp $file;
-        next unless ( $file =~ /md5_checksums.txt/ );
+	my @cmds;
+	while ( my $file = $tape->next ) {
+		chomp $file;
+		next unless ( $file =~ /md5_checksums.txt/ );
 
-        my $path = $config->{data};
+		my $path = $config->{data};
 
-        # add file path to file.
-        my $file_update =
-		"perl -lane '\$F[1] =~ s?./??g; \$F[1] =~ s?^?  $path?; print \@F' $file > tmp.md5";
+		# add file path to file.
+		my $file_update =
+			"perl -lane '\$F[1] =~ s?./??g; \$F[1] =~ s?^?  $path?; print \@F' $file > tmp.md5";
 
-        if ( $tape->execute ) {
-            `$file_update`;
-            `mv tmp.md5 $path`;
-        }
-        my $output = $path . 'md5_results';
+		if ( $tape->execute ) {
+			`$file_update`;
+			`mv tmp.md5 $path`;
+		}
+		my $output = $path . 'md5_results';
 
-        my $cmd = sprintf( "md5sum -c %stmp.md5 &> %s", $path, $output );
-        push @cmds, $cmd;
-    }
-    return unless (@cmds);
-    $tape->WARN("No md5 file found") unless (@cmds);
-    $tape->bundle( \@cmds, 'off' );
+		my $cmd = sprintf( "md5sum -c %stmp.md5 &> %s", $path, $output );
+		push @cmds, $cmd;
+	}
+	return unless (@cmds);
+	$tape->WARN("No md5 file found") unless (@cmds);
+	$tape->bundle( \@cmds, 'off' );
 }
 
 ##-----------------------------------------------------------
