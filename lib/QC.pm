@@ -15,8 +15,6 @@ sub md5_check {
     $tape->pull;
     unless ( $tape->execute ) { return }
 
-    my $opts = $tape->options;
-
     while ( my $check = $tape->next ) {
         chomp $check;
         next unless ( $check =~ /md5_results/ );
@@ -30,7 +28,7 @@ sub md5_check {
             push @passed, $test;
         }
 
-        unless ( scalar @md5_results == scalar @passed ) {
+        unless ( scalar @md5_results eq scalar @passed ) {
             $tape->ERROR("One or more md5 sum checked did not pass");
         }
     }
@@ -44,8 +42,8 @@ sub fastqc_check {
     $tape->pull;
     unless ( $tape->execute ) { return }
 
-    my $opts       = $tape->options;
-    my $output_dir = $opts->{output};
+    my $config       = $tape->options;
+    my $output_dir = $config->{output};
 
     my @fails =
       `find $output_dir -name \"summary.txt\" -exec grep \'FAIL\' {} \\;`;
@@ -105,7 +103,9 @@ sub fastqc_check {
                 next;
             }
 
-            $tape->WARN("One or more QC data report values failed review QC-report.txt file") if $fail;
+            $tape->WARN(
+		"One or more QC data report values failed review QC-report.txt file"
+            ) if $fail;
         }
         push @reports, $d if $fail;
     }
@@ -119,9 +119,9 @@ sub idxstats_check {
     $tape->pull;
     unless ( $tape->execute ) { return }
 
-    my $opts = $tape->options;
+    my $config = $tape->options;
+    my $output_dir = $config->{output};
 
-    my $output_dir = $opts->{output};
     my @stats      = `find $output_dir -name \"*_sorted.stats\"`;
     chomp @stats;
 
@@ -156,11 +156,6 @@ sub idxstats_check {
 
 #TODO
 sub metrics_check {
-    my $tape = shift;
-    $tape->pull;
-    unless ( $tape->execute ) { return }
-
-    my $opts = $tape->options;
 
 }
 

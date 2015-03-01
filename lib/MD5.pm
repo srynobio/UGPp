@@ -14,17 +14,18 @@ sub checksum {
     my $tape = shift;
     $tape->pull;
 
-    my $opts = $tape->options;
+    my $config = $tape->options;
 
     my @cmds;
     while ( my $file = $tape->next ) {
         chomp $file;
         next unless ( $file =~ /md5_checksums.txt/ );
 
-        my $path = $opts->{data};
+        my $path = $config->{data};
 
         # add file path to file.
-        my $file_update = "perl -lane '\$F[1] =~ s?./??g; \$F[1] =~ s?^?  $path?; print \@F' $file > tmp.md5";
+        my $file_update =
+		"perl -lane '\$F[1] =~ s?./??g; \$F[1] =~ s?^?  $path?; print \@F' $file > tmp.md5";
 
         if ( $tape->execute ) {
             `$file_update`;

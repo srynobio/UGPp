@@ -7,5 +7,5 @@ source /uufs/chpc.utah.edu/common/home/u0413537/.bash_profile
 cd /uufs/chpc.utah.edu/common/home/u0413537/cApTUrE/bin
 
 date
-./cApTUrE -cfg ccl.cfg -il ../data/exon_Region.list -e cluster -jpn 2 -pbs UGP_tools/kingspeak_template --run 
+./cApTUrE -cfg test.cfg -il ../data/exon_Region.list -e cluster -jpn 4 -pbs UGP_tools/kingspeak_template --run 
 date

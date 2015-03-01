@@ -6,8 +6,8 @@
 source /uufs/chpc.utah.edu/common/home/u0413537/.bash_profile
 date
 
-cd /scratch/local/
-rm -rf *
+find /scratch/local/ -user u0413537 -name "*" -exec rm -rf {} \;
+hostname
 
 cd /uufs/chpc.utah.edu/common/home/u0413537/cApTUrE/bin
 

@@ -14,8 +14,6 @@ sub fastq_unzip {
     my $tape = shift;
     $tape->pull;
 
-    my $opts = $tape->options;
-
     my @cmds;
     while ( my $file = $tape->next ) {
         chomp $file;
@@ -26,9 +24,9 @@ sub fastq_unzip {
         if ( $file =~ /txt/ ) {
             ( $output = $file ) =~ s/\.gz$/\.fastq/;
         }
-	elsif ( $file =~ /bz2/ ) {
+        elsif ( $file =~ /bz2/ ) {
             ( $output = $file ) =~ s/\.bz2$//;
-	}
+        }
         elsif ( $file =~ /fastq/ ) {
             ( $output = $file ) =~ s/\.gz$//;
         }
@@ -41,8 +39,8 @@ sub fastq_unzip {
         my $cmd = sprintf( "gunzip -c %s > %s", $file, $output );
         push @cmds, $cmd;
     }
-    unless (@cmds) { 
-	    $tape->ERROR("Could not find needed fastq files");
+    unless (@cmds) {
+        $tape->ERROR("Could not find needed fastq files");
     }
     $tape->bundle( \@cmds, 'off' );
 }
@@ -53,7 +51,8 @@ sub fastqc_run {
     my $tape = shift;
     $tape->pull;
 
-    my $opts  = $tape->options;
+    my $config  = $tape->options;
+	my $opts = $tape->tool_options('fastqc_run');
     my $unzip = $tape->file_retrieve('fastq_unzip');
 
     my @cmds;
@@ -61,12 +60,13 @@ sub fastqc_run {
         chomp $z;
         next unless ( $z =~ /\.fastq/ );
 
-        my $cmd = sprintf( "%s/fastqc %s -o %s -f fastq %s\n",
-            $opts->{FastQC}, $tape->ddash, $opts->{output}, $z );
+        my $cmd = sprintf( "%s/fastqc --threads %s -o %s -f fastq %s\n",
+            $config->{FastQC}, $opts->{threads}, $config->{output}, $z );
         push @cmds, $cmd;
     }
     $tape->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
+
 1;
