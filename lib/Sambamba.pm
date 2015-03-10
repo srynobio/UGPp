@@ -11,55 +11,59 @@ extends 'Roll';
 ##-----------------------------------------------------------
 
 sub sambamba_merge {
-	my $tape = shift;
-	$tape->pull;
+    my $tape = shift;
+    $tape->pull;
 
-	my $config = $tape->options;
-	my $opts = $tape->tool_options('sambamba_merge');
+    my $config = $tape->options;
+    my $opts   = $tape->tool_options('sambamba_merge');
 
-	# the original collected step from sorting.
-	my $sam_files = $tape->file_retrieve('bwa_mem');
+    # the original collected step from sorting.
+    my $sam_files = $tape->file_retrieve('bwa_mem');
 
-	# collect one or more files based on id of the set.
-	my %id_collect;
-	my %merged_version;
-	foreach my $sam ( @{$sam_files} ) {
-		my $file = $tape->file_frags($sam);
+    # collect one or more files based on id of the set.
+    my %id_collect;
+    my %merged_version;
+    foreach my $sam ( @{$sam_files} ) {
+        my $file = $tape->file_frags($sam);
 
-		# change name and stack to store later.
-		my $search = qr/$file->{parts}[0]/;
-		( my $merged = $file->{full} ) =~ s/\.bam/_merged.bam/;
+        # change name and stack to store later.
+        ( my $merged = $file->{full} ) =~ s/\.bam/_merged.bam/;
 
-		# collect input and merge statement, also store merge file
-		my $input = "INPUT=" . $sam;
-		push @{ $id_collect{ $file->{parts}[0] } }, $input;
+        # collect input and merge statement, also store merge file
+        push @{ $id_collect{ $file->{parts}[0] } }, $sam;
 
-		$merged_version{ $file->{parts}[0] } = $merged;
-	}
+        $merged_version{ $file->{parts}[0] } = $merged;
+    }
 
-	# check to see if we should run merge
-	my $id_total   = scalar keys %id_collect;
-	my @ids_files  = values %id_collect;
-	my $file_total = scalar map { @$_ } @ids_files;
+    # check to see if we should run merge
+    my $id_total   = scalar keys %id_collect;
+    my @ids_files  = values %id_collect;
+    my $file_total = scalar map { @$_ } @ids_files;
 
-	# return if does not need to run
-	if ( $id_total eq $file_total ) { return }
+    # return if does not need to run
+    if ( $id_total eq $file_total ) { return }
 
-	# add the merged file names to store if working with lanes
-	map { $tape->file_store($_) } values %merged_version;
+    # add the merged file names to store if working with lanes
+    map { $tape->file_store($_) } values %merged_version;
 
-	my @cmds;
-	foreach my $id ( keys %id_collect ) {
-		my $input = join( " ", @{ $id_collect{$id} } );
-		my $output = $merged_version{$id};
+    my @cmds;
+    foreach my $id ( keys %id_collect ) {
 
-		my $cmd = sprintf(
-				"%s/sambamba merge --nthreads=%s %s %s -p",
-				$config->{Sambamba}, $opts->{nthreads}, $output, $input
-				);
-		push @cmds, $cmd;
-	}
-	$tape->bundle( \@cmds );
+        my $input = join( " ", @{ $id_collect{$id} } );
+        my $output = $merged_version{$id};
+
+        # large joint calls from different timepoints
+        # and different number of lanes, etc
+        if ( scalar @{ $id_collect{$id} } < 2 ) {
+            system("ln -s $input $output");
+            next;
+        }
+
+        my $cmd = sprintf( "%s/sambamba merge --nthreads %s %s %s",
+            $config->{Sambamba}, $opts->{nthreads}, $output, $input );
+        push @cmds, $cmd;
+    }
+    $tape->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------

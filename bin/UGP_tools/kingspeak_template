@@ -1,5 +1,5 @@
 #PBS -S /bin/bash
-#PBS -l nodes=1:ppn=20,walltime=30:00:00
+#PBS -l nodes=1,walltime=30:00:00
 #PBS -A ucgd-kp
 #PBS -M shawn.rynearson@gmail.com
 

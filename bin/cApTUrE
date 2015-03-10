@@ -11,6 +11,7 @@ use Carp;
 my $usage = "
 
 Synopsis:
+    ./cApTUrE --config file.cfg --interval_list file.list > command_review.txt 
     ./cApTUrE --config file.cfg --interval_list file.list --run
     ./cApTUrE --config file.cfg --file sorted_bams.list --run
     ./cApTUrE --error_check
@@ -24,41 +25,43 @@ Description:
     Utah Genome Project (UGP) http://weatherby.genetics.utah.edu/UGP/wiki/index.php/Main_Page
 
     Currently it incorporates the following tools:
-        -FastQC
-        -BWA
-        -SamTools
-	-Picard 1.127 (broadinstitute version)
-        -GATK 3.0
+    -FastQC
+    -BWA
+    -SamTools
+    -Picard 1.127 (broadinstitute version)
+    -GATK 3.0
 
     This version of cApTUrE is now updated to work with version 3.0+ of GATK.
 
 Required options:
 
-    -cfg, --config  UGP configuration file.
+    -cfg, --config          UGP configuration file.
 
-    -il, --interval_list    Region list file for GATK variant calling.
+    -il, --interval_list    Region list file for GATK variant calling. [Example: 1:10929-11532]
 
 Additional options:
 
-    -f, --file  Will take file list as input if beginning cApTUrE with previously
-                collected files.  File must match previous step cApTUrE would have ran.
+    -f, --file              Will take file list as input if beginning cApTUrE with previously
+                            collected files.  File must match previous step cApTUrE would have ran.
 
-    -r, --run   Will take given command stack and run commands.
-                When this option off a display of commands will piped to STDOUT.
+    -r, --run               Will take given command stack and run commands.
+                            When this option off a display of commands will piped to STDOUT.
 
-    -ec, --error_check	Run quick check of log files for run errors.
+    -ec, --error_check      Run quick check of log files for run errors.
 
-    -cc, --combine_chunk	If more then 200 GVCF files were created (HaplotypeCaller), 
-				chunk size to use in CombineGVCF command [default 100].
-				** Smaller number creates larger chuncks. **
+    -sc, --split_combine    If more then 200 GVCF files were created (HaplotypeCaller), 
+                            split to run multiple CombineGVCF commands [default 100].
+                            ** Smaller number creates more command to run. **
 
     -jpn, --job_per_node	When useing cluster environment, specifies number of jobs to add to each pbs script.
-   
-    -pbs, --pbs_template	Specifies path to pbs template file to use.
-    
-    -c, --clean 	Will clean up all log, data, pbs, index and report files.
 
-    -h, --help	Print this usage statement.
+    -pbs, --pbs_template	Specifies path to pbs template file to use.
+
+    -c, --clean 	        Will clean up all log, data, pbs, index and report files.
+
+    -lp, --log_path	        Path to right log file too, helpful with multi-runs per machine.  [DEFAULT current]
+
+    -h, --help	            Print this usage statement.
 
 \n";
 
@@ -69,7 +72,8 @@ GetOptions(
     "engine|e=s",          "clean|c",
     "error_check|ec",      "file|f=s",
     "jobs_per_node|jpn=i", "pbs_template|pbs=s",
-    "combine_chunk|cc=i",  "help|h"
+    "split_combine|sc=i",  "help|h",
+    "log_path|lp=s"
 );
 croak $usage if $c_opts{help};
 
