@@ -714,7 +714,7 @@ sub CombineVariants {
     my @app_snp = map { "--variant $_ " } @{$snp_files};
     my @app_ind = map { "--variant $_ " } @{$indel_files};
 
-    my $output = $config->{output} . $config->{ugp_id} . "_Combined.vcf";
+    my $output = $config->{output} . $config->{ugp_id} . "_Final+Backgrounds.vcf";
     $tape->file_store($output);
 
     my $cmd = sprintf(
@@ -740,15 +740,15 @@ sub SelectVariants {
 
     my $comb_files = $tape->file_retrieve('CombineVariants');
 
-    my $output =
-      $config->{output} . $config->{ugp_id} . "_Final+Backgrounds.vcf";
+    my $output = $config->{output} . $config->{ugp_id} . "Selected_Final+Backgrounds.vcf";
     $tape->file_store($output);
 
     my $cmd = sprintf(
         "java -jar -Xmx%sg -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T SelectVariants -R %s "
-          . "--variant %s  -select \"DP > 100\" -o %s",
-        $opts->{xmx}, $config->{tmp}, $config->{GATK}, $config->{fasta},
-        shift @{$comb_files}, $output );
+        . "--variant %s  -select \"DP > %s\" -o %s",
+        $opts->{xmx},         $config->{tmp}, $config->{GATK}, $config->{fasta},
+        shift @{$comb_files}, $opts->{DP},    $output
+    );
     $tape->bundle( \$cmd );
 }
 
