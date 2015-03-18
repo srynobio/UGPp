@@ -50,7 +50,7 @@ Additional options:
     -ec, --error_check      Run quick check of log files for run errors.
 
     -sc, --split_combine    If more then 200 GVCF files were created (HaplotypeCaller), 
-                            split to run multiple CombineGVCF commands [default 100].
+                            split to run multiple CombineGVCF commands [DEFAULT 100].
                             ** Smaller number creates more command to run. **
 
     -jpn, --job_per_node	When useing cluster environment, specifies number of jobs to add to each pbs script.
@@ -60,6 +60,8 @@ Additional options:
     -c, --clean 	        Will clean up all log, data, pbs, index and report files.
 
     -lp, --log_path	        Path to right log file too, helpful with multi-runs per machine.  [DEFAULT current]
+
+    -ql, --qstat_limit      Limit to the number of qstat jobs to launch at one time. [DEFAULT 10]
 
     -h, --help	            Print this usage statement.
 
@@ -73,7 +75,7 @@ GetOptions(
     "error_check|ec",      "file|f=s",
     "jobs_per_node|jpn=i", "pbs_template|pbs=s",
     "split_combine|sc=i",  "help|h",
-    "log_path|lp=s"
+    "log_path|lp=s", "qstat_limit|ql=i"
 );
 croak $usage if $c_opts{help};
 

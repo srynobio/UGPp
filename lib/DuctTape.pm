@@ -78,6 +78,15 @@ has 'log_path' => (
     },
 );
 
+has qstat_limit => (
+    is      => 'ro',
+    default => sub {
+        my $self = shift;
+        my $limit = $self->commandline->{qstat_limit} || '10';
+        return $limit;
+    },
+);
+
 ##-----------------------------------------------------------
 ##---------------------- METHODS ----------------------------
 ##-----------------------------------------------------------
@@ -351,6 +360,11 @@ sub _cluster {
         @parts = splice( @appd_runs, 0, $jpn );
 
         map { print $RUN $_ } <$PBS>;
+
+        # prints out files to copy to local.
+        map { print $RUN "$_\n" } @{ $self->file_retrieve('cpy_collect') }
+          if ( $sub eq 'GenotypeGVCF' );
+        print $RUN "\n";
         print $RUN join( "\n", @parts );
         print $RUN "\nwait\n";
         print $RUN "\ndate\n";
@@ -361,31 +375,83 @@ sub _cluster {
         $RUN->close;
     }
 
+    my $running;
     foreach my $launch (@pbs_stack) {
-        system "qsub $launch &>> launch.index";
-    }
-
-    sleep(30);
-    my @indexs = `cat launch.index`;
-    chomp @indexs;
-
-    foreach my $job (@indexs) {
-        my @parts = split /\./, $job;
-
-        my $state = `checkjob $parts[0] |grep 'State'`;
-      STATE: if ( $state =~ /Running/ ) {
-            sleep(60);
-            $state = `checkjob $parts[0] |grep 'State'`;
-            goto STATE;
+        $running++;
+        if ( $running == $self->qstat_limit ) {
+            my $status = $self->_jobs_status;
+            if ($status) {
+                $running--;
+                redo;
+            }
+            else {
+                sleep(60);
+                redo;
+            }
         }
-        else { next }
+        else {
+            system "qsub $launch &>> launch.index";
+        }
     }
+
+    # give qsub system time to start
+    sleep(60);
+
+    # check the status of current qsub jobs
+    # before moving on.
+    $self->_wait_all_jobs;
+
     `rm launch.index`;
 
     map { delete $self->{cmd_list}->{$_} } keys %stack;
     $self->LOG( 'finish',   $sub );
     $self->LOG( 'progress', $sub );
     return;
+}
+
+##-----------------------------------------------------------
+
+sub _jobs_status {
+    my $self   = shift;
+    my @indexs = `cat launch.index`;
+    chomp @indexs;
+
+    my $processing = 1;
+    foreach my $job (@indexs) {
+        my @parts = split /\./, $job;
+
+        my $state = `checkjob $parts[0] |grep 'State'`;
+        if ( $state =~ /Running/ ) {
+            $processing++;
+        }
+        else { next }
+    }
+    if ( $processing == $self->qstat_limit ) {
+        return 0;
+    }
+    elsif ( $processing < $self->qstat_limit ) {
+        return 1;
+    }
+}
+
+##-----------------------------------------------------------
+
+sub _wait_all_jobs {
+    my $self   = shift;
+    my @indexs = `cat launch.index`;
+    chomp @indexs;
+
+    foreach my $job (@indexs) {
+        my @parts = split /\./, $job;
+
+      LINE:
+        my $state = `checkjob $parts[0] |grep 'State'`;
+        if ( $state =~ /Running/ ) {
+            sleep(60);
+            goto LINE;
+        }
+        else { next }
+    }
 }
 
 ##-----------------------------------------------------------

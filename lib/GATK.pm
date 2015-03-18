@@ -429,9 +429,9 @@ sub CatVariants {
         $tape->file_store($pathFile);
 
         my $cmd = sprintf(
-            "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s --assumeSorted  %s -out %s\n",
-            $config->{GATK}, $config->{fasta}, $variant, $pathFile
-        );
+            "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
+            . "--variant_index_type LINEAR --variant_index_parameter 128000 --assumeSorted  %s -out %s\n",
+            $config->{GATK}, $config->{fasta}, $variant, $pathFile );
         push @cmds, $cmd;
     }
     $tape->bundle( \@cmds );
@@ -506,7 +506,7 @@ sub CombineGVCF_Merge {
     my $opts = $tape->tool_options('CombineGVCF_Merge');
 
     my $merged = $tape->file_retrieve('CombineGVCF');
-    unless ($merged) { return } ####if ( scalar @{$merged} < 1 ) { return }
+    unless ($merged) { return } 
 
     my $variants = join( " --variant ", @{$merged} );
 
@@ -527,65 +527,6 @@ sub CombineGVCF_Merge {
 
 ##-----------------------------------------------------------
 
-=cut
-sub GenotypeGVCF {
-    my $tape = shift;
-    $tape->pull;
-
-    my $config = $tape->options;
-    my $opts   = $tape->tool_options('GenotypeGVCF');
-
-#    my $single = $tape->file_retrieve('CombineGVCF');
-#    my @merged = grep { /mergeGvcf.vcf$/ } @{$single};
-
-    my $single = $tape->file_retrieve('CombineGVCF_Merge');
-    my @merged = grep { /final_mergeGvcf.vcf$/ } @{$single};
-
-
-    # collect the 1k backgrounds.
-    if ( $config->{backgrounds} ) {
-
-        my $BK = IO::Dir->new( $config->{backgrounds} )
-          or $tape->ERROR('Could not find/open background directory');
-
-        # push 'em on!
-        # http://open.spotify.com/track/2RnWnqnMqBuFosND1hbGjk
-        foreach my $back ( $BK->read ) {
-            next unless ( $back =~ /mergeGvcf.vcf$/ );
-            chomp $back;
-            my $fullpath = $config->{backgrounds} . "/$back";
-            push @merged, $fullpath;
-        }
-        $BK->close;
-    }
-    my $variants = join( " --variant ", @merged );
-
-    # here I just get the list files.
-    my $lists = $tape->intervals;
-
-    my @cmds;
-    my $id;
-    foreach my $region ( @{$lists} ) {
-        $id++;
-        my $output = $tape->output . $config->{ugp_id} . "\_$id\_genotyped.vcf";
-        $tape->file_store($output);
-
-        my $cmd = sprintf(
-            "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-              . "%s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
-              . "--num_threads %s --variant %s -L %s -o %s\n",
-            $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
-            $config->{GATK}, $config->{fasta},    $opts->{num_threads},
-            $variants,       $region,             $output
-        );
-        push @cmds, $cmd;
-    }
-    $tape->bundle( \@cmds );
-}
-=cut
-
-##-----------------------------------------------------------
-
 sub GenotypeGVCF {
     my $tape = shift;
     $tape->pull;
@@ -594,20 +535,19 @@ sub GenotypeGVCF {
     my $opts   = $tape->tool_options('GenotypeGVCF');
 
     my $data = $tape->file_retrieve('CatVariants');
-    unless ( scalar @{$data} > 1 ) {
-        $data = $tape->file_retrieve('CombineGVCF_Merge');
-    }
+#    unless ( scalar @{$data} > 1 ) {
+#        $data = $tape->file_retrieve('CombineGVCF_Merge');
+#    }
+#    my @gcated = grep { /final_mergeGvcf/ } @{$data};
     my @gcated = grep { /gCat.vcf$/ } @{$data};
 
     # collect the 1k backgrounds.
-    my @backs;
+    my (@backs);
     if ( $config->{backgrounds} ) {
 
         my $BK = IO::Dir->new( $config->{backgrounds} )
-          or $tape->ERROR('Could not find/open background directory');
+            or $tape->ERROR('Could not find/open background directory');
 
-        # push 'em on!
-        # http://open.spotify.com/track/2RnWnqnMqBuFosND1hbGjk
         foreach my $back ( $BK->read ) {
             next unless ( $back =~ /mergeGvcf.vcf$/ );
             chomp $back;
@@ -616,33 +556,74 @@ sub GenotypeGVCF {
         }
         $BK->close;
     }
+
+    # the original backgrounds and the gvcf files
     my $back_variants = join( " --variant ", @backs );
+    my $input         = join( " --variant ", @gcated );
 
+    # commands to ln and copy data to local space
+    # AKA black magic shit.
+    my @cpy_collect;
+    if ( $tape->engine eq 'cluster' ) {
+        my @ln      = map { "ln -s $_ /scratch/local" } @gcated;
+        my @cp      = map { "cp $_\.idx /scratch/local" } @gcated;
+        my @back_ln = map { "ln -s $_ /scratch/local" } @backs;
+        my @back_cp = map { "cp $_\.idx  /scratch/local" } @backs;
+        push @cpy_collect, @ln, @cp, @back_ln, @back_cp;
+    }
+    map { $tape->file_store( $_, 'cpy_collect' ) } @cpy_collect;
+
+    # change path when using cluster.
+    my ( @local_backs, @local_cats );
+    if ( $tape->engine eq 'cluster' ) {
+        foreach my $back (@backs) {
+            my $frags = $tape->file_frags($back);
+            push @local_backs, "/scratch/local/" . $frags->{name};
+        }
+        foreach my $cat (@gcated) {
+            my $frags = $tape->file_frags($cat);
+            push @local_cats, "/scratch/local/" . $frags->{name};
+        }
+
+        # overwrite
+        $back_variants = join( " --variant ", @local_backs );
+        $input         = join( " --variant ", @local_cats );
+    }
+
+    my $intv = $tape->intervals;
     my @cmds;
-    foreach my $gcat (@gcated) {
-        my $file = $tape->file_frags($gcat);
-        my $intv = $tape->intervals;
+    foreach my $region ( @{$intv} ) {
+        ( my $output = $region ) =~ s/_file.list/_genotyped.vcf/;
+        $tape->file_store($output);
 
-        foreach my $region ( @{$intv} ) {
-            my $name = $file->{parts}[0];
-            $name =~ s/gCat\.vcf/genotyped.vcf/g;
-            ( my $output = $region ) =~ s/_file.list/_$name/;
-
-            $tape->file_store($output);
-
-            my $cmd = sprintf(
-                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+        my $cmd;
+        if ($back_variants) {
+            $cmd = sprintf(
+                    "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                   . "%s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
                   . "--num_threads %s --variant %s --variant %s -L %s -o %s\n",
-                $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
-                $config->{GATK}, $config->{fasta},    $opts->{num_threads},
-                $gcat,           $back_variants,      $region,
+                $opts->{xmx},     $opts->{gc_threads},
+                $config->{tmp},   $config->{GATK},
+                $config->{fasta}, $opts->{num_threads},
+                $input,            $back_variants,
+                $region,          $output
+            );
+        }
+        else {
+            $cmd = sprintf(
+                    "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+                  . "%s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
+                  . "--num_threads %s --variant %s -L %s -o %s\n",
+                $opts->{xmx},     $opts->{gc_threads},
+                $config->{tmp},   $config->{GATK},
+                $config->{fasta}, $opts->{num_threads}, 
+                $input,            $region,
                 $output
             );
-            push @cmds, $cmd;
         }
+            push @cmds, $cmd;
     }
-        $tape->bundle( \@cmds );
+    $tape->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
@@ -654,7 +635,7 @@ sub CatVariants_Genotype {
     my $config = $tape->options;
 
     my $vcf = $tape->file_retrieve('GenotypeGVCF');
-    my @iso = grep { /\.vcf$/ } @{$vcf};
+    my @iso = grep { /genotyped.vcf$/ } @{$vcf};
 
     my %indiv;
     my $path;
@@ -664,41 +645,33 @@ sub CatVariants_Genotype {
         my $frags = $tape->file_frags($file);
         $path = $frags->{path};
 
-        my $key = $frags->{parts}[2];
+        my $key = $frags->{parts}[0];
         push @{ $indiv{$key} }, $file;
     }
 
-    my @cmds;
-    foreach my $samp ( keys %indiv ) {
-        chomp $samp;
-
-        # put the file in correct order.
-        my @ordered_list;
-        for ( 1 .. 22, 'X', 'Y', 'MT' ) {
-            my $chr      = 'chr' . $_;
-            my @value    = grep { /$chr\_/ } @{ $indiv{$samp} };
-            my $fullPath = $path . $value[0];
-            push @ordered_list, $fullPath;
-        }
-
-        my $variant = join( " -V ", @ordered_list );
-        $variant =~ s/^/-V /;
-
-        ( my $output = $samp ) =~ s/vcf/Cat.vcf/;
-        my $pathFile = $path . $output;
-        $tape->file_store($pathFile);
-
-        my $cmd = sprintf(
-            "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s --assumeSorted  %s -out %s\n",
-            $config->{GATK}, $config->{fasta}, $variant, $pathFile
-        );
-        push @cmds, $cmd;
+    # put the file in correct order.
+    my @ordered_list;
+    for ( 1 .. 22, 'X', 'Y', 'MT' ) {
+        my $chr = 'chr' . $_;
+        push @ordered_list, $indiv{$chr}->[0];
     }
-    $tape->bundle( \@cmds );
+
+    my $variant = join( " -V ", @ordered_list );
+    $variant =~ s/^/-V /;
+
+    my $output = $tape->output . $config->{ugp_id} . '_cat_genotyped.vcf';
+    $tape->file_store($output);
+
+    my $cmd = sprintf(
+        "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s --assumeSorted  %s -out %s\n",
+        $config->{GATK}, $config->{fasta}, $variant, $output
+    );
+    $tape->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------
 
+=cut
 sub Combine_Genotyped {
     my $tape = shift;
     $tape->pull;
@@ -717,6 +690,7 @@ sub Combine_Genotyped {
         $output );
     $tape->bundle( \$cmd );
 }
+=cut
 
 ##-----------------------------------------------------------
 
@@ -727,7 +701,7 @@ sub VariantRecalibrator_SNP {
     my $config = $tape->options;
     my $opts   = $tape->tool_options('VariantRecalibrator_SNP');
 
-    my $genotpd = $tape->file_retrieve('Combine_Genotyped');
+    my $genotpd = $tape->file_retrieve('CatVariants_Genotype');
 
     my $recalFile =
       '-recalFile ' . $tape->output . $config->{ugp_id} . '_snp_recal';
@@ -766,7 +740,7 @@ sub VariantRecalibrator_INDEL {
     my $config = $tape->options;
     my $opts   = $tape->tool_options('VariantRecalibrator_INDEL');
 
-    my $genotpd = $tape->file_retrieve('Combine_Genotyped');
+    my $genotpd = $tape->file_retrieve('CatVariants_Genotype');
 
     my $recalFile =
       '-recalFile ' . $tape->output . $config->{ugp_id} . '_indel_recal';
@@ -805,7 +779,7 @@ sub ApplyRecalibration_SNP {
     my $opts   = $tape->tool_options('ApplyRecalibration_SNP');
 
     my $recal_files = $tape->file_retrieve('VariantRecalibrator_SNP');
-    my $get         = $tape->file_retrieve('Combine_Genotyped');
+    my $get         = $tape->file_retrieve('CatVariants_Genotype');
     my $genotpd     = shift @{$get};
 
     # need to add a copy because it here.
@@ -833,7 +807,7 @@ sub ApplyRecalibration_INDEL {
     my $config      = $tape->options;
     my $opts        = $tape->tool_options('ApplyRecalibration_INDEL');
     my $recal_files = $tape->file_retrieve('VariantRecalibrator_INDEL');
-    my $get         = $tape->file_retrieve('Combine_Genotyped');
+    my $get         = $tape->file_retrieve('CatVariants_Genotype');
     my $genotpd     = shift @{$get};
 
     # need to add a copy because it here.
