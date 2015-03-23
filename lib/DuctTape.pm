@@ -344,8 +344,6 @@ sub _cluster {
     while (@appd_runs) {
         my $tmp = $sub . "_" . ++$id . ".pbs";
 
-        $self->LOG( 'cmd', $sub );
-
         my $PBS = IO::File->new( $self->pbs_template, 'r' )
           or $self->ERROR('Can not open PBS template file or not found');
 
@@ -358,6 +356,9 @@ sub _cluster {
         }
 
         @parts = splice( @appd_runs, 0, $jpn );
+
+        # write out commands.
+        map { $self->LOG( 'cmd', $_ ) } @parts;
 
         map { print $RUN $_ } <$PBS>;
 
@@ -375,9 +376,8 @@ sub _cluster {
         $RUN->close;
     }
 
-    my $running;
+    my $running = 0;
     foreach my $launch (@pbs_stack) {
-        $running++;
         if ( $running == $self->qstat_limit ) {
             my $status = $self->_jobs_status;
             if ($status) {
@@ -391,6 +391,8 @@ sub _cluster {
         }
         else {
             system "qsub $launch &>> launch.index";
+            $running++;
+            next;
         }
     }
 
@@ -416,11 +418,11 @@ sub _jobs_status {
     my @indexs = `cat launch.index`;
     chomp @indexs;
 
-    my $processing = 1;
+    my $processing = 0;
     foreach my $job (@indexs) {
         my @parts = split /\./, $job;
 
-        my $state = `checkjob $parts[0] |grep 'State'`;
+        my $state = `checkjob $parts[0] |grep State`;
         if ( $state =~ /Running/ ) {
             $processing++;
         }
@@ -452,6 +454,7 @@ sub _wait_all_jobs {
         }
         else { next }
     }
+    return;
 }
 
 ##-----------------------------------------------------------

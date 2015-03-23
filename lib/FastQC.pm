@@ -61,7 +61,8 @@ sub fastqc_run {
     my @cmds;
     foreach my $z ( @{$unzip} ) {
         chomp $z;
-        next unless ( $z =~ /(fastq|fq)/ );
+        #next unless ( $z =~ /(fastq|fq)/ );
+        next unless ( $z =~ /(fastq.gz|fq.gz)/ );
 
         my $cmd = sprintf( "%s/fastqc --threads %s -o %s -f fastq %s\n",
             $config->{FastQC}, $opts->{threads}, $config->{output}, $z );
