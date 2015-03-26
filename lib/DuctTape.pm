@@ -3,6 +3,7 @@ use Moo;
 use IPC::System::Simple qw|run|;
 use Config::Std;
 use File::Basename;
+use Parallel::ForkManager;
 use IO::File;
 use MCE;
 
@@ -378,14 +379,14 @@ sub _cluster {
 
     my $running = 0;
     foreach my $launch (@pbs_stack) {
-        if ( $running == $self->qstat_limit ) {
+        if ( $running >= $self->qstat_limit ) {
             my $status = $self->_jobs_status;
-            if ($status) {
+            if ( $status eq 'add' ) {
                 $running--;
                 redo;
             }
-            else {
-                sleep(60);
+            elsif ( $status eq 'wait' ) {
+                sleep(10);
                 redo;
             }
         }
@@ -414,25 +415,14 @@ sub _cluster {
 ##-----------------------------------------------------------
 
 sub _jobs_status {
-    my $self   = shift;
-    my @indexs = `cat launch.index`;
-    chomp @indexs;
+    my $self  = shift;
+    my $state = `qselect -u u0413537|wc -l`;
 
-    my $processing = 0;
-    foreach my $job (@indexs) {
-        my @parts = split /\./, $job;
-
-        my $state = `checkjob $parts[0] |grep State`;
-        if ( $state =~ /Running/ ) {
-            $processing++;
-        }
-        else { next }
+    if ( $state >= $self->qstat_limit ) {
+        return 'wait';
     }
-    if ( $processing == $self->qstat_limit ) {
-        return 0;
-    }
-    elsif ( $processing < $self->qstat_limit ) {
-        return 1;
+    else {
+        return 'add';
     }
 }
 

@@ -534,12 +534,16 @@ sub GenotypeGVCF {
     my $config = $tape->options;
     my $opts   = $tape->tool_options('GenotypeGVCF');
 
-    my $data = $tape->file_retrieve('CatVariants');
-#    unless ( scalar @{$data} > 1 ) {
-#        $data = $tape->file_retrieve('CombineGVCF_Merge');
-#    }
-#    my @gcated = grep { /final_mergeGvcf/ } @{$data};
-    my @gcated = grep { /gCat.vcf$/ } @{$data};
+    my @gcated;
+    my $data = $tape->file_retrieve('CombineGVCF_Merge');
+    if ($data) {
+        #if (scalar @{$data} > 1 ) {
+        @gcated = grep { /final_mergeGvcf/ } @{$data};
+    }
+    else {
+        $data = $tape->file_retrieve('CatVariants');
+        @gcated = grep { /gCat.vcf$/ } @{$data};
+    }
 
     # collect the 1k backgrounds.
     my (@backs);
