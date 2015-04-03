@@ -55,11 +55,11 @@ has 'jobs_per_node' => (
     },
 );
 
-has 'pbs_template' => (
+has 'slurm_template' => (
     is      => 'ro',
     default => sub {
         my $self = shift;
-        return $self->commandline->{pbs_template};
+        return $self->commandline->{slurm_template};
     },
 );
 
@@ -337,20 +337,19 @@ sub _cluster {
 
     # add the & to end of each command.
     my @appd_runs = map { "$_" } @{$stack_data};
-    #my @appd_runs = map { "$_ &" } @{$stack_data};
 
     $self->LOG( 'start', $sub );
 
     my $id;
-    my ( @parts, @pbs_stack );
+    my ( @parts, @slurm_stack );
     while (@appd_runs) {
-        my $tmp = $sub . "_" . ++$id . ".pbs";
+        my $tmp = $sub . "_" . ++$id . ".sbatch";
 
-        my $PBS = IO::File->new( $self->pbs_template, 'r' )
-          or $self->ERROR('Can not open PBS template file or not found');
+        my $SLURM = IO::File->new( $self->slurm_template, 'r' )
+          or $self->ERROR('Can not open slurm template file or not found');
 
         my $RUN = IO::File->new( $tmp, 'w' )
-          or $self->ERROR('Can not create needed pbs file [cluster]');
+          or $self->ERROR('Can not create needed slurm file [cluster]');
 
         # don't go over total file amount.
         if ( $jpn > scalar @appd_runs ) {
@@ -362,24 +361,24 @@ sub _cluster {
         # write out commands.
         map { $self->LOG( 'cmd', $_ ) } @parts;
 
-        map { print $RUN $_ } <$PBS>;
+        map { print $RUN $_ } <$SLURM>;
 
         # prints out files to copy to local.
         map { print $RUN "$_\n" } @{ $self->file_retrieve('cpy_collect') }
           if ( $sub eq 'GenotypeGVCF' );
         print $RUN "\n";
         print $RUN join( "\n", @parts );
-        print $RUN "\nwait\n";
         print $RUN "\ndate\n";
+        print $RUN "\nfind /scratch/local -user u0413537 -exec rm -rf {} \\;";
 
-        push @pbs_stack, $tmp;
+        push @slurm_stack, $tmp;
 
-        $PBS->close;
+        $SLURM->close;
         $RUN->close;
     }
 
     my $running = 0;
-    foreach my $launch (@pbs_stack) {
+    foreach my $launch (@slurm_stack) {
         if ( $running >= $self->qstat_limit ) {
             my $status = $self->_jobs_status;
             if ( $status eq 'add' ) {
@@ -392,7 +391,7 @@ sub _cluster {
             }
         }
         else {
-            system "qsub $launch &>> launch.index";
+            system "sbatch $launch &>> launch.index";
             $running++;
             next;
         }
@@ -417,7 +416,7 @@ sub _cluster {
 
 sub _jobs_status {
     my $self  = shift;
-    my $state = `qselect -u u0413537|wc -l`;
+    my $state = `squeue -u u0413537|wc -l`;
 
     if ( $state >= $self->qstat_limit ) {
         return 'wait';
@@ -438,8 +437,8 @@ sub _wait_all_jobs {
         my @parts = split /\./, $job;
 
       LINE:
-        my $state = `checkjob $parts[0] |grep 'State'`;
-        if ( $state =~ /Running/ ) {
+        my $state = `scontrol show job $parts[0] |grep 'jobstate'`;
+        if ( $state =~ /RUNNING/ ) {
             sleep(60);
             goto LINE;
         }
@@ -449,5 +448,4 @@ sub _wait_all_jobs {
 }
 
 ##-----------------------------------------------------------
-
 1;

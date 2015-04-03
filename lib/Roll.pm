@@ -275,7 +275,7 @@ sub file_retrieve {
     unless ( keys %stored ) {
         $self->ERROR(
             '1- Internal store file not found, please pass file (-f) list in. '
-              . '2- Are you sure you have entered data path in config file?' )
+            . '2- Are you sure you have entered data path in config file?' )
           if ( !-e 'CMD_stack.store' );
 
         my $stack = retrieve('CMD_stack.store');
