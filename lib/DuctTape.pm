@@ -336,7 +336,8 @@ sub _cluster {
     my $jpn = $self->jobs_per_node;
 
     # add the & to end of each command.
-    my @appd_runs = map { "$_ &" } @{$stack_data};
+    my @appd_runs = map { "$_" } @{$stack_data};
+    #my @appd_runs = map { "$_ &" } @{$stack_data};
 
     $self->LOG( 'start', $sub );
 

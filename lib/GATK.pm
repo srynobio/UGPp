@@ -278,14 +278,14 @@ sub HaplotypeCaller {
     my $opts   = $tape->tool_options('HaplotypeCaller');
 
     # collect files and stack them.
-    my $reads = $tape->file_retrieve('PrintReads');
+    my $reads  = $tape->file_retrieve('PrintReads');
     my @inputs = map { "$_" } @{$reads};
 
     my @cmds;
     foreach my $bam ( @{$reads} ) {
         my $file = $tape->file_frags($bam);
 
-        if ( $tape->commandline->{file} ) {
+        if ( $tape->came_from_file ) {
             my $file = $tape->file_frags($bam);
             my $intv = $tape->intervals;
 

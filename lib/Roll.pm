@@ -81,6 +81,12 @@ has execute => (
     },
 );
 
+# attribute to see if file was 
+# given on command line.
+has came_from_file => (
+    is =>'rw',
+);
+
 #-----------------------------------------------------------
 #---------------------- METHODS ----------------------------
 #-----------------------------------------------------------
@@ -253,20 +259,23 @@ sub file_store {
 
 sub file_retrieve {
     my ( $self, $class ) = @_;
-    $self->ERROR("Method file_retrieve must have request class")
+    $self->ERROR(
+        "Method file_retrieve must have retrieve from class")
       unless $class;
 
     if ( $self->{commandline}->{file} and !-e 'CMD_stack.store' ) {
         `touch CMD_stack.store`;
         $self->_make_storable($class);
+        $self->came_from_file('1');
         ## testing the delete ##
         delete $self->{commandline}->{file};
         return $stored{$class};
     }
 
     unless ( keys %stored ) {
-        $self->ERROR( 'Must have stack store file or pass file (-f) list in. '
-              . ' Are you sure you have entered data path in config file?' )
+        $self->ERROR(
+            '1- Internal store file not found, please pass file (-f) list in. '
+              . '2- Are you sure you have entered data path in config file?' )
           if ( !-e 'CMD_stack.store' );
 
         my $stack = retrieve('CMD_stack.store');

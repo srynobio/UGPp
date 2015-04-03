@@ -40,7 +40,10 @@ sub bwa_mem {
 
     # must have matching pairs.
     if ( scalar @seq_files % 2 ) {
-        $tape->ERROR("FQ files must be matching pairs");
+        $tape->ERROR(
+            "FQ files must be matching pairs. "
+            ." And directory has only fastq files."
+        );
     }
 
     my @cmds;
