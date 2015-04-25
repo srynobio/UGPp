@@ -1,6 +1,5 @@
 package BWA;
-use Moo;
-extends 'Roll';
+use Moo::Role;
 
 ##-----------------------------------------------------------
 ##---------------------- ATTRIBUTES -------------------------
@@ -11,28 +10,31 @@ extends 'Roll';
 ##-----------------------------------------------------------
 
 sub bwa_index {
-    my $tape = shift;
-    $tape->pull;
+    my $self = shift;
+    $self->pull;
 
-    my $config = $tape->options;
-    my $opts   = $tape->tool_options('bwa_index');
+    my $config = $self->options;
+    my $opts   = $self->tool_options('bwa_index');
 
     my $cmd = sprintf( "%s/bwa -a %s index %s %s\n",
         $config->{BWA}, $opts->{a}, $config->{fasta} );
-    $tape->bundle( \$cmd );
+    $self->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------
 
 sub bwa_mem {
-    my $tape = shift;
-    $tape->pull;
+    my $self = shift;
+    $self->pull;
 
-    my $config = $tape->options;
-    my $opts   = $tape->tool_options('bwa_mem');
+    my $config = $self->options;
+    my $opts   = $self->tool_options('bwa_mem');
+    my $files  = $self->file_retrieve('fastqc_run');
 
     my @seq_files;
-    while ( my $file = $tape->next ) {
+    foreach my $file ( @{$files} ) {
+
+        #while ( my $file = $self->next ) {
         chomp $file;
         next unless ( $file =~ /(gz|bz2|fastq|fq)/ );
         push @seq_files, $file;
@@ -40,18 +42,16 @@ sub bwa_mem {
 
     # must have matching pairs.
     if ( scalar @seq_files % 2 ) {
-        $tape->ERROR(
-            "FQ files must be matching pairs. "
-            ." And directory has only fastq files."
-        );
+        $self->ERROR( "FQ files must be matching pairs. "
+              . " And directory has only fastq files." );
     }
 
     my @cmds;
     my $id   = '1';
     my $pair = '1';
     while (@seq_files) {
-        my $file1 = $tape->file_frags( shift @seq_files );
-        my $file2 = $tape->file_frags( shift @seq_files );
+        my $file1 = $self->file_frags( shift @seq_files );
+        my $file2 = $self->file_frags( shift @seq_files );
 
         # collect tag and uniquify the files.
         my $tags     = $file1->{parts}[0];
@@ -59,7 +59,7 @@ sub bwa_mem {
         my $path_bam = $config->{output} . $bam;
 
         # store the output files.
-        $tape->file_store($path_bam);
+        $self->file_store($path_bam);
 
         my $uniq_id = $file1->{parts}[0] . "_" . $id;
         my $r_group =
@@ -68,45 +68,48 @@ sub bwa_mem {
         my $cmd = sprintf(
             "%s/bwa mem -t %s -R %s %s %s %s | %s/samblaster | "
               . "%s/sambamba view -f bam -l 0 -S /dev/stdin | "
-              . "%s/sambamba sort -m %sG -o %s /dev/stdin",
+              . "%s/sambamba sort -m %sG -o %s /dev/stdin 2> bwa_mem_$id\.log",
             $config->{BWA},                $opts->{t},
             $r_group,                      $config->{fasta},
             $file1->{full},                $file2->{full},
-            $tape->software->{Samblaster}, $tape->software->{Sambamba},
-            $tape->software->{Sambamba},   $opts->{memory_limit},
+            $self->software->{Samblaster}, $self->software->{Sambamba},
+            $self->software->{Sambamba},   $opts->{memory_limit},
             $path_bam
         );
-        push @cmds, $cmd;
+        push @cmds, [ $cmd, $file1->{full}, $file2->{full} ];
+
         $id++;
     }
-    $tape->bundle( \@cmds );
+    $self->bundle( \@cmds );
+    return;
 }
 
 ##-----------------------------------------------------------
 
 sub bam2fq_bwa_mem {
-    my $tape = shift;
-    $tape->pull;
+    my $self = shift;
+    $self->pull;
 
-    my $config = $tape->options;
-    my $opts   = $tape->tool_options('bwa_mem');
+    my $config = $self->options;
+    my $opts   = $self->tool_options('bwa_mem');
+    my $files  = $self->file_retrieve('fastqc_run');
 
     my @seq_files;
-    while ( my $file = $tape->next ) {
+    foreach my $file ( @{$files} ) {
         chomp $file;
         next unless ( $file =~ /bam$/ );
         push @seq_files, $file;
     }
 
     unless (@seq_files) {
-        $tape->ERROR("BAM files not found. Check config file.");
+        $self->ERROR("BAM files not found. Check config file.");
     }
 
     my @cmds;
     my $id   = '1';
     my $pair = '1';
     foreach my $bam (@seq_files) {
-        my $file = $tape->file_frags($bam);
+        my $file = $self->file_frags($bam);
 
         # collect tag and uniquify the files.
         my $tags     = $file->{parts}[0];
@@ -114,7 +117,7 @@ sub bam2fq_bwa_mem {
         my $path_bam = $config->{output} . $bam;
 
         # store the output files with an override.
-        $tape->file_store( $path_bam, 'bwa_mem' );
+        $self->file_store( $path_bam, 'bwa_mem' );
 
         my $uniq_id = $file->{parts}[0] . "_" . $id;
         my $r_group =
@@ -124,17 +127,17 @@ sub bam2fq_bwa_mem {
             "%s/samtools bam2fq %s | %s/bwa mem -t %s -p -R %s %s | "
               . "%s/samblaster | %s/sambamba view -f bam -l 0 -S /dev/stdin | "
               . "%s/sambamba sort -m %sG -o %s /dev/stdin",
-            $tape->software->{SamTools},   $file->{full},
+            $self->software->{SamTools},   $file->{full},
             $config->{BWA},                $opts->{t},
             $r_group,                      $config->{fasta},
-            $tape->software->{Samblaster}, $tape->software->{Sambamba},
-            $tape->software->{Sambamba},   $opts->{memory_limit},
+            $self->software->{Samblaster}, $self->software->{Sambamba},
+            $self->software->{Sambamba},   $opts->{memory_limit},
             $path_bam
         );
-        push @cmds, $cmd;
+        push @cmds, [ $cmd, $file->{full} ];
         $id++;
     }
-    $tape->bundle( \@cmds );
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------

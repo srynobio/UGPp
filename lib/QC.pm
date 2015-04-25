@@ -1,6 +1,5 @@
 package QC;
-use Moo;
-extends 'Roll';
+use Moo::Role;
 
 ##-----------------------------------------------------------
 ##---------------------- ATTRIBUTES -------------------------
@@ -8,33 +7,6 @@ extends 'Roll';
 
 ##-----------------------------------------------------------
 ##------------------------ METHODS --------------------------
-##-----------------------------------------------------------
-
-sub md5_check {
-    my $tape = shift;
-    $tape->pull;
-    unless ( $tape->execute ) { return }
-
-    while ( my $check = $tape->next ) {
-        chomp $check;
-        next unless ( $check =~ /md5_results/ );
-
-        my @md5_results = `cat $check`;
-
-        my @passed;
-        foreach my $test (@md5_results) {
-            chomp $test;
-            next unless ( $test =~ /OK$/ );
-            push @passed, $test;
-        }
-
-        unless ( scalar @md5_results eq scalar @passed ) {
-            $tape->ERROR("One or more md5 sum checked did not pass");
-        }
-    }
-    return;
-}
-
 ##-----------------------------------------------------------
 
 sub fastqc_check {

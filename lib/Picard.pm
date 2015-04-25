@@ -1,6 +1,5 @@
 package Picard;
-use Moo;
-extends 'Roll';
+use Moo::Role;
 
 ##-----------------------------------------------------------
 ##---------------------- ATTRIBUTES -------------------------
@@ -11,39 +10,39 @@ extends 'Roll';
 ##-----------------------------------------------------------
 
 sub CreateSequenceDictionary {
-    my $tape = shift;
-    $tape->pull;
+    my $self = shift;
+    $self->pull;
 
-    my $config = $tape->options;
+    my $config = $self->options;
 
-    my $fa_file = $tape->file_frags( $config->{fasta} );
+    my $fa_file = $self->file_frags( $config->{fasta} );
     ( my $output = $fa_file->{full} ) =~ s/(.*)\.(fasta|fa)/$1.dict/;
 
     my $cmd = sprintf( "java -jar %s CreateSequenceDictionary.jar R=%s O=%s\n",
         $config->{Picard}, $config->{fasta}, $output );
-    $tape->bundle( \$cmd );
+    $self->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------
 
 sub CollectMultipleMetrics {
-    my $tape = shift;
-    $tape->pull;
+    my $self = shift;
+    $self->pull;
 
-    my $config = $tape->options;
-    my $opts   = $tape->tool_options('CollectMultipleMetrics');
-    my $recal  = $tape->file_retrieve('PrintReads');
+    my $config = $self->options;
+    my $opts   = $self->tool_options('CollectMultipleMetrics');
+    my $recal  = $self->file_retrieve('PrintReads');
 
     my @cmds;
     foreach my $bam ( @{$recal} ) {
         ( my $w_file = $bam ) =~ s/\.bam$/\.metrics/;
-        $tape->file_store($w_file);
+        $self->file_store($w_file);
 
         my $cmd = sprintf(
             "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
               . "%s CollectMultipleMetrics INPUT=%s VALIDATION_STRINGENCY=%s PROGRAM=%s REFERENCE_SEQUENCE=%s "
               . "OUTPUT=%s\n",
-            $opts->{xmx},     $opts->{gc_threads},
+            $opts->{xmx},     $self->{NCORES},
             $config->{tmp},   $config->{Picard},
             $bam,             $opts->{VALIDATION_STRINGENCY},
             $opts->{PROGRAM}, $config->{fasta},
@@ -51,7 +50,7 @@ sub CollectMultipleMetrics {
         );
         push @cmds, $cmd;
     }
-    $tape->bundle( \@cmds );
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------

@@ -1,6 +1,5 @@
 package Sambamba;
-use Moo;
-extends 'Roll';
+use Moo::Role;
 
 ##-----------------------------------------------------------
 ##---------------------- ATTRIBUTES -------------------------
@@ -11,20 +10,18 @@ extends 'Roll';
 ##-----------------------------------------------------------
 
 sub sambamba_merge {
-    my $tape = shift;
-    $tape->pull;
+    my $self = shift;
+    $self->pull;
 
-    my $config = $tape->options;
-    my $opts   = $tape->tool_options('sambamba_merge');
-
-    # the original collected step from sorting.
-    my $sam_files = $tape->file_retrieve('bwa_mem');
+    my $config    = $self->options;
+    my $opts      = $self->tool_options('sambamba_merge');
+    my $sam_files = $self->file_retrieve('bwa_mem');
 
     # collect one or more files based on id of the set.
     my %id_collect;
     my %merged_version;
     foreach my $sam ( @{$sam_files} ) {
-        my $file = $tape->file_frags($sam);
+        my $file = $self->file_frags($sam);
 
         # change name and stack to store later.
         ( my $merged = $file->{full} ) =~ s/\.bam/_merged.bam/;
@@ -44,88 +41,27 @@ sub sambamba_merge {
     if ( $id_total eq $file_total ) { return }
 
     # add the merged file names to store if working with lanes
-    map { $tape->file_store($_) } values %merged_version;
+    map { $self->file_store($_) } values %merged_version;
 
     my @cmds;
     foreach my $id ( keys %id_collect ) {
-
         my $input = join( " ", @{ $id_collect{$id} } );
         my $output = $merged_version{$id};
 
         # large joint calls from different timepoints
         # and different number of lanes, etc
-        if ( scalar @{ $id_collect{$id} } < 2 ) {
+        if ( scalar @{ $id_collect{$id} } < 2 and $self->execute) {
             system("ln -s $input $output");
+            system("ln -s $input\.bai $output\.bai");
             next;
         }
 
         my $cmd = sprintf( "%s/sambamba merge --nthreads %s %s %s",
             $config->{Sambamba}, $opts->{nthreads}, $output, $input );
-        push @cmds, $cmd;
+        push @cmds, [ $cmd, @{ $id_collect{$id} } ];
     }
-    $tape->bundle( \@cmds );
+    $self->bundle( \@cmds );
 }
-
-##-----------------------------------------------------------
-
-=cut
-sub sambamba_dedup {
-	my $tape = shift;
-	$tape->pull;
-
-	my $config = $tape->options;
-
-# see how many files were used.
-	my $sam_files	 = $tape->file_retrieve('sambamba_sort');
-	my $merged_files = $tape->file_retrieve('sambamba_merge');
-
-	my $file_stack;
-	if   ($merged_files) { $file_stack = $merged_files }
-	else                 { $file_stack = $sam_files }
-
-	my @cmds;
-	foreach my $bam ( @{$file_stack} ) {
-		( my $output = $bam ) =~ s/\.bam/_Dedup.bam/;
-
-		$tape->file_store($output);
-
-		my $cmd = sprintf(
-				"%s/sambamba markdup --tmpdir=%s %s %s %s -p",
-				$config->{Sambamba}, $config->{tmp}, $tape->{ddash},
-				$bam, $output
-				);
-		push @cmds, $cmd;
-	}
-	$tape->bundle( \@cmds );
-}
-=cut 
-
-##-----------------------------------------------------------
-
-=cut
-sub sambamba_sort {
-	my $tape = shift;
-	$tape->pull;
-
-	my $config = $tape->options;
-
-	my $bwa_files = $tape->file_retrieve('bwa_mem');
-
-	my @cmds;
-	foreach my $s ( @{$bwa_files} ) {
-		( my $sort = $s ) =~ s/\.bam$/\_sorted.bam/;
-		$tape->file_store($sort);
-
-		my $cmd = sprintf(
-				"%s/sambamba sort --tmpdir=%s %s %s -o %s -p",
-				$config->{Sambamba}, $config->{tmp}, $tape->{ddash},
-				$s, $sort 
-				);
-		push @cmds, $cmd;
-	}
-	$tape->bundle( \@cmds );
-}
-=cut
 
 ##-----------------------------------------------------------
 
