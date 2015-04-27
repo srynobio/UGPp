@@ -18,7 +18,7 @@ sub ucgd {
     #collect original paths.
     my $input  = $self->main->{data};
     my $output = $self->main->{output};
-    my $indel = '/scratch/ucgd/lustre/u0413537/UGP_Pipeline_Data/GATK_Bundle/';
+    my $indel  = '/scratch/ucgd/lustre/u0413537/UGP_Pipeline_Data/GATK_Bundle/';
 
     my ( @cmds, @copies );
     foreach my $ele ( @{$commands} ) {
@@ -26,12 +26,11 @@ sub ucgd {
         $ele->[0] =~ s|$input|/scratch/local/|g  if ( $ele->[1] );
         $ele->[0] =~ s|$indel|/scratch/local/|g  if ( $ele->[1] );
         push @cmds, "$ele->[0] &";
-            
 
         if ( $ele->[1] ) {
-            shift(@{$ele}); # shift off command.
+            shift( @{$ele} );    # shift off command.
             foreach my $cp ( @{$ele} ) {
-                (my $all_file = $cp) =~ s/\.ba.*$//g;
+                ( my $all_file = $cp ) =~ s/\.ba.*$//g;
                 push @copies, "cp $all_file* /scratch/local &";
             }
         }
@@ -61,7 +60,6 @@ $cmdNode
 wait
 
 # move results
-# find /scratch/local/ -user u0413537|perl -lane 'print "mv \$_ $output"|xargs -I {} -P 10 bash -c {}
 find /scratch/local/ -user u0413537 -exec mv -n {} $output \\;
 
 # clean up after finish.
@@ -75,5 +73,4 @@ EOM
 ##-----------------------------------------------------------
 
 1;
-
 

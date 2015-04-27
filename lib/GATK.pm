@@ -130,7 +130,7 @@ sub RealignerTargetCreator {
             $self->file_store($output);
 
             my $cmd = sprintf(
-                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+                    "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                   . "%s/GenomeAnalysisTK.jar -T RealignerTargetCreator "
                   . "-R %s -I %s --disable_auto_index_creation_and_locking_when_reading_rods "
                   . "--num_threads %s %s -L %s -o %s",
@@ -140,11 +140,11 @@ sub RealignerTargetCreator {
                 $opts->{num_threads}, $self->indels,
                 $region,              $output
             );
-            push @cmds, [$cmd, $in, $region, $kn];
+            push @cmds, [ $cmd, $in, $region, $kn ];
         }
     }
- 
-   $self->bundle(\@cmds);
+
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
@@ -190,16 +190,15 @@ sub IndelRealigner {
                     "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                   . "%s/GenomeAnalysisTK.jar -T IndelRealigner -R %s --disable_auto_index_creation_and_locking_when_reading_rods "
                   . "-I %s -L %s -targetIntervals %s %s -o %s",
-                  #. "%s/GenomeAnalysisTK.jar -T IndelRealigner -R %s -I %s -L %s -targetIntervals %s %s -o %s",
-                $opts->{xmx},    $opts->{gc_threads},  $config->{tmp},
-                $config->{GATK}, $config->{fasta}, $dep,
-                $intv[0],        $region,          $known,
+                $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
+                $config->{GATK}, $config->{fasta},    $dep,
+                $intv[0],        $region,             $known,
                 $output
             );
-            push @cmds, [$cmd, $dep, $region, $intv[0], $kn];
+            push @cmds, [ $cmd, $dep, $region, $intv[0], $kn ];
         }
     }
-    $self->bundle(\@cmds);
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
@@ -218,8 +217,7 @@ sub BaseRecalibrator {
     # collect known files to transfer to cluster node
     my $kn = join( '* ',
         @{ $self->options->{known_indels} },
-        $self->options->{known_dbsnp}
-    );
+        $self->options->{known_dbsnp} );
 
     my @cmds;
     foreach my $aln ( @{$align} ) {
@@ -232,16 +230,15 @@ sub BaseRecalibrator {
             "java -jar -Xmx%sg -XX:ParallelGCThreads=%s "
               . "-Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T BaseRecalibrator -R %s -I %s "
               . "--num_cpu_threads_per_data_thread %s %s %s --disable_auto_index_creation_and_locking_when_reading_rods -o %s",
-              #. "--num_cpu_threads_per_data_thread %s %s %s -o %s",
             $opts->{xmx},                             $opts->{gc_threads},
             $config->{tmp},                           $config->{GATK},
             $config->{fasta},                         $aln,
             $opts->{num_cpu_threads_per_data_thread}, $self->dbsnp,
             $known_indels,                            $output
         );
-        push @cmds, [$cmd, $aln, $kn];
+        push @cmds, [ $cmd, $aln, $kn ];
     }
-    $self->bundle(\@cmds);
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
@@ -275,16 +272,17 @@ sub PrintReads {
               . "%s/GenomeAnalysisTK.jar -T PrintReads -R %s -I %s "
               . "--num_cpu_threads_per_data_thread %s --disable_auto_index_creation_and_locking_when_reading_rods "
               . "-BQSR %s -o %s",
-              #. "--num_cpu_threads_per_data_thread %s -BQSR %s -o %s",
+
+            #. "--num_cpu_threads_per_data_thread %s -BQSR %s -o %s",
             $opts->{xmx},                             $opts->{gc_threads},
             $config->{tmp},                           $config->{GATK},
             $config->{fasta},                         $bam,
             $opts->{num_cpu_threads_per_data_thread}, $recal_t,
             $output
         );
-        push @cmds, [$cmd, $bam, $recal_t];
+        push @cmds, [ $cmd, $bam, $recal_t ];
     }
-   $self->bundle(\@cmds);
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
@@ -311,6 +309,7 @@ sub HaplotypeCaller {
                     $search = $chr;
                 }
             }
+
             # get interval
             my @intv = grep { /$search\_/ } @{ $self->intervals };
 
@@ -324,7 +323,7 @@ sub HaplotypeCaller {
                 $self->file_store($output);
 
                 my $cmd = sprintf(
-                        "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+                    "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                       . "%s/GenomeAnalysisTK.jar -T HaplotypeCaller -R %s "
                       . "--num_cpu_threads_per_data_thread %s "
                       . "--standard_min_confidence_threshold_for_calling %s "
@@ -351,58 +350,58 @@ sub HaplotypeCaller {
                     $region,
                     $output
                 );
-                push @cmds, [$cmd, $bam, $region];
+                push @cmds, [ $cmd, $bam, $region ];
             }
         }
         else {
-                my $search;
-                foreach my $chr ( @{ $file->{parts} } ) {
-                    if ( $chr =~ /chr.*/ ) {
-                        $search = $chr;
-                    }
+            my $search;
+            foreach my $chr ( @{ $file->{parts} } ) {
+                if ( $chr =~ /chr.*/ ) {
+                    $search = $chr;
                 }
-
-                # get interval
-                my @intv = grep { /$search\_/ } @{ $self->intervals };
-
-                my $name = $file->{parts}[0];
-                ( my $output = $intv[0] ) =~
-                  s/_file.list/_$name.raw.snps.indels.gvcf/;
-
-                $self->file_store($output);
-
-                my $cmd = sprintf(
-                        "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-                      . "%s/GenomeAnalysisTK.jar -T HaplotypeCaller -R %s "
-                      . "--num_cpu_threads_per_data_thread %s "
-                      . "--standard_min_confidence_threshold_for_calling %s "
-                      . "--standard_min_confidence_threshold_for_emitting %s "
-                      . "--emitRefConfidence %s "
-                      . "--variant_index_type %s "
-                      . "--variant_index_parameter %s "
-                      . "--min_base_quality_score %s "
-                      . "--disable_auto_index_creation_and_locking_when_reading_rods "
-                      . "-I %s -L %s -o %s",
-                    $opts->{xmx},
-                    $opts->{gc_threads},
-                    $config->{tmp},
-                    $config->{GATK},
-                    $config->{fasta},
-                    $opts->{num_cpu_threads_per_data_thread},
-                    $opts->{standard_min_confidence_threshold_for_calling},
-                    $opts->{standard_min_confidence_threshold_for_emitting},
-                    $opts->{emitRefConfidence},
-                    $opts->{variant_index_type},
-                    $opts->{variant_index_parameter},
-                    $opts->{min_base_quality_score},
-                    $bam,
-                    $intv[0],
-                    $output
-                );
-                push @cmds, [$cmd, $bam, $intv[0]];
             }
+
+            # get interval
+            my @intv = grep { /$search\_/ } @{ $self->intervals };
+
+            my $name = $file->{parts}[0];
+            ( my $output = $intv[0] ) =~
+              s/_file.list/_$name.raw.snps.indels.gvcf/;
+
+            $self->file_store($output);
+
+            my $cmd = sprintf(
+                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+                  . "%s/GenomeAnalysisTK.jar -T HaplotypeCaller -R %s "
+                  . "--num_cpu_threads_per_data_thread %s "
+                  . "--standard_min_confidence_threshold_for_calling %s "
+                  . "--standard_min_confidence_threshold_for_emitting %s "
+                  . "--emitRefConfidence %s "
+                  . "--variant_index_type %s "
+                  . "--variant_index_parameter %s "
+                  . "--min_base_quality_score %s "
+                  . "--disable_auto_index_creation_and_locking_when_reading_rods "
+                  . "-I %s -L %s -o %s",
+                $opts->{xmx},
+                $opts->{gc_threads},
+                $config->{tmp},
+                $config->{GATK},
+                $config->{fasta},
+                $opts->{num_cpu_threads_per_data_thread},
+                $opts->{standard_min_confidence_threshold_for_calling},
+                $opts->{standard_min_confidence_threshold_for_emitting},
+                $opts->{emitRefConfidence},
+                $opts->{variant_index_type},
+                $opts->{variant_index_parameter},
+                $opts->{min_base_quality_score},
+                $bam,
+                $intv[0],
+                $output
+            );
+            push @cmds, [ $cmd, $bam, $intv[0] ];
+        }
     }
-        $self->bundle(\@cmds);
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
@@ -456,14 +455,16 @@ sub CatVariants {
         $self->file_store($pathFile);
 
         my $cmd = sprintf(
-                "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
+            "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
               . "--variant_index_type LINEAR  "
               . "--variant_index_parameter 128000 --assumeSorted  %s -out %s",
-              #. "--variant_index_type LINEAR --variant_index_parameter 128000 --assumeSorted  %s -out %s",
-            $config->{GATK}, $config->{fasta}, $variant, $pathFile );
+
+#. "--variant_index_type LINEAR --variant_index_parameter 128000 --assumeSorted  %s -out %s",
+            $config->{GATK}, $config->{fasta}, $variant, $pathFile
+        );
         push @cmds, [ $cmd, @ordered_list ];
     }
-    $self->bundle(\@cmds);
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
@@ -499,13 +500,13 @@ sub CombineGVCF {
             $self->file_store($output);
 
             my $cmd = sprintf(
-                    "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
+                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
                   . " -T CombineGVCFs -R %s --disable_auto_index_creation_and_locking_when_reading_rods "
                   . "--variant %s -o %s",
                 $opts->{xmx}, $opts->{gc_threads}, $config->{GATK},
                 $config->{fasta}, $variants, $output );
 
-            push @cmds, [$cmd, @{$split}];
+            push @cmds, [ $cmd, @{$split} ];
         }
     }
     else {
@@ -515,15 +516,15 @@ sub CombineGVCF {
         $self->file_store($output);
 
         my $cmd = sprintf(
-                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
+            "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
               . " -T CombineGVCFs -R %s --disable_auto_index_creation_and_locking_when_reading_rods "
               . "--variant %s -o %s",
             $opts->{xmx}, $opts->{gc_threads}, $config->{GATK},
             $config->{fasta}, $variants, $output );
 
-        push @cmds, [$cmd, $variants];
+        push @cmds, [ $cmd, $variants ];
     }
-    $self->bundle(\@cmds);
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
@@ -552,7 +553,7 @@ sub CombineGVCF_Merge {
           . "--variant %s -o %s",
         $opts->{xmx}, $opts->{gc_threads}, $config->{GATK}, $config->{fasta},
         $variants, $output );
-    $self->bundle(\$cmd);
+    $self->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------
@@ -563,6 +564,10 @@ sub GenotypeGVCF {
 
     my $config = $self->options;
     my $opts   = $self->tool_options('GenotypeGVCF');
+
+    #TODO
+    # when starting from GenotypeGVCF
+    # the first data call will open command line file.
 
     my @gcated;
     my $data = $self->file_retrieve('CombineGVCF_Merge');
@@ -603,30 +608,30 @@ sub GenotypeGVCF {
         my $cmd;
         if ($back_variants) {
             $cmd = sprintf(
-                    "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                   . "%s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
                   . "--disable_auto_index_creation_and_locking_when_reading_rods --num_threads %s "
                   . "--variant %s --variant %s -L %s -o %s",
-                $opts->{xmx},    $opts->{gc_threads},  $config->{tmp},
-                $config->{GATK}, $config->{fasta}, $opts->{num_threads},
-                $input,          $back_variants,   $region,
+                $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
+                $config->{GATK}, $config->{fasta},    $opts->{num_threads},
+                $input,          $back_variants,      $region,
                 $output
             );
         }
         else {
             $cmd = sprintf(
-                    "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                   . "%s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
                   . "--disable_auto_index_creation_and_locking_when_reading_rods "
                   . "--num_threads %s --variant %s -L %s -o %s",
-                $opts->{xmx},    $opts->{gc_threads},  $config->{tmp},
-                $config->{GATK}, $config->{fasta}, $opts->{num_threads},
-                $input,          $region,          $output
+                $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
+                $config->{GATK}, $config->{fasta},    $opts->{num_threads},
+                $input,          $region,             $output
             );
         }
-        push @cmds, [$cmd, @gcated, @backs];
+        push @cmds, [ $cmd, @gcated, @backs ];
     }
-    $self->bundle(\@cmds);
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
@@ -642,6 +647,7 @@ sub CatVariants_Genotype {
 
     my %indiv;
     my $path;
+    my @cmds;
     foreach my $file (@iso) {
         chomp $file;
 
@@ -667,10 +673,13 @@ sub CatVariants_Genotype {
 
     my $cmd = sprintf(
         "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
-        . "--disable_auto_index_creation_and_locking_when_reading_rods "
-        . "--assumeSorted  %s -out %s",
+          . "--assumeSorted  %s -out %s",
         $config->{GATK}, $config->{fasta}, $variant, $output );
-    $self->bundle(\$cmd);
+
+    push @cmds, [ $cmd, @ordered_list ];
+    $self->bundle( \@cmds );
+
+    #$self->bundle(\$cmd);
 }
 
 ##-----------------------------------------------------------
@@ -697,8 +706,9 @@ sub VariantRecalibrator_SNP {
     my $resource = $config->{resource_SNP};
     my $anno     = $config->{use_annotation_SNP};
 
+    my @cmds;
     my $cmd = sprintf(
-            "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
+        "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
           . " -T VariantRecalibrator -R %s --minNumBadVariants %s --num_threads %s "
           . "--disable_auto_index_creation_and_locking_when_reading_rods "
           . "-resource:%s -an %s -input %s %s %s %s -mode SNP",
@@ -710,7 +720,8 @@ sub VariantRecalibrator_SNP {
         $recalFile, $tranchFile,
         $rscriptFile
     );
-    $self->bundle(\$cmd);
+    push @cmds, [$cmd];
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
@@ -737,11 +748,12 @@ sub VariantRecalibrator_INDEL {
     my $resource = $config->{resource_INDEL};
     my $anno     = $config->{use_annotation_INDEL};
 
+    my @cmds;
     my $cmd = sprintf(
-            "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T VariantRecalibrator "
-            . "--disable_auto_index_creation_and_locking_when_reading_rods "
+        "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T VariantRecalibrator "
+          . "--disable_auto_index_creation_and_locking_when_reading_rods "
           . "-R %s --minNumBadVariants %s --num_threads %s -resource:%s -an %s -input %s %s %s %s -mode INDEL",
-        $opts->{xmx},     $opts->{gc_threads}, 
+        $opts->{xmx},     $opts->{gc_threads},
         $config->{tmp},   $config->{GATK},
         $config->{fasta}, $opts->{minNumBadVariants},
         $opts->{num_threads}, join( ' -resource:', @$resource ),
@@ -749,7 +761,8 @@ sub VariantRecalibrator_INDEL {
         $recalFile, $tranchFile,
         $rscriptFile
     );
-    $self->bundle(\$cmd);
+    push @cmds, [$cmd];
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
@@ -762,16 +775,17 @@ sub ApplyRecalibration_SNP {
     my $opts   = $self->tool_options('ApplyRecalibration_SNP');
 
     my $recal_files = $self->file_retrieve('VariantRecalibrator_SNP');
-    my $get = $self->file_retrieve('CatVariants_Genotype');
+    my $get         = $self->file_retrieve('CatVariants_Genotype');
     my $genotpd     = shift @{$get};
 
     # need to add a copy because it here.
     ( my $output = $genotpd ) =~ s/_genotyped.vcf$/_recal_SNP.vcf/g;
     $self->file_store($output);
 
+    my @cmds;
     my $cmd = sprintf(
-            "java -jar -Xmx%sg -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
-            . "--disable_auto_index_creation_and_locking_when_reading_rods "
+        "java -jar -Xmx%sg -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
+          . "--disable_auto_index_creation_and_locking_when_reading_rods "
           . "-R %s --ts_filter_level %s --num_threads %s --excludeFiltered -input %s %s %s -mode SNP -o %s",
         $opts->{xmx},             $config->{tmp},
         $config->{GATK},          $config->{fasta},
@@ -779,7 +793,8 @@ sub ApplyRecalibration_SNP {
         $genotpd,                 shift @{$recal_files},
         shift @{$recal_files},    $output
     );
-    $self->bundle(\$cmd);
+    push @cmds, [$cmd];
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
@@ -791,16 +806,17 @@ sub ApplyRecalibration_INDEL {
     my $config      = $self->options;
     my $opts        = $self->tool_options('ApplyRecalibration_INDEL');
     my $recal_files = $self->file_retrieve('VariantRecalibrator_INDEL');
-    my $get = $self->file_retrieve('CatVariants_Genotype');
+    my $get         = $self->file_retrieve('CatVariants_Genotype');
     my $genotpd     = shift @{$get};
 
     # need to add a copy because it here.
     ( my $output = $genotpd ) =~ s/_genotyped.vcf$/_recal_INDEL.vcf/g;
     $self->file_store($output);
 
+    my @cmds;
     my $cmd = sprintf(
-            "java -jar -Xmx%sg -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
-            . "--disable_auto_index_creation_and_locking_when_reading_rods "
+        "java -jar -Xmx%sg -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
+          . "--disable_auto_index_creation_and_locking_when_reading_rods "
           . "-R %s --ts_filter_level %s --num_threads %s --excludeFiltered -input %s %s %s -mode INDEL -o %s",
         $opts->{xmx},             $config->{tmp},
         $config->{GATK},          $config->{fasta},
@@ -808,7 +824,8 @@ sub ApplyRecalibration_INDEL {
         $genotpd,                 shift @{$recal_files},
         shift @{$recal_files},    $output
     );
-    $self->bundle(\$cmd);
+    push @cmds, [$cmd];
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
@@ -830,17 +847,19 @@ sub CombineVariants {
       $config->{output} . $config->{ugp_id} . "_Final+Backgrounds.vcf";
     $self->file_store($output);
 
+    my @cmds;
     my $cmd = sprintf(
-            "java -jar -Xmx%sg -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T CombineVariants -R %s "
-            . "--disable_auto_index_creation_and_locking_when_reading_rods "
+        "java -jar -Xmx%sg -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T CombineVariants -R %s "
+          . "--disable_auto_index_creation_and_locking_when_reading_rods "
           . "--num_threads %s --genotypemergeoption %s %s %s -o %s",
-        $opts->{xmx},    $config->{tmp},
-        $config->{GATK}, $config->{fasta},
+        $opts->{xmx},         $config->{tmp},
+        $config->{GATK},      $config->{fasta},
         $opts->{num_threads}, $opts->{genotypemergeoption},
         join( " ", @app_snp ), join( " ", @app_ind ),
         $output
     );
-    $self->bundle(\$cmd);
+    push @cmds, [$cmd];
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------

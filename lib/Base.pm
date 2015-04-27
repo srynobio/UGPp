@@ -5,11 +5,6 @@ use File::Basename;
 use IO::Dir;
 use Storable qw(dclone);
 
-# Place holders for ENV.
-my $cores = '$SLURM_CORE';
-my $test  = '$SLURM_TEST';
-
-
 #-----------------------------------------------------------
 #---------------------- ATTRIBUTES -------------------------
 #-----------------------------------------------------------
@@ -69,6 +64,7 @@ has workers => (
     default => sub {
         my $self = shift;
         my $workers = $self->main->{workers} || '1';
+
         #my $workers = $self->config->{main}->{workers} || '1';
         return $workers if 'auto';
         return $workers + 1;
@@ -84,7 +80,7 @@ has execute => (
 );
 
 has file_from_command => (
-    is =>'rw',
+    is      => 'rw',
     default => sub {
         return undef;
     },
@@ -92,15 +88,6 @@ has file_from_command => (
 
 #-----------------------------------------------------------
 #---------------------- METHODS ----------------------------
-#-----------------------------------------------------------
-
-sub BUILD {
-    my $self = shift;
-
-    $self->{NCORES} = $cores;
-    $self->{TEST} = $test;
-}
-
 #-----------------------------------------------------------
 
 sub _build_data_files {
@@ -116,11 +103,12 @@ sub _build_data_files {
     unless ( $data_path =~ /\/$/ ) {
         $data_path =~ s/$/\//;
     }
+
     #update path data
     $self->{data} = $data_path;
 
     #check for output directory.
-    if ( ! $self->main->{output} ) {
+    if ( !$self->main->{output} ) {
         $self->main->{output} = $data_path;
     }
     elsif ( $self->main->{output} ) {
@@ -141,13 +129,13 @@ sub _build_data_files {
         push @file_path_list, "$file_info[1]$file_info[0]$file";
     }
 
-    $self->ERROR("Required files not found in $data_path") 
-        unless ( @file_path_list );
+    $self->ERROR("Required files not found in $data_path")
+      unless (@file_path_list);
     my @sorted_files = sort @file_path_list;
 
     # store the begining file list in object
     $self->{start_files} = \@sorted_files
-        unless $self->{commandline}->{file};
+      unless $self->{commandline}->{file};
 
     $DIR->close;
     return;
@@ -276,7 +264,7 @@ sub file_store {
     # without changing all forward calls.
     $method = $override if $override;
 
-    push @{$self->{file_store}{$method}}, $file;
+    push @{ $self->{file_store}{$method} }, $file;
     ##unless $file ~~ [ values %stored ];
     return;
 }
@@ -286,8 +274,8 @@ sub file_store {
 sub file_retrieve {
     my ( $self, $class ) = @_;
 
-    # first step of pipeline will have no data. 
-    unless ( $class ) {
+    # first step of pipeline will have no data.
+    unless ($class) {
         return $self->{start_files};
     }
 
@@ -299,7 +287,7 @@ sub file_retrieve {
     }
 
     if ( $self->{file_store}{$class} ) {
-        my $copy = dclone($self->{file_store});
+        my $copy = dclone( $self->{file_store} );
         return $copy->{$class};
     }
 }

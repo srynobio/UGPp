@@ -6,8 +6,6 @@ use File::Basename;
 use Parallel::ForkManager;
 use IO::File;
 
-use Data::Dumper;
-
 extends 'Base';
 
 with qw|
@@ -134,7 +132,7 @@ sub UGP_Pipeline {
             $self->_server;
         }
         elsif ( $self->engine eq 'cluster' ) {
-             $self->_cluster;
+            $self->_cluster;
         }
     }
     return;
@@ -175,7 +173,7 @@ sub bundle {
     # what type of call
     my $call_type = ref $cmd;
     unless ( $call_type and $call_type ne 'HASH' ) {
-        $self->ERROR(
+        $self->ERROR( 
             "bundled command from $sub command must be an scalar or array reference."
         );
     }
@@ -230,11 +228,11 @@ sub file_frags {
 
 sub _server {
     my $self = shift;
-    my $pm = Parallel::ForkManager->new($self->workers);
+    my $pm   = Parallel::ForkManager->new( $self->workers );
 
     # command information.
-    my @sub = keys %{$self->{bundle}};
-    my @stack = values %{$self->{bundle}};
+    my @sub      = keys %{ $self->{bundle} };
+    my @stack    = values %{ $self->{bundle} };
     my @commands = map { @$_ } @stack;
 
     # first pass check
@@ -243,7 +241,7 @@ sub _server {
     }
 
     # print to log.
-    $self->LOG( 'start', $sub[0]);
+    $self->LOG( 'start', $sub[0] );
 
     # run the stack.
     my $status = 'run';
@@ -252,9 +250,7 @@ sub _server {
 
         $self->LOG( 'cmd', $cmd );
         $pm->start and next;
-        eval {
-            run("$cmd");
-        };
+        eval { run("$cmd"); };
         if ($@) {
             $self->ERROR("Error occured running command: $@\n");
             $status = 'die';
@@ -270,7 +266,7 @@ sub _server {
     $self->LOG( 'finish',   $sub[0] );
     $self->LOG( 'progress', $sub[0] );
 
-#    map { delete $self->{cmd_list}->{$_} } keys %stack;
+    #    map { delete $self->{cmd_list}->{$_} } keys %stack;
     return;
 }
 
@@ -288,7 +284,7 @@ sub _cluster {
     return if ( !@commands );
 
     #jobs per node per step
-    my $jpn = $self->config->{$sub[0]}->{jpn} || '1';
+    my $jpn = $self->config->{ $sub[0] }->{jpn} || '1';
 
     # get nodes selection from config file
     my $opts = $self->tool_options( $sub[0] );

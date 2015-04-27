@@ -50,7 +50,7 @@ sub sambamba_merge {
 
         # large joint calls from different timepoints
         # and different number of lanes, etc
-        if ( scalar @{ $id_collect{$id} } < 2 and $self->execute) {
+        if ( scalar @{ $id_collect{$id} } < 2 and $self->execute ) {
             system("ln -s $input $output");
             system("ln -s $input\.bai $output\.bai");
             next;

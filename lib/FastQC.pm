@@ -26,8 +26,7 @@ sub fastqc_run {
         $self->file_store($file);
 
         $log++;
-        my $cmd = sprintf(
-            "%s/fastqc --threads %s -o %s -f fastq %s",
+        my $cmd = sprintf( "%s/fastqc --threads %s -o %s -f fastq %s",
             $config->{FastQC}, $opts->{threads}, $config->{output}, $file );
         push @cmds, [ $cmd, $file ];
     }
