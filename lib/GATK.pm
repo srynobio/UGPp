@@ -130,7 +130,7 @@ sub RealignerTargetCreator {
             $self->file_store($output);
 
             my $cmd = sprintf(
-                    "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                   . "%s/GenomeAnalysisTK.jar -T RealignerTargetCreator "
                   . "-R %s -I %s --disable_auto_index_creation_and_locking_when_reading_rods "
                   . "--num_threads %s %s -L %s -o %s",
@@ -187,8 +187,9 @@ sub IndelRealigner {
             $self->file_store($output);
 
             my $cmd = sprintf(
-                    "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
-                  . "%s/GenomeAnalysisTK.jar -T IndelRealigner -R %s --disable_auto_index_creation_and_locking_when_reading_rods "
+                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+                  . "%s/GenomeAnalysisTK.jar -T IndelRealigner -R %s "
+                  . "--disable_auto_index_creation_and_locking_when_reading_rods "
                   . "-I %s -L %s -targetIntervals %s %s -o %s",
                 $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
                 $config->{GATK}, $config->{fasta},    $dep,
@@ -229,7 +230,8 @@ sub BaseRecalibrator {
         my $cmd = sprintf(
             "java -jar -Xmx%sg -XX:ParallelGCThreads=%s "
               . "-Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T BaseRecalibrator -R %s -I %s "
-              . "--num_cpu_threads_per_data_thread %s %s %s --disable_auto_index_creation_and_locking_when_reading_rods -o %s",
+              . "--num_cpu_threads_per_data_thread %s %s %s "
+              . "--disable_auto_index_creation_and_locking_when_reading_rods -o %s",
             $opts->{xmx},                             $opts->{gc_threads},
             $config->{tmp},                           $config->{GATK},
             $config->{fasta},                         $aln,
@@ -270,7 +272,8 @@ sub PrintReads {
         my $cmd = sprintf(
             "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
               . "%s/GenomeAnalysisTK.jar -T PrintReads -R %s -I %s "
-              . "--num_cpu_threads_per_data_thread %s --disable_auto_index_creation_and_locking_when_reading_rods "
+              . "--num_cpu_threads_per_data_thread %s "
+              . "--disable_auto_index_creation_and_locking_when_reading_rods "
               . "-BQSR %s -o %s",
 
             #. "--num_cpu_threads_per_data_thread %s -BQSR %s -o %s",
@@ -458,10 +461,7 @@ sub CatVariants {
             "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
               . "--variant_index_type LINEAR  "
               . "--variant_index_parameter 128000 --assumeSorted  %s -out %s",
-
-#. "--variant_index_type LINEAR --variant_index_parameter 128000 --assumeSorted  %s -out %s",
-            $config->{GATK}, $config->{fasta}, $variant, $pathFile
-        );
+            $config->{GATK}, $config->{fasta}, $variant, $pathFile );
         push @cmds, [ $cmd, @ordered_list ];
     }
     $self->bundle( \@cmds );
@@ -501,7 +501,8 @@ sub CombineGVCF {
 
             my $cmd = sprintf(
                 "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
-                  . " -T CombineGVCFs -R %s --disable_auto_index_creation_and_locking_when_reading_rods "
+                  . " -T CombineGVCFs -R %s "
+                  . "--disable_auto_index_creation_and_locking_when_reading_rods "
                   . "--variant %s -o %s",
                 $opts->{xmx}, $opts->{gc_threads}, $config->{GATK},
                 $config->{fasta}, $variants, $output );
@@ -517,7 +518,8 @@ sub CombineGVCF {
 
         my $cmd = sprintf(
             "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
-              . " -T CombineGVCFs -R %s --disable_auto_index_creation_and_locking_when_reading_rods "
+              . " -T CombineGVCFs -R %s "
+              . "--disable_auto_index_creation_and_locking_when_reading_rods "
               . "--variant %s -o %s",
             $opts->{xmx}, $opts->{gc_threads}, $config->{GATK},
             $config->{fasta}, $variants, $output );
@@ -549,7 +551,8 @@ sub CombineGVCF_Merge {
 
     my $cmd = sprintf(
         "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
-          . " -T CombineGVCFs -R %s --disable_auto_index_creation_and_locking_when_reading_rods "
+          . " -T CombineGVCFs -R %s "
+          . "--disable_auto_index_creation_and_locking_when_reading_rods "
           . "--variant %s -o %s",
         $opts->{xmx}, $opts->{gc_threads}, $config->{GATK}, $config->{fasta},
         $variants, $output );

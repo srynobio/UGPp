@@ -11,7 +11,6 @@ extends 'Base';
 with qw|
   BWA
   FastQC
-  Picard
   SamTools
   Sambamba
   GATK
@@ -280,18 +279,14 @@ sub _cluster {
     my @stack    = values %{ $self->{bundle} };
     my @commands = map { @$_ } @stack;
 
-    # return if no commands to run
     return if ( !@commands );
 
-    #jobs per node per step
+    # jobs per node per step
     my $jpn = $self->config->{ $sub[0] }->{jpn} || '1';
 
     # get nodes selection from config file
     my $opts = $self->tool_options( $sub[0] );
     my $node = $opts->{node} || 'ucgd';
-
-    # add the & to end of each command.
-    ###my @commands = map { "$_" } @{$stack_data};
 
     $self->LOG( 'start', $sub[0] );
 
@@ -314,7 +309,8 @@ sub _cluster {
         # write out the commands not copies.
         map { $self->LOG( 'cmd', $_ ) } @parts;
 
-        my $batch = $self->$node( \@parts );
+        # call to create sbatch script.
+        my $batch = $self->$node( \@parts, $sub[0]);
 
         print $RUN $batch;
         push @slurm_stack, $tmp;
@@ -341,10 +337,10 @@ sub _cluster {
         }
     }
 
-    # give qsub system time to start
+    # give sbatch system time to start
     sleep(60);
 
-    # check the status of current qsub jobs
+    # check the status of current sbatch jobs
     # before moving on.
     $self->_wait_all_jobs;
 

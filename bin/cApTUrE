@@ -86,14 +86,16 @@ if ( $c_opts{clean} ) {
 }
 
 if ( $c_opts{error_check} ) {
-    system("find . -maxdepth 1 -not -name \'cApTUrE\' -exec grep -i \'error\' {} \\;");
+    system("grep --exclude=\"cApTUrE\" -i 'error' *");
+    #system("grep -i 'error' *.log-*");
+    system("grep -i 'exceptions' *.log-*");
     exit(0);
 }
 croak "Required options not met\n$usage" unless ( $c_opts{interval_list} and $c_opts{config} );
 
 # Clean up and default setting.
-$c_opts{engine} //= 'server';
-#if ( $c_opts{file} and -e 'CMD_stack.store' ) { `rm CMD_stack.store` }
+$c_opts{engine} //= 'MCE';
+if ( $c_opts{file} and -e 'CMD_stack.store' ) { `rm CMD_stack.store` }
 
 my $t = UGP->new( commandline => \%c_opts, );
 

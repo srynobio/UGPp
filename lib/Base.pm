@@ -64,8 +64,6 @@ has workers => (
     default => sub {
         my $self = shift;
         my $workers = $self->main->{workers} || '1';
-
-        #my $workers = $self->config->{main}->{workers} || '1';
         return $workers if 'auto';
         return $workers + 1;
     },
@@ -194,7 +192,7 @@ sub LOG {
     my ( $self, $type, $message ) = @_;
     $message //= 'Pipeline';
 
-    my $log_file = $self->main->{log} || 'cApTUrE-cmds.txt';
+    my $log_file = $self->main->{log} || 'capture-cmds.txt';
     my $LOG = IO::File->new( $log_file, 'a+' );
 
     if ( $type eq 'config' ) {
@@ -214,7 +212,7 @@ sub LOG {
         print $LOG "Started process $message at ", $self->timestamp, "\n";
     }
     elsif ( $type eq 'cmd' ) {
-        print $LOG "command started at ", $self->timestamp, " ==> $message\n";
+        print $LOG "command started at ", $self->timestamp, " ==> @$message\n";
     }
     elsif ( $type eq 'finish' ) {
         print $LOG "Process finished $message at ", $self->timestamp, "\n";
@@ -275,10 +273,10 @@ sub file_retrieve {
     my ( $self, $class ) = @_;
 
     # first step of pipeline will have no data.
+    # if not from commandline
     unless ($class) {
         return $self->{start_files};
     }
-
     if ( $self->{commandline}->{file} ) {
         $self->_make_store($class);
         $self->file_from_command('1');

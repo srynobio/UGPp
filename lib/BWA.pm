@@ -36,7 +36,7 @@ sub bwa_mem {
 
         #while ( my $file = $self->next ) {
         chomp $file;
-        next unless ( $file =~ /(gz|bz2|fastq|fq)/ );
+        next unless ( $file =~ /(gz$|bz2$|fastq$|fq$)/ );
         push @seq_files, $file;
     }
 
@@ -66,15 +66,15 @@ sub bwa_mem {
           '\'@RG' . "\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\'";
 
         my $cmd = sprintf(
-            "%s/bwa mem -t %s -R %s %s %s %s | %s/samblaster | "
+            "%s/bwa mem -t %s -R %s %s %s %s 2> bwa_mem_%s.log | %s/samblaster | "
               . "%s/sambamba view -f bam -l 0 -S /dev/stdin | "
-              . "%s/sambamba sort -m %sG -o %s /dev/stdin 2> bwa_mem_$id\.log",
-            $config->{BWA},                $opts->{t},
-            $r_group,                      $config->{fasta},
-            $file1->{full},                $file2->{full},
-            $self->software->{Samblaster}, $self->software->{Sambamba},
-            $self->software->{Sambamba},   $opts->{memory_limit},
-            $path_bam
+              . "%s/sambamba sort -m %sG -o %s /dev/stdin",
+            $config->{BWA},              $opts->{t},
+            $r_group,                    $config->{fasta},
+            $file1->{full},              $file2->{full},
+            $id,                         $self->software->{Samblaster},
+            $self->software->{Sambamba}, $self->software->{Sambamba},
+            $opts->{memory_limit},       $path_bam
         );
         push @cmds, [ $cmd, $file1->{full}, $file2->{full} ];
 
