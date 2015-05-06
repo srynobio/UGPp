@@ -15,6 +15,46 @@ sub ucgd {
     $self->ERROR("Required commands not found")
       unless ($commands);
 
+    my ( @cmds, @copies );
+    foreach my $ele ( @{$commands} ) {
+        push @cmds, "$ele->[0] &";
+    }
+    my $cmdNode = join( "\n", @cmds );
+
+    my $sbatch = <<"EOM";
+#!/bin/bash
+#SBATCH -t 72:00:00
+#SBATCH -N 1
+#SBATCH -A ucgd-kp
+#SBATCH -p ucgd-kp
+
+source /uufs/chpc.utah.edu/common/home/u0413537/.bash_profile
+source /uufs/chpc.utah.edu/common/home/u0413537/.bashrc
+
+# clean up before start
+find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
+find /tmp -user u0413537 -exec rm -rf {} \;
+
+$cmdNode
+
+wait
+
+# clean up after finish.
+find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
+find /tmp -user u0413537 -exec rm -rf {} \;
+
+EOM
+    return $sbatch;
+}
+
+##-----------------------------------------------------------
+
+sub ucgd_cp {
+    my ( $self, $commands, $step ) = @_;
+
+    $self->ERROR("Required commands not found")
+      unless ($commands);
+
     #collect original paths.
     my $input  = $self->main->{data};
     my $output = $self->main->{output};
@@ -22,9 +62,9 @@ sub ucgd {
 
     my ( @cmds, @copies );
     foreach my $ele ( @{$commands} ) {
-#        $ele->[0] =~ s|$output|/scratch/local/|g if ( $ele->[1] );
-#        $ele->[0] =~ s|$input|/scratch/local/|g  if ( $ele->[1] );
-#        $ele->[0] =~ s|$indel|/scratch/local/|g  if ( $ele->[1] );
+        $ele->[0] =~ s|$output|/scratch/local/|g if ( $ele->[1] );
+        $ele->[0] =~ s|$input|/scratch/local/|g  if ( $ele->[1] );
+        $ele->[0] =~ s|$indel|/scratch/local/|g  if ( $ele->[1] );
         push @cmds, "$ele->[0] &";
 
         if ( $ele->[1] ) {
@@ -36,7 +76,7 @@ sub ucgd {
         }
     }
 
-    my $cpNode  = ''; ##join( "\n", @copies );
+    my $cpNode  = join( "\n", @copies );
     my $cmdNode = join( "\n", @cmds );
 
     my $sbatch = <<"EOM";
@@ -62,14 +102,13 @@ $cmdNode
 wait
 
 # move results
-# find /scratch/local/ -user u0413537 -exec mv -n {} $output \\;
+find /scratch/local/ -user u0413537 -exec mv -n {} $output \\;
 
 # clean up after finish.
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
 find /tmp -user u0413537 -exec rm -rf {} \;
 
 EOM
-
     return $sbatch;
 }
 
