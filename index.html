@@ -34,7 +34,7 @@
 <br>
 
 <strong>VERSION</strong>
-This document describes version 1.2.1
+This document describes version 1.3.0
 <br>
 <br>
 
@@ -57,7 +57,6 @@ Currently it incorporates the following tools:
 	<li>FastQC</li>
 	<li>BWA</li>
 	<li>SAMtools</li>
-	<li>Picard 1.127 (broadinstitute version) </li>
 	<li>GATK 3.0+</li>
 </ul>
 
@@ -72,7 +71,7 @@ GATKs best practices (with some modifications) are followed throughout this pipe
 which cApTUrE requires.
 <ul>
 	<li>Moo</li>
-	<li>MCE</li>
+  <li>Parallel::ForkManager</li>
 	<li>Config::Std</li>
 	<li>IPC::System::Simple</li>
 </ul>
@@ -82,7 +81,6 @@ which cApTUrE requires.
 	<li><a href="http://www.bioinformatics.babraham.ac.uk/projects/fastqc/" target="_blank">FastQC</a></li>
 	<li><a href="http://bio-bwa.sourceforge.net" target="_blank">BWA</a></li>
 	<li><a href="http://samtools.sourceforge.net" target="_blank">SAMtools</a></li>
-	<li><a href="http://broadinstitute.github.io/picard/" target="_blank">Picard</a></li>
 	<li><a href="http://www.broadinstitute.org/gatk/" target="_blank">GATK</a></li>
 	<li><a href="http://www.r-project.org/" target="_blank">R</a></li>
 </ul>
@@ -92,24 +90,21 @@ cApTUrE's file structure:
 
 cApTUrE/data:
 <ul>
-	<li><em>exon_Region.list</em></li>
 	<li><em>exome.analysis.sequence.index</em></li>
 	<li><em>capture.cfg</em> - This is the main template configure file use with machine_config.  This will create a new template based on file location per server/system.</li>
-	<li><em>PBS_template</em> - Template use for PBS job submission on the CHPC cluster.
+  <li><em>Region_File</em> - Region list files for both WG and Exome.
 </ul>
 cApTUrE/bin:
 <ul>
 	<li><em>cApTUrE</em> - main script</li>
 	<li><em>machine_config</em> - Interactive script which creates a hostname.cfg config file, which contains all path locations for a given machine.
 	<li><em>project_config</em> - Can use the above generated config file as a template for each dataset to run.
-	<li><em>perlDepsBuild</em>  - Script to build and install all perl dependencies.  Root required.
 </ul>
 cApTUrE/bin/UGP_tools:
 <ul>
 	<li><em>RegionMaker</em></li> 
 	<li><em>Thousand_genome_recreator.pl</em></li>
-	<li><em>UGP-Result-Clean.pl</em></li>
-	<li><em>Genotype_rerun_collector.pl</em></li>
+	<li><em>UGP_Result_Cleanup.pl</em></li>
 </ul>
 
 <br><strong>RUNNING CAPTURE:</strong><br>
