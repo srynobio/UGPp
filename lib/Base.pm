@@ -212,7 +212,8 @@ sub LOG {
         print $LOG "Started process $message at ", $self->timestamp, "\n";
     }
     elsif ( $type eq 'cmd' ) {
-        print $LOG "command started at ", $self->timestamp, " ==> @$message\n";
+        print $LOG "command started at ", $self->timestamp, " ==> @$message\n" if $self->engine eq 'cluster';
+        print $LOG "command started at ", $self->timestamp, " ==> $message\n" if $self->engine eq 'server';
     }
     elsif ( $type eq 'finish' ) {
         print $LOG "Process finished $message at ", $self->timestamp, "\n";

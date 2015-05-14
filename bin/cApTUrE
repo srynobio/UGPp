@@ -40,6 +40,7 @@ Required options:
     -il, --interval_list    Region list file for GATK variant calling. [Example: 1:10929-11532]
 
 Additional options:
+    -e, --engine            Which engine to use: server or cluster. [DEFAULT server].
 
     -f, --file              Will take file list as input if beginning cApTUrE with previously
                             collected files.  File must match previous step cApTUrE would have ran.
@@ -51,7 +52,7 @@ Additional options:
 
     -sc, --split_combine    If more then 200 GVCF files were created (HaplotypeCaller), 
                             split to run multiple CombineGVCF commands [DEFAULT 100].
-                            ** Value give will be \"number per command\" **
+                            ** Value given will be \"number per command\" **
 
     -jpn, --job_per_node	When useing cluster environment, specifies number of jobs to add to each slurm script.
 
@@ -94,7 +95,7 @@ if ( $c_opts{error_check} ) {
 croak "Required options not met\n$usage" unless ( $c_opts{interval_list} and $c_opts{config} );
 
 # Clean up and default setting.
-$c_opts{engine} //= 'MCE';
+$c_opts{engine} //= 'server';
 if ( $c_opts{file} and -e 'CMD_stack.store' ) { `rm CMD_stack.store` }
 
 my $t = UGP->new( commandline => \%c_opts, );
