@@ -86,8 +86,8 @@ if ( $c_opts{clean} ) {
 }
 
 if ( $c_opts{error_check} ) {
+    print "checking for errors and exceptions...\n";
     system("grep --exclude=\"cApTUrE\" -i 'error' *");
-    #system("grep -i 'error' *.log-*");
     system("grep -i 'exceptions' *.log-*");
     exit(0);
 }
