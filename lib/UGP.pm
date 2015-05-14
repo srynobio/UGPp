@@ -229,14 +229,14 @@ sub _server {
     my $self = shift;
     my $pm   = Parallel::ForkManager->new( $self->workers );
 
-    # command information.
+    # command information .
     my @sub      = keys %{ $self->{bundle} };
     my @stack    = values %{ $self->{bundle} };
     my @commands = map { @$_ } @stack;
 
     # first pass check
     unless (@commands) {
-        $self->ERROR("commands not generated, review steps");
+        $self->ERROR("No commands found, review steps");
     }
 
     # print to log.
@@ -244,12 +244,12 @@ sub _server {
 
     # run the stack.
     my $status = 'run';
-    foreach my $cmd (@commands) {
-        chomp $cmd;
+    while (@commands) {
+        my $cmd = shift(@commands);
 
-        $self->LOG( 'cmd', $cmd );
+        $self->LOG( 'cmd', $cmd->[0] );
         $pm->start and next;
-        eval { run("$cmd"); };
+        eval { run( $cmd->[0] ); };
         if ($@) {
             $self->ERROR("Error occured running command: $@\n");
             $status = 'die';
@@ -265,7 +265,7 @@ sub _server {
     $self->LOG( 'finish',   $sub[0] );
     $self->LOG( 'progress', $sub[0] );
 
-    #    map { delete $self->{cmd_list}->{$_} } keys %stack;
+    delete $self->{bundle};
     return;
 }
 

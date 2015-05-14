@@ -77,7 +77,7 @@ my @uniq = distinct(@collection);
 
 map { print $FO "$_\n" } @uniq;
 
-`rm Updated* ref_GRCh37.gff3`;
+#`rm Updated* ref_GRCh37.gff3`;
 print "Finished\n";
 
 ####--------------------------------------------------------------------

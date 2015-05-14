@@ -277,6 +277,7 @@ sub file_retrieve {
     unless ($class) {
         return $self->{start_files};
     }
+    
     if ( $self->{commandline}->{file} ) {
         $self->_make_store($class);
         $self->file_from_command('1');

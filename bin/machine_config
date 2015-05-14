@@ -10,149 +10,143 @@ use Getopt::Long;
 my $usage = "
 
 Synopsis:
-	./machine_config --run  
+    ./machine_config --run  
 
 Description:
 
-	Script used to build a configure file for the machine.
+Script used to build a configure file for the machine.
 
 Options:
-	--run, -r	Run the config process
-	--help, -h	This wonderful help message.
+    --run, -r	Run the config process
+    --help, -h	This wonderful help message.
 
 \n";
 
 my %c_opts = ();
 GetOptions(
-	\%c_opts,
-	"run|r",
-	"help|h",
+    \%c_opts,
+    "run|r",
+    "help|h",
 );
 croak $usage if ($c_opts{help} or ! $c_opts{run} );
 
 build_machine_config() if $c_opts{run};
 
 sub build_machine_config {
-	print
-	"\nmachine_creator is an interactive script which will help make config file generation quicker and easier\n\n";
+    print
+    "\nmachine_creator is an interactive script which will help make config file generation quicker and easier\n\n";
 
-	print "Specify tmp directory you would like to use [default /tmp]: ";
-	my $tmp = <STDIN>;
-	print "Enter path + fasta file [REQUIRED]: ";
-	my $fasta = <STDIN>;
-	print "Enter path to GATK Bundle [REQUIRED]: ";
-	my $bundle = <STDIN>;
-	print "Enter path to UGP background files [REQUIRED]: ";
-	my $backgrounds = <STDIN>;
-	print "Enter path to BWA directory [REQUIRED]: ";
-	my $bwa = <STDIN>;
-	print "Enter path to Picard jar file + jar file [REQUIRED]: ";
-	my $picard = <STDIN>;
-	print "Enter path to SamTools directory [REQUIRED]: ";
-	my $samtools = <STDIN>;
-	print "Enter path to samblaster directory [REQUIRED]: ";
-	my $samblaster = <STDIN>;
-	print "Enter path to sambamba directory [REQUIRED]: ";
-	my $sambamba = <STDIN>;
-	print "Enter path to GATK directory [REQUIRED]: ";
-	my $gatk = <STDIN>;
-	print "Enter path to FastQC directory [REQUIRED]: ";
-	my $fastqc = <STDIN>;
-	print "\nWorking....\n";
+    print "Specify tmp directory you would like to use [default /tmp]: ";
+    my $tmp = <STDIN>;
+    print "Enter path + fasta file [REQUIRED]: ";
+    my $fasta = <STDIN>;
+    print "Enter path to GATK Bundle [REQUIRED]: ";
+    my $bundle = <STDIN>;
+    print "Enter path to UGP background files [REQUIRED]: ";
+    my $backgrounds = <STDIN>;
+    print "Enter path to BWA directory [REQUIRED]: ";
+    my $bwa = <STDIN>;
+    print "Enter path to SamTools directory [REQUIRED]: ";
+    my $samtools = <STDIN>;
+    print "Enter path to samblaster directory [REQUIRED]: ";
+    my $samblaster = <STDIN>;
+    print "Enter path to sambamba directory [REQUIRED]: ";
+    my $sambamba = <STDIN>;
+    print "Enter path to GATK directory [REQUIRED]: ";
+    my $gatk = <STDIN>;
+    print "Enter path to FastQC directory [REQUIRED]: ";
+    my $fastqc = <STDIN>;
+    print "\nWorking....\n";
 
-	chomp(
-	    $tmp,    $fasta,    $bundle, $backgrounds, $bwa,
-	    $picard, $samtools, $samblaster, $sambamba, $gatk, $fastqc
-	);
+    chomp(
+        $tmp,    $fasta,    $bundle, $backgrounds, $bwa,
+        $samtools, $samblaster, $sambamba, $gatk, $fastqc
+    );
 
-	# set defaults and clean up.
-	my $host = `hostname`;
-	chomp($host);
-	my $host_tmp = $host . '.cfg';
-	$tmp           ||= '/tmp';
-	my $config     ||= '../data/capture.cfg';
-	my $new_config ||= $host_tmp;
+    # set defaults and clean up.
+    my $host = `hostname`;
+    chomp($host);
+    my $host_tmp = $host . '.cfg';
+    $tmp           ||= '/tmp';
+    my $config     ||= '../data/capture.cfg';
+    my $new_config ||= $host_tmp;
 
-	croak "fasta entered does not appear to be a file\n" unless ( -f $fasta );
-	unless ( -d $bwa and -e $picard and -d $samtools and -d $samblaster and -d $sambamba and -d $gatk and -d $fastqc ) {
-	    croak "Software paths enter are not directories\n";
-	}
-	$bwa =~ s/\/$//g;
-	$picard =~ s/\/$//g;
-	$samtools =~ s/\/$//g;
-	$samblaster =~ s/\/$//g;
-	$sambamba =~ s/\/$//g;
-	$gatk =~ s/\/$//g;
-	$fastqc =~ s/\/$//g;
-	$bundle =~ s/\/$//g;
-	croak "GATK bundle path not found\n"    unless ( -d $bundle );
-	croak "UGP background path not found\n" unless ( -d $backgrounds );
+    croak "fasta entered does not appear to be a file\n" unless ( -f $fasta );
+    unless ( -d $bwa and -d $samtools and -d $samblaster and -d $sambamba and -d $gatk and -d $fastqc ) {
+        croak "Software paths enter are not directories\n";
+    }
+    $bwa =~ s/\/$//g;
+    $samtools =~ s/\/$//g;
+    $samblaster =~ s/\/$//g;
+    $sambamba =~ s/\/$//g;
+    $gatk =~ s/\/$//g;
+    $fastqc =~ s/\/$//g;
+    $bundle =~ s/\/$//g;
+    croak "GATK bundle path not found\n"    unless ( -d $bundle );
+    croak "UGP background path not found\n" unless ( -d $backgrounds );
 
-	# add version infomation to config file
-	my $bwa_v      	 = bwa_version($bwa);
-	my $picard_v     = picard_version($picard);
-	my $samtools_v   = samtools_version($samtools);
-	my $samblaster_v = samblaster_version($samblaster);
-	my $sambamba_v   = sambamba_version($sambamba);
-	my $gatk_v       = gatk_version($gatk);
-	my $fastqc_v     = fastqc_version($fastqc);
-	chomp( $bwa_v, $picard_v, $samtools_v, $samblaster, $sambamba, $gatk_v, $fastqc_v );
+    # add version infomation to config file
+    my $bwa_v      	 = bwa_version($bwa);
+    my $samtools_v   = samtools_version($samtools);
+    my $samblaster_v = samblaster_version($samblaster);
+    my $sambamba_v   = sambamba_version($sambamba);
+    my $gatk_v       = gatk_version($gatk);
+    my $fastqc_v     = fastqc_version($fastqc);
+    chomp( $bwa_v, $samtools_v, $samblaster, $sambamba, $gatk_v, $fastqc_v );
 
-	#### Build the sections of the config file ####
+    #### Build the sections of the config file ####
 
-	# read in template config file
-	read_config $config => my %config;
+    # read in template config file
+    read_config $config => my %config;
 
-	# add fasta
-	$config{main}{fasta} = $fasta;
+    # add fasta
+    $config{main}{fasta} = $fasta;
 
-	# add version and paths
-	$config{main}{bwa_version}      = $bwa_v;
-	$config{main}{picard_version}   = $picard_v;
-	$config{main}{samtools_version} = $samtools_v;
-	$config{main}{samblaster_version} = $samblaster_v;
-	$config{main}{sambamba_version} = $sambamba_v;
-	$config{main}{gatk_version}     = $gatk_v;
-	$config{main}{fastqc_version}   = $fastqc_v;
+    # add version and paths
+    $config{main}{bwa_version}      = $bwa_v;
+    $config{main}{samtools_version} = $samtools_v;
+    $config{main}{samblaster_version} = $samblaster_v;
+    $config{main}{sambamba_version} = $sambamba_v;
+    $config{main}{gatk_version}     = $gatk_v;
+    $config{main}{fastqc_version}   = $fastqc_v;
 
-	$config{software}{BWA}      = $bwa;
-	$config{software}{Picard}   = $picard;
-	$config{software}{SamTools} = $samtools;
-	$config{software}{Samblaster} = $samblaster;
-	$config{software}{Sambamba} = $sambamba;
-	$config{software}{GATK}     = $gatk;
-	$config{software}{FastQC}   = $fastqc;
+    $config{software}{BWA}      = $bwa;
+    $config{software}{SamTools} = $samtools;
+    $config{software}{Samblaster} = $samblaster;
+    $config{software}{Sambamba} = $sambamba;
+    $config{software}{GATK}     = $gatk;
+    $config{software}{FastQC}   = $fastqc;
 
-	# add knowns
-	$config{main}{known_indels} = [
-	    "$bundle/Mills_and_1000G_gold_standard.indels.b37.vcf",
-	    "$bundle/1000G_phase1.indels.b37.vcf"
-	];
-	$config{main}{known_dbsnp} = "$bundle/dbsnp_137.b37.vcf";
+    # add knowns
+    $config{main}{known_indels} = [
+    "$bundle/Mills_and_1000G_gold_standard.indels.b37.vcf",
+    "$bundle/1000G_phase1.indels.b37.vcf"
+    ];
+    $config{main}{known_dbsnp} = "$bundle/dbsnp_137.b37.vcf";
 
-	$config{main}{resource_SNP} = [
-		"hapmap,known=false,training=true,truth=true,prior=15.0 $bundle/hapmap_3.3.b37.vcf",
-		"omni,known=false,training=true,truth=true,prior=12.0 $bundle/1000G_omni2.5.b37.vcf",
-		"1000G,known=false,training=true,truth=false,prior=10.0 $bundle/1000G_phase1.snps.high_confidence.b37.vcf",
-	];
+    $config{main}{resource_SNP} = [
+    "hapmap,known=false,training=true,truth=true,prior=15.0 $bundle/hapmap_3.3.b37.vcf",
+    "omni,known=false,training=true,truth=true,prior=12.0 $bundle/1000G_omni2.5.b37.vcf",
+    "1000G,known=false,training=true,truth=false,prior=10.0 $bundle/1000G_phase1.snps.high_confidence.b37.vcf",
+    ];
 
-	$config{main}{resource_INDEL} = [
-		"mills,known=false,training=true,truth=true,prior=12.0 $bundle/Mills_and_1000G_gold_standard.indels.b37.vcf",
-		"1000G,known=false,training=true,truth=true,prior=10.0 $bundle/1000G_phase1.indels.b37.vcf"
-	];
+    $config{main}{resource_INDEL} = [
+    "mills,known=false,training=true,truth=true,prior=12.0 $bundle/Mills_and_1000G_gold_standard.indels.b37.vcf",
+    "1000G,known=false,training=true,truth=true,prior=10.0 $bundle/1000G_phase1.indels.b37.vcf"
+    ];
 
-	# add backgrounds
-	$config{main}{backgrounds} = $backgrounds;
+    # add backgrounds
+    $config{main}{backgrounds} = $backgrounds;
 
-	# add tmp
-	$config{main}{tmp} = $tmp;
+    # add tmp
+    $config{main}{tmp} = $tmp;
 
-	# write file
-	write_config %config, $new_config;
+    # write file
+    write_config %config, $new_config;
 
-	print "\nFinished\n";
-	print
-	"Please run project_config for you individual project with the option --config 'hostname.cfg'.\n";
+    print "\nFinished\n";
+    print
+    "Please run project_config for you individual project with the option --config $host\.cfg\n";
 }
 
 ##--------------------------------------------------------
@@ -160,115 +154,96 @@ sub build_machine_config {
 ##--------------------------------------------------------
 
 sub bwa_version {
-	my $bwa_p = shift;
-	my $cmd   = $bwa_p . '/bwa';
+    my $bwa_p = shift;
+    my $cmd   = $bwa_p . '/bwa';
 
-	my $in = '';
-	my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
-	my $version;
-	while (<PH>) {
-		next unless ( $_ =~ /^Version/ );
-		my ( $name, $ver ) = split ":", $_;
-		$ver =~ s/^\s+$//g;
-		$version = $ver;
-	}
-	waitpid( $pid, 0 );
-	return $version;
-}
-
-##--------------------------------------------------------
-
-sub picard_version {
-	my $picard_p = shift;
-	my $cmd      = 'java -jar ' . $picard_p . ' CollectMultipleMetrics';
-
-	my $in = '';
-	my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
-	my $version;
-	while (<PH>) {
-		next unless ( $_ =~ /^Version/ );
-		my ( $name, $ver ) = split ":", $_;
-		$ver =~ s/^\s+$//g;
-		$version = $ver;
-	}
-	waitpid( $pid, 0 );
-	return $version;
+    my $in = '';
+    my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
+    my $version;
+    while (<PH>) {
+        next unless ( $_ =~ /^Version/ );
+        my ( $name, $ver ) = split ":", $_;
+        $ver =~ s/^\s+$//g;
+        $version = $ver;
+    }
+    waitpid( $pid, 0 );
+    return $version;
 }
 
 ##--------------------------------------------------------
 
 sub samtools_version {
-	my $samtools_p = shift;
-	my $cmd        = $samtools_p . '/samtools';
+    my $samtools_p = shift;
+    my $cmd        = $samtools_p . '/samtools';
 
-	my $in = '';
-	my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
-	my $version;
-	while (<PH>) {
-		next unless ( $_ =~ /^Version/ );
-		my ( $name, $ver ) = split ":", $_;
-		$ver =~ s/^\s+$//g;
-		$version = $ver;
-	}
-	waitpid( $pid, 0 );
-	return $version;
+    my $in = '';
+    my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
+    my $version;
+    while (<PH>) {
+        next unless ( $_ =~ /^Version/ );
+        my ( $name, $ver ) = split ":", $_;
+        $ver =~ s/^\s+$//g;
+        $version = $ver;
+    }
+    waitpid( $pid, 0 );
+    return $version;
 }
 
 ##--------------------------------------------------------
 
 sub samblaster_version {
-	my $samblaster_p = shift;
-	my $cmd = $samblaster_p . '/samblaster -version';
+    my $samblaster_p = shift;
+    my $cmd = $samblaster_p . '/samblaster -version';
 
-	my $in = '';
-	my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
-	my $version;
-	while (<PH>) {
-		next unless ( $_ =~ /Version/ );
-		my ( $name, $ver ) = split ":", $_;
-		$ver =~ s/^\s+$//g;
-		$version = $ver;
-	}
-	waitpid( $pid, 0 );
-	return $version;
+    my $in = '';
+    my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
+    my $version;
+    while (<PH>) {
+        next unless ( $_ =~ /Version/ );
+        my ( $name, $ver ) = split ":", $_;
+        $ver =~ s/^\s+$//g;
+        $version = $ver;
+    }
+    waitpid( $pid, 0 );
+    return $version;
 }
 
 ##--------------------------------------------------------
 
 sub sambamba_version {
-	my $sambamba_p = shift;
-	my $cmd = $sambamba_p . '/sambamba';
+    my $sambamba_p = shift;
+    my $cmd = $sambamba_p . '/sambamba';
 
-	my $in = '';
-	my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
-	my $version;
-	while (<PH>) {
-		next unless ( $_ =~ /^sambamba/ );
-		my ( $name, $ver ) = split /\s+/, $_;
-		$ver =~ s/^\s+$//g;
-		$version = $ver;
-	}
-	waitpid( $pid, 0 );
-	return $version;
+    my $in = '';
+    my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
+    my $version;
+    while (<PH>) {
+        next unless ( $_ =~ /^sambamba/ );
+        my ( $name, $ver ) = split /\s+/, $_;
+        $ver =~ s/^\s+$//g;
+        $version = $ver;
+    }
+    waitpid( $pid, 0 );
+    return $version;
 }
 
 ##--------------------------------------------------------
 
 sub gatk_version {
-	my $gatk_p  = shift;
-	my $cmd     = 'java -jar ' . $gatk_p . '/GenomeAnalysisTK.jar -version';
-	my $version = `$cmd`;
-	return $version;
+    my $gatk_p  = shift;
+    my $cmd     = 'java -jar ' . $gatk_p . '/GenomeAnalysisTK.jar -version';
+    my $version = `$cmd`;
+    return $version;
 }
 
 ##--------------------------------------------------------
 
 sub fastqc_version {
-	my $fastqc_p = shift;
-	my $cmd      = $fastqc_p . '/fastqc -version';
-	my $version  = `$cmd`;
-	$version =~ s/FastQC //g;
-	return $version;
+    my $fastqc_p = shift;
+    my $cmd      = $fastqc_p . '/fastqc -version';
+    my $version  = `$cmd`;
+    $version =~ s/FastQC //g;
+    return $version;
 }
 
 ##--------------------------------------------------------

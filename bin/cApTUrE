@@ -51,7 +51,7 @@ Additional options:
 
     -sc, --split_combine    If more then 200 GVCF files were created (HaplotypeCaller), 
                             split to run multiple CombineGVCF commands [DEFAULT 100].
-                            ** Smaller number creates more command to run. **
+                            ** Value give will be \"number per command\" **
 
     -jpn, --job_per_node	When useing cluster environment, specifies number of jobs to add to each slurm script.
 
