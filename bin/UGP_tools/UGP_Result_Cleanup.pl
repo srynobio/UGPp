@@ -63,6 +63,15 @@ map { say "mv $_ $dir/VCF" } @capture if $review;
 
 ##----------------------------------------##
 
+say "Collecting gCat files...";
+my @gcat = `find $dir -name \"*gCat*\"`;
+chomp(@gcat);
+
+map { `mv $_ $dir/VCF` } @gcat     if $run;
+map { say "mv $_ $dir/VCF" } @gcat if $review;
+
+##----------------------------------------##
+
 say "Collecting Report files...";
 my @pdf      = `find $dir -name \"*.pdf\"`;
 my @metrics  = `find $dir -name \"*metrics\"`;
@@ -78,6 +87,15 @@ map { say "mv $_ $dir/Reports" } @reports if $review;
 
 ##----------------------------------------##
 
+say "Collecting Fastq files(*gz)...";
+my @fq = `find $dir -name "*.gz"`;
+chomp(@fq);
+
+map { say "mv $_ $dir/Data/Fastq" } @fq if $review;
+map { `mv $_ $dir/Data/Fastq` } @fq if $run;
+
+##----------------------------------------##
+
 say "Collecting intermediate files...";
 my @inters = `find $dir -maxdepth 1 -type f -name \"*\"`;
 chomp(@inters);
@@ -87,22 +105,16 @@ map { say "mv $_ $dir/Intermediate_Files" } @inters if $review;
 
 ##----------------------------------------##
 
-say "Collecting Fastq files(*gz)...";
-my @fq = `find $dir -name "*.gz"`;
-chomp(@fq);
-
-map { `mv $_ $dir/Data/Fastq` } @fq;
-
-##----------------------------------------##
-
-say "Cleaning up..." if $run;
+say "Cleaning up...";
 my @clean = `find $dir -type l`;
 my @list  = `find $dir -name \"*list\"`;
 my @interval  = `find $dir -name \"*intervals\"`;
 chomp (@clean, @list, @interval);
+
 my @tidy = (@clean, @list, @interval);
 
-map { `rm $_` } @clean if $run;
+map { `rm $_` } @tidy if $run;
+map { say "rm $_" } @tidy if $review;
 
 ##----------------------------------------##
 

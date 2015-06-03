@@ -203,7 +203,6 @@ sub LOG {
         print $LOG "\nUsing the following programs:\n";
         print $LOG "\nUGP Pipeline Version: ", $self->VERSION, "\n";
         print $LOG "BWA: " . $self->main->{bwa_version},           "\n";
-        print $LOG "Picard: " . $self->main->{picard_version},     "\n";
         print $LOG "GATK: " . $self->main->{gatk_version},         "\n";
         print $LOG "SamTools: " . $self->main->{samtools_version}, "\n";
         print $LOG "-" x 55, "\n";
@@ -275,10 +274,20 @@ sub file_retrieve {
 
     # first step of pipeline will have no data.
     # if not from commandline
-    unless ($class) {
+    if ( ! $self->{commandline}->{file} and ! $class ) {
         return $self->{start_files};
     }
-    
+
+    # self discovery for first step 
+    # of the pipeline 
+    unless ( $class ) {
+        my $caller = ( caller(1) )[3];
+        #my $method;
+        #( $class, $method ) = split "::", $caller;
+        my @caller = split "::", $caller;
+        $class = $caller[1];
+    }
+
     if ( $self->{commandline}->{file} ) {
         $self->_make_store($class);
         $self->file_from_command('1');

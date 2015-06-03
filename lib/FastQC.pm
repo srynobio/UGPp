@@ -17,15 +17,11 @@ sub fastqc_run {
     my $opts   = $self->tool_options('fastqc_run');
     my $gz     = $self->file_retrieve;
 
-    my $log;
     my @cmds;
     foreach my $file ( @{$gz} ) {
         chomp $file;
         next unless ( $file =~ /gz$/ );
 
-        $self->file_store($file);
-
-        $log++;
         my $cmd = sprintf( "%s/fastqc --threads %s -o %s -f fastq %s",
             $config->{FastQC}, $opts->{threads}, $config->{output}, $file );
         push @cmds, [ $cmd, $file ];

@@ -33,8 +33,6 @@ sub bwa_mem {
 
     my @seq_files;
     foreach my $file ( @{$files} ) {
-
-        #while ( my $file = $self->next ) {
         chomp $file;
         next unless ( $file =~ /(gz$|bz2$|fastq$|fq$)/ );
         push @seq_files, $file;
