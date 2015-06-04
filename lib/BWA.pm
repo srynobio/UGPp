@@ -65,7 +65,7 @@ sub bwa_mem {
 
         my $cmd = sprintf(
             "%s/bwa mem -t %s -R %s %s %s %s 2> bwa_mem_%s.log | %s/samblaster | "
-              . "%s/sambamba view -f bam -l 0 -S /dev/stdin | "
+              . "%s/sambamba view --nthreads 1 -f bam -l 0 -S /dev/stdin | "
               . "%s/sambamba sort -m %sG -o %s /dev/stdin",
             $config->{BWA},              $opts->{t},
             $r_group,                    $config->{fasta},

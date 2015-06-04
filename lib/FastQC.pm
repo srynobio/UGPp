@@ -21,6 +21,7 @@ sub fastqc_run {
     foreach my $file ( @{$gz} ) {
         chomp $file;
         next unless ( $file =~ /gz$/ );
+        $self->file_store($file);
 
         my $cmd = sprintf( "%s/fastqc --threads %s -o %s -f fastq %s",
             $config->{FastQC}, $opts->{threads}, $config->{output}, $file );
