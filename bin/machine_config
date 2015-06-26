@@ -10,15 +10,15 @@ use Getopt::Long;
 my $usage = "
 
 Synopsis:
-    ./machine_config --run  
+./machine_config --run  
 
 Description:
 
 Script used to build a configure file for the machine.
 
 Options:
-    --run, -r	Run the config process
-    --help, -h	This wonderful help message.
+--run, -r	Run the config process
+--help, -h	This wonderful help message.
 
 \n";
 
@@ -56,11 +56,13 @@ sub build_machine_config {
     my $gatk = <STDIN>;
     print "Enter path to FastQC directory [REQUIRED]: ";
     my $fastqc = <STDIN>;
+    print "Enter path to tabix directory [REQUIRED]: ";
+    my $tabix = <STDIN>;
     print "\nWorking....\n";
 
     chomp(
         $tmp,    $fasta,    $bundle, $backgrounds, $bwa,
-        $samtools, $samblaster, $sambamba, $gatk, $fastqc
+        $samtools, $samblaster, $sambamba, $gatk, $fastqc, $tabix
     );
 
     # set defaults and clean up.
@@ -72,7 +74,7 @@ sub build_machine_config {
     my $new_config ||= $host_tmp;
 
     croak "fasta entered does not appear to be a file\n" unless ( -f $fasta );
-    unless ( -d $bwa and -d $samtools and -d $samblaster and -d $sambamba and -d $gatk and -d $fastqc ) {
+    unless ( -d $bwa and -d $samtools and -d $samblaster and -d $sambamba and -d $gatk and -d $fastqc and -d $tabix) {
         croak "Software paths enter are not directories\n";
     }
     $bwa =~ s/\/$//g;
@@ -81,6 +83,7 @@ sub build_machine_config {
     $sambamba =~ s/\/$//g;
     $gatk =~ s/\/$//g;
     $fastqc =~ s/\/$//g;
+    $tabix =~ s/\/$//g;
     $bundle =~ s/\/$//g;
     croak "GATK bundle path not found\n"    unless ( -d $bundle );
     croak "UGP background path not found\n" unless ( -d $backgrounds );
@@ -92,7 +95,8 @@ sub build_machine_config {
     my $sambamba_v   = sambamba_version($sambamba);
     my $gatk_v       = gatk_version($gatk);
     my $fastqc_v     = fastqc_version($fastqc);
-    chomp( $bwa_v, $samtools_v, $samblaster, $sambamba, $gatk_v, $fastqc_v );
+    my $tabix_v      = tabix_version($tabix);
+    chomp( $bwa_v, $samtools_v, $samblaster, $sambamba, $gatk_v, $fastqc_v, $tabix_v );
 
     #### Build the sections of the config file ####
 
@@ -109,6 +113,7 @@ sub build_machine_config {
     $config{main}{sambamba_version} = $sambamba_v;
     $config{main}{gatk_version}     = $gatk_v;
     $config{main}{fastqc_version}   = $fastqc_v;
+    $config{main}{tabix_version}   = $tabix_v;
 
     $config{software}{BWA}      = $bwa;
     $config{software}{SamTools} = $samtools;
@@ -116,6 +121,7 @@ sub build_machine_config {
     $config{software}{Sambamba} = $sambamba;
     $config{software}{GATK}     = $gatk;
     $config{software}{FastQC}   = $fastqc;
+    $config{software}{Tabix} = $tabix;
 
     # add knowns
     $config{main}{known_indels} = [
@@ -202,6 +208,7 @@ sub samblaster_version {
         next unless ( $_ =~ /Version/ );
         my ( $name, $ver ) = split ":", $_;
         $ver =~ s/^\s+$//g;
+        $var =~ s/\n//g;
         $version = $ver;
     }
     waitpid( $pid, 0 );
@@ -243,6 +250,26 @@ sub fastqc_version {
     my $cmd      = $fastqc_p . '/fastqc -version';
     my $version  = `$cmd`;
     $version =~ s/FastQC //g;
+    $version =~ s/\n//g;
+    return $version;
+}
+
+##--------------------------------------------------------
+
+sub tabix_version {
+    my $tabix_p = shift;
+    my $cmd = $tabix_p  . '/tabix'; 
+
+    my $in = '';
+    my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
+    my $version;
+    while (<PH>) {
+        next unless ( $_ =~ /^Version/ );
+        my ( $name, $ver ) = split /:/, $_;
+        $ver =~ s/^\s+$//g;
+        $version = $ver;
+    }
+    waitpid( $pid, 0 );
     return $version;
 }
 

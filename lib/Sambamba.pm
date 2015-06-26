@@ -65,4 +65,35 @@ sub sambamba_merge {
 
 ##-----------------------------------------------------------
 
+sub sambamba_bam_merge {
+    my $self = shift;
+    $self->pull;
+
+    my $config = $self->options;
+    my $opts   = $self->tool_options('sambamba_bam_merge');
+
+    my $polish_bams = $self->file_retrieve('PrintReads');
+
+    my $id_groups;
+    foreach my $bam ( @{$polish_bams} ) {
+        chomp $bam;
+
+        my $frags = $self->file_frags($bam);
+        push @{ $id_groups->{ $frags->{parts}[0] } }, $bam;
+    }
+
+    my @cmds;
+    foreach my $group ( keys %{$id_groups} ) {
+        my $merged_bam = $group . '_sorted_Dedup_merged_realign_recal.bam';
+        my $orig_bams = join( " ", @{ $id_groups->{$group} } );
+
+        my $cmd = sprintf( "%s/sambamba merge %s %s %s -p",
+            $config->{Sambamba}, $opts->{nthreads}, $merged_bam, $orig_bams );
+        push @cmds, $cmd;
+    }
+    $self->bundle( \@cmds );
+}
+
+##-----------------------------------------------------------
+
 1;

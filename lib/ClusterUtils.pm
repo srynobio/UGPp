@@ -114,5 +114,46 @@ EOM
 
 ##-----------------------------------------------------------
 
+sub guest {
+    my ( $self, $commands, $step ) = @_;
+
+    $self->ERROR("Required commands not found")
+      unless ($commands);
+
+    my ( @cmds, @copies );
+    foreach my $ele ( @{$commands} ) {
+        push @cmds, "$ele->[0] &";
+    }
+    my $cmdNode = join( "\n", @cmds );
+
+    my $sbatch = <<"EOM";
+#!/bin/bash
+#SBATCH -t 72:00:00
+#SBATCH -N 1
+#SBATCH -A owner-guest
+#SBATCH -p kingspeak-guest
+#SBATCH -C avey|bedrov|calaf|facelli|frost|gertz|hci|lebohec|lin|mason|molinero|sdss|sigman|steele|strong|tavtigian|varley|wjohnson|zpu
+
+source /uufs/chpc.utah.edu/common/home/u0413537/.bash_profile
+source /uufs/chpc.utah.edu/common/home/u0413537/.bashrc
+
+# clean up before start
+find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
+find /tmp -user u0413537 -exec rm -rf {} \;
+
+$cmdNode
+
+wait
+
+# clean up after finish.
+find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
+find /tmp -user u0413537 -exec rm -rf {} \;
+
+EOM
+    return $sbatch;
+}
+
+##-----------------------------------------------------------
+
 1;
 

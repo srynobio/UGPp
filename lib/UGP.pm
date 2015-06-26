@@ -14,8 +14,8 @@ with qw|
   SamTools
   Sambamba
   GATK
-  QC
   ClusterUtils
+  Tabix
   |;
 
 ##-----------------------------------------------------------
@@ -172,27 +172,25 @@ sub bundle {
     # what type of call
     my $call_type = ref $cmd;
     unless ( $call_type and $call_type ne 'HASH' ) {
-        $self->ERROR( 
+        $self->ERROR(
             "bundled command from $sub command must be an scalar or array reference."
         );
     }
 
     my $id;
-    foreach my $cmd ( @{$cmd} ) {
-
-        #foreach my $cmd ( @{$cmd} ) {
-
-        if ( $cmd->[0] ) {
-            my $log     = "$sub.log-" . ++$id;
-            my $add_log = $cmd->[0] . " 2> $log";
-            $cmd->[0] = $add_log;
+    if ( $call_type eq 'ARRAY' ) {
+        foreach my $cmd ( @{$cmd} ) {
+            if ( $cmd->[0] ) {
+                my $log     = "$sub.log-" . ++$id;
+                my $add_log = $cmd->[0] . " 2> $log";
+                $cmd->[0] = $add_log;
+            }
         }
     }
 
     # place in list and add log file;
     my @cmds;
     if ( ref $cmd eq 'ARRAY' ) {
-        ##if ( ref $cmd eq 'array' ) {
         @cmds = @{$cmd};
     }
     else { @cmds = [$$cmd] }
@@ -211,7 +209,6 @@ sub file_frags {
     $divider //= '_';
 
     my ( $name, $path, $suffix ) = fileparse($file);
-
     my @file_parts = split( $divider, $name );
 
     my $result = {
@@ -236,7 +233,8 @@ sub _server {
 
     # first pass check
     unless (@commands) {
-        $self->ERROR("No commands found, review steps");
+        $self->WARN("No commands found, review steps");
+        return;
     }
 
     # print to log.
@@ -310,7 +308,7 @@ sub _cluster {
         map { $self->LOG( 'cmd', $_ ) } @parts;
 
         # call to create sbatch script.
-        my $batch = $self->$node( \@parts, $sub[0]);
+        my $batch = $self->$node( \@parts, $sub[0] );
 
         print $RUN $batch;
         push @slurm_stack, $tmp;
