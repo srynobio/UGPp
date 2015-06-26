@@ -11,7 +11,7 @@ use Storable qw(dclone);
 
 has VERSION => (
     is      => 'ro',
-    default => sub { '1.3.0' },
+    default => sub { '1.3.1' },
 );
 
 has commandline => (
