@@ -1,6 +1,8 @@
 ## Build.PL
 use Module::Build;
 
+print "External dependencies are not installed\n";
+
 my $build = Module::Build->new(
     module_name    => 'UGP',
     license        => 'perl',
