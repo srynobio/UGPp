@@ -8,19 +8,19 @@
     <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen">
     <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print">
 
-    <title>cApTUrE</title>
+    <title>UGPp</title>
   </head>
 
   <body>
     <header>
       <div class="container">
-        <h1>cApTUrE</h1>
-        <h2>cApTUrE is a lightweight NGS pipeline, created for the  Utah Genome Project (UGP)</h2>
+        <h1>UGPp</h1>
+        <h2>UGPp is a lightweight NGS pipeline, created for the  Utah Genome Project (UGP)</h2>
 
         <section id="downloads">
-          <a href="https://github.com/srynobio/cApTUrE/zipball/master" class="btn">Download as .zip</a>
-          <a href="https://github.com/srynobio/cApTUrE/tarball/master" class="btn">Download as .tar.gz</a>
-          <a href="https://github.com/srynobio/cApTUrE" class="btn btn-github"><span class="icon"></span>View on GitHub</a>
+          <a href="https://github.com/srynobio/UGPp/zipball/master" class="btn">Download as .zip</a>
+          <a href="https://github.com/srynobio/UGPp/tarball/master" class="btn">Download as .tar.gz</a>
+          <a href="https://github.com/srynobio/UGPp" class="btn btn-github"><span class="icon"></span>View on GitHub</a>
         </section>
       </div>
     </header>
@@ -29,7 +29,7 @@
       <section id="main_content">
         <h3>
 
-<strong>cApTUrE - vAriant collecTing UGP pipeline</strong>
+<strong>UGPp - UGP pipeline</strong>
 <br>
 <br>
 
@@ -40,13 +40,13 @@ This document describes version 1.3.0
 
 <strong>SYNOPSIS</strong>
 <br>
-./cApTUrE --config <string> --interval_list <string> --run<br>
-./cApTUrE --config file.cfg --interval_list exon_regions.list --file sorted_bams.list --run<br>
-./cApTUrE --clean<br>
+./UGPp --config <string> --interval_list <string> --run<br>
+./UGPp --config file.cfg --interval_list exon_regions.list --file sorted_bams.list --run<br>
+./UGPp --clean<br>
 <br>
 
 <strong>DESCRIPTION</strong>
-cApTUrE is a NGS pipeline written in Perl, created for the
+UGPp is a NGS pipeline written in Perl, created for the
 <a href="http://weatherby.genetics.utah.edu/UGP/wiki/index.php/Main_Page" target="_blank">Utah Genome Project</a>.
 Version 1.3.0 has been optimized to run on the CHPC cluster environment.
 <br>
@@ -64,7 +64,7 @@ Currently it incorporates the following tools:
 	<li>Tabix</li>
 </ul>
 
-cApTUrE requires a config file given as the first commandline argument.
+UGPp requires a config file given as the first commandline argument.
 GATKs best practices (with some modifications) are followed throughout this pipeline please refer to their site and the <a href="http://weatherby.genetics.utah.edu/UGP/wiki/index.php/Main_Page" target="_blank">UGP wiki</a> for more information.
 <br>
 <br>
@@ -72,7 +72,7 @@ GATKs best practices (with some modifications) are followed throughout this pipe
 <strong>INSTALLATION</strong>
 
 <em>Perl Modules:</em>
-which cApTUrE requires.
+which UGPp requires.
 <ul>
 	<li>Moo</li>
   <li>Parallel::ForkManager</li>
@@ -93,21 +93,21 @@ which cApTUrE requires.
 </ul>
 <strong>CONTENTS</strong>
 
-cApTUrE's file structure:
+UGPp's file structure:
 
-cApTUrE/data:
+UGPp/data:
 <ul>
 	<li><em>exome.analysis.sequence.index</em></li>
 	<li><em>capture.cfg</em> - This is the main template configure file use with machine_config.  This will create a new template based on file location per server/system.</li>
   <li><em>Region_File</em> - Region list files for both WG and Exome.
 </ul>
-cApTUrE/bin:
+UGPp/bin:
 <ul>
-	<li><em>cApTUrE</em> - main script</li>
+	<li><em>UGPp</em> - main script</li>
 	<li><em>machine_config</em> - Interactive script which creates a hostname.cfg config file, which contains all path locations for a given machine.
 	<li><em>project_config</em> - Can use the above generated config file as a template for each dataset to run.
 </ul>
-cApTUrE/bin/UGP_tools:
+UGPp/bin/UGP_tools:
 <ul>
 	<li><em>RegionMaker</em></li> 
 	<li><em>Thousand_genome_recreator.pl</em></li>
@@ -123,9 +123,9 @@ Often many of the values in the config file can be set on a per-machine basis, c
 project_config is used to create a new project based on the master file information.  The script will output a new .cfg file with fastq paths, output directories, worker number, memory usage and ugp_id.
 <br>
 
-<br><em><u>Running cApTUrE</u>:</em><br>
+<br><em><u>Running UGPp</u>:</em><br>
 It is recommend that the unix command <a href="http://www.computerhope.com/unix/screen.htm" target="_blank">screen</a> be used. 
-When cApTUrE runs it will create a number of log, list, error and report file.  One of these will be PROGRESS.  This file will keep track of each step of the order process, and is one that will be used and reviewed often throughout the pipeline; typically if you have failed runs.  Furthermore, a .log-txt file will be generated which will keep track of the times of each command and the command lines used.
+When UGPp runs it will create a number of log, list, error and report file.  One of these will be PROGRESS.  This file will keep track of each step of the order process, and is one that will be used and reviewed often throughout the pipeline; typically if you have failed runs.  Furthermore, a .log-txt file will be generated which will keep track of the times of each command and the command lines used.
 Error tracking is usually done by reviewing error, log, progress and report files.
 <br>
 
