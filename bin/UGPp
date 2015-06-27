@@ -11,17 +11,17 @@ use Carp;
 my $usage = "
 
 Synopsis:
-    ./cApTUrE --config file.cfg --interval_list file.list > command_review.txt 
-    ./cApTUrE --config file.cfg --interval_list file.list --run
-    ./cApTUrE --config file.cfg --file sorted_bams.list --run
-    ./cApTUrE --error_check
-    ./cApTUrE --clean
+    ./UGPp --config file.cfg --interval_list file.list > command_review.txt 
+    ./UGPp --config file.cfg --interval_list file.list --run
+    ./UGPp --config file.cfg --file sorted_bams.list --run
+    ./UGPp --error_check
+    ./UGPp --clean
 
 Description:
 
-    cApTUrE:  vAriant collecTing UGP pipeline version: 1.3.1
+    UGPp: UGP pipeline version: 1.3.1
 
-    cApTUrE is a NGS pipeline written in Perl, created for the
+    UGPp is a NGS pipeline written in Perl, created for the
     Utah Genome Project (UGP) http://weatherby.genetics.utah.edu/UGP/wiki/index.php/Main_Page
 
     Currently it incorporates the following tools:
@@ -31,8 +31,7 @@ Description:
     -Samblaster
     -Sambamba
     -GATK 3.0
-
-    This version of cApTUrE is now updated to work with version 3.0+ of GATK.
+    -Tabix
 
 Required options:
 
@@ -43,17 +42,17 @@ Required options:
 Additional options:
     -e, --engine            Which engine to use: server or cluster. [DEFAULT server].
 
-    -f, --file              Will take file list as input if beginning cApTUrE with previously
-                            collected files.  File must match previous step cApTUrE would have ran.
+    -f, --file              Requires sorted file list as input if beginning UGPp with previously
+                            collected files.  File must match previous step UGPp would have ran.
 
     -r, --run               Will take given command stack and run commands.
-                            When this option off a display of commands will piped to STDOUT.
+                            When this option is off a display of commands will be piped to STDOUT.
 
     -ec, --error_check      Run quick check of log files for run errors.
 
     -sc, --split_combine    If more then 200 GVCF files were created (HaplotypeCaller), 
                             split to run multiple CombineGVCF commands [DEFAULT 100].
-                            ** Value given will be \"number per command\" **
+                            ** Value given will be \"number of files per command\" **
 
     -c, --clean 	        Will clean up all log, data, slurm, index and report files.
 
@@ -85,7 +84,7 @@ if ( $c_opts{clean} ) {
 
 if ( $c_opts{error_check} ) {
     print "checking for errors and exceptions...\n";
-    system("grep --exclude=\"cApTUrE\" -i 'error' *");
+    system("grep --exclude=\"UGPp\" -i 'error' *");
     system("grep -i 'exceptions' *.log-*");
     exit(0);
 }

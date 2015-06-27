@@ -70,7 +70,7 @@ sub build_machine_config {
     chomp($host);
     my $host_tmp = $host . '.cfg';
     $tmp           ||= '/tmp';
-    my $config     ||= '../data/capture.cfg';
+    my $config     ||= '../data/UGPp.cfg';
     my $new_config ||= $host_tmp;
 
     croak "fasta entered does not appear to be a file\n" unless ( -f $fasta );
@@ -208,7 +208,7 @@ sub samblaster_version {
         next unless ( $_ =~ /Version/ );
         my ( $name, $ver ) = split ":", $_;
         $ver =~ s/^\s+$//g;
-        $var =~ s/\n//g;
+        $ver =~ s/\n//g;
         $version = $ver;
     }
     waitpid( $pid, 0 );

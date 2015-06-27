@@ -14,7 +14,7 @@ Synopsis:
 
 Description:
 
-    Will take cApTUrE output directory and organize files into proper collections.
+    Will take UGPp output directory and organize files into proper collections.
 
 
  Required options:
@@ -54,12 +54,12 @@ map { say "mv $_ $dir/Data/BAM" } @bams if $review;
 
 ##----------------------------------------##
 
-say "Collecting cApTUrE files...";
-my @capture = `find $dir -name \"cApTUrE*\"`;
-chomp(@capture);
+say "Collecting UGPp files...";
+my @UGPp = `find $dir -name \"UGPp*\"`;
+chomp(@UGPp);
 
-map { `mv $_ $dir/VCF` } @capture     if $run;
-map { say "mv $_ $dir/VCF" } @capture if $review;
+map { `mv $_ $dir/VCF` } @UGPp     if $run;
+map { say "mv $_ $dir/VCF" } @UGPp if $review;
 
 ##----------------------------------------##
 
@@ -119,3 +119,4 @@ map { say "rm $_" } @tidy if $review;
 ##----------------------------------------##
 
 say "Done!!";
+say "Please review Intermediate_Files directory, then remove to save space";

@@ -192,7 +192,7 @@ sub LOG {
     my ( $self, $type, $message ) = @_;
     $message //= 'Pipeline';
 
-    my $log_file = $self->main->{log} || 'capture-cmds.txt';
+    my $log_file = $self->main->{log} || 'UGPp-cmds.txt';
     my $LOG = IO::File->new( $log_file, 'a+' );
 
     if ( $type eq 'config' ) {

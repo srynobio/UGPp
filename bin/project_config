@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+!/usr/bin/perl
 # project_config
 use warnings;
 use strict;
@@ -21,15 +21,15 @@ Description:
 
 Required options:
 
-    -fd, 	--fastq_dir:   Path to location of fastq files.
-    -u, 	--ugp_id:   	UGP id to add to config file.
+    -fd, 	--fastq_dir:    Path to location of fastq files.
+    -u, 	--ugp_id:       Project id to add to config file.
 
 Additional options:
 
-    -cfg, 	--config:           Configure file you would like to build from [default capture.cfg].
-    -l, 	--log:              Log file name for a given run.  [default to cApTUrE-log.txt]
+    -cfg, 	--config:           Configure file you would like to build from [default UGPp.cfg].
+    -l, 	--log:              Log file name for a given run.  [defaults to ugp_id-log.txt]
     -nc, 	--new_config:       Name of the new config file generated. [default tmp.cfg]
-    -o,     --output_dir:       Path to write output files to.  [default to fastq dir via cApTUrE]
+    -o,     --output_dir:       Path to write output files to.  [default to fastq dir via UGPp]
     -w,     --workers:          Number of CPUs to distribute work across. [default 1]
 \n";
 
@@ -52,7 +52,7 @@ unless ( $fq_dir and $ugp_id );
 croak $usage if ($help);
 
 # set or add default;
-$config   //= '../data/capture.cfg';
+$config   //= '../data/UGPp.cfg';
 $n_config //= 'tmp.cfg';
 
 my $FH = IO::Dir->new($fq_dir) or croak "Fastq directory or file not correct\n";
@@ -64,8 +64,8 @@ foreach my $file ( $FH->read ) {
 }
 $FH->close;
 
-# default config which comes with capture and build config hash.
-$config //= '../data/capture.cfg';
+# default config which comes with UGPp and build config hash.
+$config //= '../data/UGPp.cfg';
 read_config $config => my %config;
 
 ## Build the sections of the config file ##
@@ -82,7 +82,7 @@ $config{main}{output} = $output if $output;
 $config{main}{'log'} = $log if $log;
 
 # some UGP specific additions
-$config{main}{ugp_id} = "cApTUrE_$ugp_id";
+$config{main}{ugp_id} = "UGPp_$ugp_id";
 
 # write file
 write_config %config, $n_config;
