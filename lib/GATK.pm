@@ -572,6 +572,11 @@ sub GenotypeGVCF {
     my $data = $self->file_retrieve('CombineGVCF');
     if ($data) {
         @gcated = grep { /mergeGvcf/ } @{$data};
+
+        # if gCat files given at command line.
+        unless ( @gcated ) {
+            @gcated = grep { /gCat.vcf$/ } @{$data};
+        }
     }
     else {
         $data = $self->file_retrieve('CatVariants');
