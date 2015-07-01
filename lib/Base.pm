@@ -205,6 +205,10 @@ sub LOG {
         print $LOG "BWA: " . $self->main->{bwa_version},           "\n";
         print $LOG "GATK: " . $self->main->{gatk_version},         "\n";
         print $LOG "SamTools: " . $self->main->{samtools_version}, "\n";
+        print $LOG "Samblaster: " . $self->main->{samblaster_version}, "\n";
+        print $LOG "Sambamba: " . $self->main->{sambamba_version}, "\n";
+        print $LOG "FastQC: " . $self->main->{fastqc_version}, "\n";
+        print $LOG "Tabix: " . $self->main->{tabix_version}, "\n";
         print $LOG "-" x 55, "\n";
     }
     elsif ( $type eq 'start' ) {
