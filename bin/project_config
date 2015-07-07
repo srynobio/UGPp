@@ -87,5 +87,6 @@ $config{main}{ugp_id} = "UGPp_$ugp_id";
 # write file
 write_config %config, $n_config;
 
-print "Software options setting not set.\n";
+print "Done!\n";
+print "Please review software settings.\n";
 

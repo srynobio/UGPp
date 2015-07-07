@@ -119,4 +119,5 @@ map { say "rm $_" } @tidy if $review;
 ##----------------------------------------##
 
 say "Done!!";
+say "Please review then add --run to command line to complete" if $review;
 say "Please review Intermediate_Files directory, then remove to save space";
