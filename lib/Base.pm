@@ -127,7 +127,10 @@ sub _build_data_files {
         push @file_path_list, "$file_info[1]$file_info[0]$file";
     }
 
-    $self->ERROR("Required files not found in $data_path")
+    # July 10th 2015 
+    # test changing this from error to warning.
+    #$self->ERROR("Required files not found in $data_path")
+    $self->WARN("[WARN] No data file found in given data directory: $data_path")
       unless (@file_path_list);
     my @sorted_files = sort @file_path_list;
 

@@ -39,8 +39,12 @@ $dir =~ s/\/$//;
 say "Moving to $dir to create directory structure...";
 chdir $dir;
 make_path(
-    'Intermediate_Files', 'Reports',    'VCF', 'VCF_QC',
-    'Data/BAM',           'Data/Fastq', 'Data/Trimming',
+    'Intermediate_Files', 'Reports',
+    'Reports/fastqc',     'Reports/stats',
+    'Reports/flagstat',   'VCF',
+    'VCF/GVCFs',          'VCF/Complete',
+    'VCF_QC',             'Data/PolishedBAMs',
+    'Data/Fastq',
 ) if $run;
 
 ##----------------------------------------##
@@ -49,39 +53,51 @@ say "Collecting BAM files...";
 my @bams = `find $dir -name \"*_recal.ba*\"`;
 chomp(@bams);
 
-map { `mv $_ $dir/Data/BAM` } @bams     if $run;
-map { say "mv $_ $dir/Data/BAM" } @bams if $review;
+map { `mv $_ $dir/Data/PolishedBAMs` } @bams     if $run;
+map { say "mv $_ $dir/Data/PolishedBAMs" } @bams if $review;
 
 ##----------------------------------------##
 
-say "Collecting UGPp files...";
+say "Collecting final variant files...";
 my @UGPp = `find $dir -name \"UGPp*\"`;
-chomp(@UGPp);
+chomp( @UGPp );
 
-map { `mv $_ $dir/VCF` } @UGPp     if $run;
-map { say "mv $_ $dir/VCF" } @UGPp if $review;
+map { `mv $_ $dir/VCF/Complete` } @UGPp     if $run;
+map { say "mv $_ $dir/VCF/Complete" } @UGPp if $review;
 
 ##----------------------------------------##
 
-say "Collecting gCat files...";
+say "Collecting gCat (gvcfs) files...";
 my @gcat = `find $dir -name \"*gCat*\"`;
 chomp(@gcat);
 
-map { `mv $_ $dir/VCF` } @gcat     if $run;
-map { say "mv $_ $dir/VCF" } @gcat if $review;
+map { `mv $_ $dir/VCF/GVCFs` } @gcat     if $run;
+map { say "mv $_ $dir/VCF/GVCFs" } @gcat if $review;
 
 ##----------------------------------------##
 
 say "Collecting Report files...";
 my @pdf      = `find $dir -name \"*.pdf\"`;
-my @metrics  = `find $dir -name \"*metrics\"`;
 my @flagstat = `find $dir -name \"*.flagstat\"`;
 my @r        = `find $dir -name \"*.R\"`;
-my @fastqc   = `find $dir -name \"*fastqc*\"`;
+my @fastqc   = `find $dir -type f -name \"*fastqc*\"`;
 my @stats    = `find $dir -name \"*.stats\"`;
-chomp( @pdf, @metrics, @flagstat, @r, @fastqc, @stats );
+chomp( @pdf, @flagstat, @r, @fastqc, @stats );
 
-my @reports = ( @pdf, @metrics, @flagstat, @r, @fastqc, @stats );
+# move fastqc
+map { `mv $_ $dir/Reports/fastqc` } @fastqc     if $run;
+map { say "mv $_ $dir/Reports/fastqc" } @fastqc if $review;
+
+# move stats files.
+map { `mv $_ $dir/Reports/stats` } @stats     if $run;
+map { say "mv $_ $dir/Reports/stats" } @stats if $review;
+
+# move flagstat files.
+map { `mv $_ $dir/Reports/flagstat` } @flagstat     if $run;
+map { say "mv $_ $dir/Reports/flagstat" } @flagstat if $review;
+
+# keep the rest higher level.
+my @reports = ( @pdf, @r );
 map { `mv $_ $dir/Reports` } @reports     if $run;
 map { say "mv $_ $dir/Reports" } @reports if $review;
 
@@ -92,7 +108,7 @@ my @fq = `find $dir -name "*.gz"`;
 chomp(@fq);
 
 map { say "mv $_ $dir/Data/Fastq" } @fq if $review;
-map { `mv $_ $dir/Data/Fastq` } @fq if $run;
+map { `mv $_ $dir/Data/Fastq` } @fq     if $run;
 
 ##----------------------------------------##
 
@@ -106,14 +122,14 @@ map { say "mv $_ $dir/Intermediate_Files" } @inters if $review;
 ##----------------------------------------##
 
 say "Cleaning up...";
-my @clean = `find $dir -type l`;
-my @list  = `find $dir -name \"*list\"`;
-my @interval  = `find $dir -name \"*intervals\"`;
-chomp (@clean, @list, @interval);
+my @clean    = `find $dir -type l`;
+my @list     = `find $dir -name \"*list\"`;
+my @interval = `find $dir -name \"*intervals\"`;
+chomp( @clean, @list, @interval );
 
-my @tidy = (@clean, @list, @interval);
+my @tidy = ( @clean, @list, @interval );
 
-map { `rm $_` } @tidy if $run;
+map { `rm $_` } @tidy     if $run;
 map { say "rm $_" } @tidy if $review;
 
 ##----------------------------------------##
