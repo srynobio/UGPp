@@ -104,7 +104,7 @@ while ( my ( $k, $v ) = each %bams ) {
         $file =~ s/realign_$_\_/realign_chr$_\_/;
 
         # push file with path.
-        push @chrOrder, "$bams$file";
+        push @chrOrder, "$bams$file" if $file;
     }
 
     # use the first file to make output.

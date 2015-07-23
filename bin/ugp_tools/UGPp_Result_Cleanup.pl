@@ -43,7 +43,7 @@ make_path(
     'Reports/fastqc',     'Reports/stats',
     'Reports/flagstat',   'VCF',
     'VCF/GVCFs',          'VCF/Complete',
-    'VCF_QC',             'Data/PolishedBAMs',
+    'QC',                 'Data/PolishedBAMs',
     'Data/Fastq',
 ) if $run;
 
@@ -104,7 +104,7 @@ map { say "mv $_ $dir/Reports" } @reports if $review;
 ##----------------------------------------##
 
 say "Collecting Fastq files(*gz)...";
-my @fq = `find $dir -name "*.gz"`;
+my @fq = `find $dir -maxdepth 1 -name "*.gz"`;
 chomp(@fq);
 
 map { say "mv $_ $dir/Data/Fastq" } @fq if $review;
