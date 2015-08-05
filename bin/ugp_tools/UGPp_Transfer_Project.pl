@@ -52,6 +52,10 @@ my %opts;
 GetOptions( \%opts, "id=s", "bam_dir=s", "output_dir=s", "run", "found", "source=s");
 
 # Required and data checks.
+unless ( -d $opts{output_dir} ) { 
+    say "output_dir $opts{output_dir} must be a valid directory.";
+    die $usage;
+}
 unless ( $opts{id} and $opts{bam_dir} and $opts{source} ) {
     say "Required option not given";
     die $usage;

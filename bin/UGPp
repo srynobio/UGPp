@@ -86,6 +86,7 @@ if ( $c_opts{error_check} ) {
     print "checking for errors and exceptions...\n";
     system("grep --exclude=\"UGPp\" -i 'error' *");
     system("grep -i 'exceptions' *.log-*");
+    system("grep -i 'failed' *.log-*");
     exit(0);
 }
 croak "Required options not met\n$usage" unless ( $c_opts{interval_list} and $c_opts{config} );
