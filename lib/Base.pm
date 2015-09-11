@@ -64,7 +64,6 @@ has workers => (
     default => sub {
         my $self = shift;
         my $workers = $self->main->{workers} || '1';
-        return $workers if 'auto';
         return $workers + 1;
     },
 );
@@ -127,9 +126,6 @@ sub _build_data_files {
         push @file_path_list, "$file_info[1]$file_info[0]$file";
     }
 
-    # July 10th 2015 
-    # test changing this from error to warning.
-    #$self->ERROR("Required files not found in $data_path")
     $self->WARN("[WARN] No data file found in given data directory: $data_path")
       unless (@file_path_list);
     my @sorted_files = sort @file_path_list;
@@ -205,21 +201,23 @@ sub LOG {
         print $LOG "\nRan on ", $self->timestamp;
         print $LOG "\nUsing the following programs:\n";
         print $LOG "\nUGP Pipeline Version: ", $self->VERSION, "\n";
-        print $LOG "BWA: " . $self->main->{bwa_version},           "\n";
-        print $LOG "GATK: " . $self->main->{gatk_version},         "\n";
-        print $LOG "SamTools: " . $self->main->{samtools_version}, "\n";
+        print $LOG "BWA: " . $self->main->{bwa_version},               "\n";
+        print $LOG "GATK: " . $self->main->{gatk_version},             "\n";
+        print $LOG "SamTools: " . $self->main->{samtools_version},     "\n";
         print $LOG "Samblaster: " . $self->main->{samblaster_version}, "\n";
-        print $LOG "Sambamba: " . $self->main->{sambamba_version}, "\n";
-        print $LOG "FastQC: " . $self->main->{fastqc_version}, "\n";
-        print $LOG "Tabix: " . $self->main->{tabix_version}, "\n";
+        print $LOG "Sambamba: " . $self->main->{sambamba_version},     "\n";
+        print $LOG "FastQC: " . $self->main->{fastqc_version},         "\n";
+        print $LOG "Tabix: " . $self->main->{tabix_version},           "\n";
         print $LOG "-" x 55, "\n";
     }
     elsif ( $type eq 'start' ) {
         print $LOG "Started process $message at ", $self->timestamp, "\n";
     }
     elsif ( $type eq 'cmd' ) {
-        print $LOG "command started at ", $self->timestamp, " ==> @$message\n" if $self->engine eq 'cluster';
-        print $LOG "command started at ", $self->timestamp, " ==> $message\n" if $self->engine eq 'server';
+        print $LOG "command started at ", $self->timestamp, " ==> @$message\n"
+          if $self->engine eq 'cluster';
+        print $LOG "command started at ", $self->timestamp, " ==> $message\n"
+          if $self->engine eq 'server';
     }
     elsif ( $type eq 'finish' ) {
         print $LOG "Process finished $message at ", $self->timestamp, "\n";
@@ -239,26 +237,6 @@ sub LOG {
 
 #-----------------------------------------------------------
 
-#TODO
-sub QC_report {
-    my ( $self, $message ) = @_;
-    my $caller = ( caller(1) )[3];
-
-    my $QC = IO::File->new( 'QC-report.txt', 'a+' );
-
-    $self->ERROR("QC_report message must be arrayref\n")
-      if ( ref $message ne 'ARRAY' );
-
-    print $QC "# ==== Quality Info from $caller ====#\n";
-    map { print $QC $_, "\n" } @$message;
-    print $QC "-" x 55, "\n";
-
-    $QC->close;
-    return;
-}
-
-#-----------------------------------------------------------
-
 sub file_store {
     my ( $self, $file, $override ) = @_;
 
@@ -270,7 +248,6 @@ sub file_store {
     $method = $override if $override;
 
     push @{ $self->{file_store}{$method} }, $file;
-    ##unless $file ~~ [ values %stored ];
     return;
 }
 
@@ -281,16 +258,14 @@ sub file_retrieve {
 
     # first step of pipeline will have no data.
     # if not from commandline
-    if ( ! $self->{commandline}->{file} and ! $class ) {
+    if ( !$self->{commandline}->{file} and !$class ) {
         return $self->{start_files};
     }
 
-    # self discovery for first step 
-    # of the pipeline 
-    unless ( $class ) {
+    # self discovery for first step
+    # of the pipeline
+    unless ($class) {
         my $caller = ( caller(1) )[3];
-        #my $method;
-        #( $class, $method ) = split "::", $caller;
         my @caller = split "::", $caller;
         $class = $caller[1];
     }

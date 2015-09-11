@@ -531,36 +531,6 @@ sub CombineGVCF {
 
 ##-----------------------------------------------------------
 
-#sub CombineGVCF_Merge {
-#    my $self = shift;
-#    $self->pull;
-#
-#    my $config = $self->options;
-#    my $opts   = $self->tool_options('CombineGVCF_Merge');
-#
-#    my $merged = $self->file_retrieve('CombineGVCF');
-#    unless ($merged) { return }
-#
-#    my $variants = join( " --variant ", @{$merged} );
-#
-#    # Single merged files dont need a master merge
-#    if ( $variants =~ /_final_mergeGvcf.vcf/ ) { return }
-#
-#    my $output = $self->output . $config->{ugp_id} . '_final_mergeGvcf.vcf';
-#    $self->file_store($output);
-#
-#    my $cmd = sprintf(
-#        "java -jar -Xmx%s -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
-#          . " -T CombineGVCFs -R %s "
-#          . "--disable_auto_index_creation_and_locking_when_reading_rods "
-#          . "--variant %s -o %s",
-#        $opts->{xmx}, $opts->{gc_threads}, $config->{GATK}, $config->{fasta},
-#        $variants, $output );
-#    $self->bundle( \$cmd );
-#}
-
-##-----------------------------------------------------------
-
 sub GenotypeGVCF {
     my $self = shift;
     $self->pull;

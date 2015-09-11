@@ -9,6 +9,7 @@ use IO::File;
 extends 'Base';
 
 with qw|
+  Bam2Fastq
   BWA
   FastQC
   SamTools

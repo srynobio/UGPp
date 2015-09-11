@@ -8,7 +8,7 @@ use UGP;
 use Getopt::Long;
 use Carp;
 
-my $usage = "
+my $usage = << "EOU";
 
 Synopsis:
     ./UGPp --config file.cfg --interval_list file.list > command_review.txt 
@@ -27,7 +27,7 @@ Description:
     Currently it incorporates the following tools:
     -FastQC
     -BWA
-    -SamTools
+    -SamTools > 1.2
     -Samblaster
     -Sambamba
     -GATK 3.0
@@ -35,34 +35,34 @@ Description:
 
 Required options:
 
-    -cfg, --config          UGP configuration file.
+    --config, -cfg          UGP configuration file.
 
-    -il, --interval_list    Region list file for GATK variant calling. [Example: 1:10929-11532]
+    --interval_list, -il    Region list file for GATK variant calling. [Example: 1:10929-11532]
 
 Additional options:
-    -e, --engine            Which engine to use: server or cluster. [DEFAULT server].
+    --engine, -e            Which engine to use: server or cluster. [DEFAULT server].
 
-    -f, --file              Requires sorted file list as input if beginning UGPp with previously
+    --file, -f              Requires sorted file list as input if beginning UGPp with previously
                             collected files.  File must match previous step UGPp would have ran.
 
-    -r, --run               Will take given command stack and run commands.
+    --run, -r               Will take given command stack and run commands.
                             When this option is off a display of commands will be piped to STDOUT.
 
-    -ec, --error_check      Run quick check of log files for run errors.
+    --error_check, -ec      Run quick check of log files for run errors.
 
-    -sc, --split_combine    If more then 200 GVCF files were created (HaplotypeCaller), 
+    --split_combine, -sc    If more then 200 GVCF files were created (HaplotypeCaller), 
                             split to run multiple CombineGVCF commands [DEFAULT 100].
                             ** Value given will be \"number of files per command\" **
 
-    -c, --clean 	        Will clean up all log, data, slurm, index and report files.
+    --clean, -c             Will clean up all log, data, slurm, index and report files.
 
-    -lp, --log_path	        Path to right log file too, helpful with multi-runs per machine.  [DEFAULT current]
+    --log_path, -lp         Path to right log file too, helpful with multi-runs per machine.  [DEFAULT current]
 
-    -ql, --qstat_limit      Limit to the number of qstat jobs to launch at one time. [DEFAULT 10]
+    --qstat_limit, -ql      Limit to the number of qstat jobs to launch at one time. [DEFAULT 10]
 
-    -h, --help	            Print this usage statement.
+    --help, -h              Print this usage statement.
 
-\n";
+EOU
 
 my %c_opts = ();
 GetOptions(

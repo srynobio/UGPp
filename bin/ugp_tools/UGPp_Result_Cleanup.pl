@@ -44,7 +44,7 @@ make_path(
     'Reports/flagstat',   'VCF',
     'VCF/GVCFs',          'VCF/Complete',
     'QC',                 'Data/PolishedBAMs',
-    'Data/Fastq',
+    'Data/Primary_Data',
 ) if $run;
 
 ##----------------------------------------##
@@ -107,8 +107,8 @@ say "Collecting Fastq files(*gz)...";
 my @fq = `find $dir -maxdepth 1 -name "*.gz"`;
 chomp(@fq);
 
-map { say "mv $_ $dir/Data/Fastq" } @fq if $review;
-map { `mv $_ $dir/Data/Fastq` } @fq     if $run;
+map { say "mv $_ $dir/Data/Primary_Data" } @fq if $review;
+map { `mv $_ $dir/Data/Primary_Data` } @fq     if $run;
 
 ##----------------------------------------##
 

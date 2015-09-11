@@ -23,7 +23,7 @@ sub samtools_index {
 
 ##-----------------------------------------------------------
 
-sub idxstats {
+sub stats {
     my $self = shift;
     $self->pull;
 
@@ -35,7 +35,7 @@ sub idxstats {
         ( my $idx_file = $bam ) =~ s/\.bam/\.stats/;
         $self->file_store($idx_file);
 
-        my $cmd = sprintf( "%s/samtools idxstats %s > %s",
+        my $cmd = sprintf( "%s/samtools stats %s > %s",
             $config->{SamTools}, $bam, $idx_file );
         push @cmds, [$cmd];
     }

@@ -64,7 +64,7 @@ sub bwa_mem {
           '\'@RG' . "\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\'";
 
         my $cmd = sprintf(
-            "%s/bwa mem -t %s -R %s %s %s %s 2> bwa_mem_%s.log | %s/samblaster | "
+            "%s/bwa mem -t %s -R %s %s %s %s 2> bwa_mem_%s.log | %s/samblaster --addMateTags | "
               . "%s/sambamba view --nthreads 1 -f bam -l 0 -S /dev/stdin | "
               . "%s/sambamba sort -m %sG -o %s /dev/stdin",
             $config->{BWA},              $opts->{t},

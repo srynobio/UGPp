@@ -12,12 +12,12 @@ my $usage = "
 Synopsis:
 
     # Review run
-    ./UGPp-BAM-Merger.pl -sambamba <sambamba path> -sambamba_threads <int> -cpu <int> -bam_directory <BAM file directory> 
-    ./UGPp-BAM-Merger.pl -sb <sambamba path> -st <int> -c <int> -bd <BAM file directory> 
+    ./UGPp-BAM-Merger.pl -sambamba <sambamba path> -sambamba_threads <int> -workers <int> -bam_directory <BAM file directory> 
+    ./UGPp-BAM-Merger.pl -sb <sambamba path> -st <int> -w <int> -bd <BAM file directory> 
 
     # Run script on BAM files
-    ./UGPp-BAM-Merger.pl -sambamba <sambamba path> -sambamba_threads <int> -cpu <int> -bam_directory <BAM file directory> -remove_old -run
-    ./UGPp-BAM-Merger.pl -sb <sambamba path> -st <int> -c <int> -bd <BAM file directory> -rm -run
+    ./UGPp-BAM-Merger.pl -sambamba <sambamba path> -sambamba_threads <int> -workers <int> -bam_directory <BAM file directory> -remove_old -run
+    ./UGPp-BAM-Merger.pl -sb <sambamba path> -st <int> -w <int> -bd <BAM file directory> -rm -run
 
 Description:
 
@@ -35,17 +35,17 @@ Required options:
 Additional options:
 
     -sambamba_threads, -st  Number of threads for each sambamba_merge job. [default 1]
-    -cpu, -c                Number of cpu to split jobs across. i.e. workers. [default 1]
+    -workers, -w            Number of workers to split jobs across. 
     -remove_old, -rm        Remove old split BAM files upon completion.
     -cluster                Command will build slurm script, BUT not submit them.
     -run                    After review add this command to execute jobs.
 \n";
 
-my ( $bamba, $cpu, $bams, $bamba_threads, $rm, $cluster, $run );
+my ( $bamba, $workers, $bams, $bamba_threads, $rm, $cluster, $run );
 GetOptions(
     "sambamba|sb=s"         => \$bamba,
     "sambamba_threads|st=i" => \$bamba_threads,
-    "cpu|c=i"               => \$cpu,
+    "workers|w=i"           => \$workers,
     "bam_directory|bd=s"    => \$bams,
     "remove_old|rm"         => \$rm,
     "cluster"               => \$cluster,
@@ -53,13 +53,14 @@ GetOptions(
 );
 
 # checks and defaults and end of path.
-die "sambamba path and bam_directory needed.\n$usage" unless ( $bamba and $bams);
-$cpu           //= '1';
+die "sambamba path and bam_directory needed.\n$usage"
+  unless ( $bamba and $bams );
+$workers       //= '1';
 $bamba_threads //= '1';
 unless ( $bams =~ /\/$/ ) {
     $bams =~ s|$|\/|g;
 }
-my $pm = Parallel::ForkManager->new($cpu);
+my $pm = Parallel::ForkManager->new($workers);
 
 # main variables.
 my %bams;
@@ -90,7 +91,7 @@ find(
 );
 
 # step check.
-unless (keys %bams) {
+unless ( keys %bams ) {
     die "[ERROR] could not find BAM file in: $bams\n";
 }
 
@@ -123,7 +124,7 @@ while ( my ( $k, $v ) = each %bams ) {
 
 # run on cluster or standared server.
 my $id;
-if ( $cluster ) {
+if ($cluster) {
     foreach my $cmd (@command_list) {
 
         my $clu_cmd = cluster_config($cmd);
@@ -131,7 +132,7 @@ if ( $cluster ) {
         if ($run) {
             say "[WARN] Building sbatch jobs";
             my $output = 'sambamba_merge_' . $id++ . '.sbatch';
-            open(my $OUT, ">$output");
+            open( my $OUT, ">$output" );
             print $OUT $clu_cmd;
             close $OUT;
         }
@@ -157,15 +158,15 @@ else {
 
 # removing old bams.
 foreach my $junk (@removables) {
-    if ( $cluster ) {
+    if ($cluster) {
         say "[WARN] cluster option turns off BAM removal";
         say "[WARN] But file BAM-removables.txt created for later removal";
-        my $txt = 'BAM-removables_' . int(rand(1000)) . '.txt';
-        open(my $JUNK, ">$txt");
+        my $txt = 'BAM-removables_' . int( rand(1000) ) . '.txt';
+        open( my $JUNK, ">$txt" );
         map { say $JUNK $_ } @removables;
         die;
     }
-    if ($rm and $run) {
+    if ( $rm and $run ) {
         system("rm $junk");
     }
     elsif ($rm) {
@@ -174,14 +175,15 @@ foreach my $junk (@removables) {
 }
 
 # Done!
-say "[WARN] if commands look correct please re-run will the flag -run" unless $run;
+say "[WARN] if commands look correct please re-run will the flag -run"
+  unless $run;
 
 ## ------------------------------- ##
 
 sub bamba_check {
     my $check = `$bamba 2>&1`;
 
-    unless ( $check) {
+    unless ($check) {
         die "[ERROR] sambamba file: $bamba is unfound or not executable.\n";
     }
 }
@@ -212,5 +214,4 @@ EOM
 }
 
 ## ------------------------------- ##
-
 

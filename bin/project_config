@@ -7,7 +7,7 @@ use Carp;
 use Config::Std;
 use IO::Dir;
 
-my $usage = "
+my $usage = <<"EOU";
 
 Synopsis:
 
@@ -21,17 +21,18 @@ Description:
 
 Required options:
 
-    -fd, 	--fastq_dir:    Path to location of fastq files.
-    -u, 	--ugp_id:       Project id to add to config file.
+    --fastq_dir, -fd    Path to location of fastq files.
+    --ugp_id, -u        Project id to add to config file.
 
 Additional options:
 
-    -cfg, 	--config:           Configure file you would like to build from [default UGPp.cfg].
-    -l, 	--log:              Log file name for a given run.  [defaults to ugp_id-log.txt]
-    -nc, 	--new_config:       Name of the new config file generated. [default tmp.cfg]
-    -o,     --output_dir:       Path to write output files to.  [default to fastq dir via UGPp]
-    -w,     --workers:          Number of CPUs to distribute work across. [default 1]
-\n";
+    --config, -cfg      Configure file you would like to build from [default UGPp.cfg].
+    --log, -l           Log file name for a given run.  [defaults to ugp_id-log.txt]
+    --new_config, -nc   Name of the new config file generated. [default tmp.cfg]
+    --output_dir, -o    Path to write output files to.  [default to fastq dir via UGPp]
+    --workers, -w       Number of CPUs to distribute work across. [default 1]
+
+EOU
 
 my (
     $fq_dir, $config, $n_config,
@@ -87,6 +88,6 @@ $config{main}{ugp_id} = "UGPp_$ugp_id";
 # write file
 write_config %config, $n_config;
 
-print "Done!\n";
 print "Please review software settings.\n";
+print "Done!\n";
 

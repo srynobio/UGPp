@@ -12,24 +12,24 @@ my $usage = "
 
 Synopsis:
 
-        RegionMaker -f exon -p 25
+RegionMaker -f exon -p 25
 
 Description:
 
-	RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file
-	to be used with GATK to decrease runtime when using a high number of 
-	background files.
+RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file
+to be used with GATK to decrease runtime when using a high number of 
+background files.
 
 Required options:
 
-	--feature|f  : GFF3 feature to create regions. Must match exactly to GFF feature.
+--feature|f  : GFF3 feature to create regions. Must match exactly to GFF feature.
 
 Additional options:
-        
-	--padding|p  : Additional number of base-pairs to add to the start and end of a region.
 
-	--help|h     : Prints this usage statement.
-				
+--padding|p  : Additional number of base-pairs to add to the start and end of a region.
+
+--help|h     : Prints this usage statement.
+
 \n";
 
 my ( $feature, $pad, $help );
@@ -43,7 +43,7 @@ croak $usage if $help;
 
 print "Downloading BUILD.37.3 GFF3 file\n";
 system(
-"wget ftp://ftp.ncbi.nlm.nih.gov/genomes/H_sapiens/ARCHIVE/BUILD.37.3/GFF/ref_GRCh37*level.gff3.gz"
+    "wget ftp://ftp.ncbi.nlm.nih.gov/genomes/H_sapiens/ARCHIVE/BUILD.37.3/GFF/ref_GRCh37*level.gff3.gz"
 );
 system("mv ref_GRCh37*level.gff3.gz ref_GRCh37.gff3.gz");
 print "working...\n";
@@ -84,9 +84,9 @@ print "Finished\n";
 sub updateGATKGFF {
 
     my $inFH = IO::File->new( 'ref_GRCh37.gff3', 'r' )
-      || croak "please enter ref file\n";
+    || croak "please enter ref file\n";
     my $outFH = IO::File->new( 'Updated.ref_GRCh37.gff3', 'w' )
-      || croak "Can't create Update.ref.model file\n";
+    || croak "Can't create Update.ref.model file\n";
 
     foreach (<$inFH>) {
         chomp $_;
