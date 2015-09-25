@@ -69,9 +69,8 @@ sub sambamba_bam_merge {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
-    my $opts   = $self->tool_options('sambamba_bam_merge');
-
+    my $config      = $self->options;
+    my $opts        = $self->tool_options('sambamba_bam_merge');
     my $polish_bams = $self->file_retrieve('PrintReads');
 
     my $id_groups;
@@ -83,17 +82,27 @@ sub sambamba_bam_merge {
     }
 
     my @cmds;
-    foreach my $group ( keys %{$id_groups} ) {
-        my $merged_bam = $group . '_sorted_Dedup_merged_realign_recal.bam';
-        my $orig_bams = join( " ", @{ $id_groups->{$group} } );
+    while ( my ( $k, $v ) = each %{$id_groups} ) {
 
-        my $cmd = sprintf( "%s/sambamba merge %s %s %s -p",
-            $config->{Sambamba}, $opts->{nthreads}, $merged_bam, $orig_bams );
+        my @ordered_list;
+        for ( 1 .. 22, 'X', 'Y', 'MT' ) {
+            my $chr = 'chr' . $_;
+            my @value = grep { /$chr\_/ } @{$v};
+            push @ordered_list, $value[0];
+        }
+
+        # use the first file to make output.
+        ( my $merged_bam = $ordered_list[0] ) =~ s/_chr1_/_/g;
+        $self->file_store($merged_bam);
+
+        my $cmd = sprintf( "%s/sambamba merge -t %s %s %s",
+            $config->{Sambamba}, $opts->{nthreads}, $merged_bam,
+            join( " ", @ordered_list ) );
         push @cmds, $cmd;
     }
-    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
 
 1;
+

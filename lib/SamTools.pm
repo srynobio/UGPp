@@ -32,11 +32,11 @@ sub stats {
 
     my @cmds;
     foreach my $bam ( @{$sorted} ) {
-        ( my $idx_file = $bam ) =~ s/\.bam/\.stats/;
-        $self->file_store($idx_file);
+        ( my $stat_file = $bam ) =~ s/\.bam/\.stats/;
+        $self->file_store($stat_file);
 
         my $cmd = sprintf( "%s/samtools stats %s > %s",
-            $config->{SamTools}, $bam, $idx_file );
+            $config->{SamTools}, $bam, $stat_file );
         push @cmds, [$cmd];
     }
     $self->bundle( \@cmds );

@@ -1,27 +1,29 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 # machine_config
 use warnings;
 use strict;
+use feature 'say';
+use autodie;
 use Carp;
 use Config::Std;
 use IO::Dir;
 use IPC::Open3;
 use Getopt::Long;
 
-my $usage = "
+my $usage = << "EOU";
 
 Synopsis:
-./machine_config --run  
+    ./machine_config --run  
 
 Description:
 
-Script used to build a configure file for the machine.
+    Script used to build a configure file for the machine.
 
 Options:
---run, -r	Run the config process
---help, -h	This wonderful help message.
+    --run, -r	Run the config process
+    --help, -h	This wonderful help message.
 
-\n";
+EOU
 
 my %c_opts = ();
 GetOptions(
@@ -61,11 +63,13 @@ sub build_machine_config {
     my $fastqc = <STDIN>;
     print "Enter path to tabix directory [REQUIRED]: ";
     my $tabix = <STDIN>;
+    print "Enter path to WHAM bin [REQUIRED]: ";
+    my $wham = <STDIN>;
     print "\nWorking....\n";
 
     chomp(
         $tmp,    $fasta,    $bundle, $backgrounds, $bwa,
-        $samtools, $samblaster, $sambamba, $gatk, $fastqc, $tabix, $bam2fq
+        $samtools, $samblaster, $sambamba, $gatk, $fastqc, $tabix, $bam2fq, $wham
     );
 
     # set defaults and clean up.
@@ -77,7 +81,7 @@ sub build_machine_config {
     my $new_config ||= $host_tmp;
 
     croak "fasta entered does not appear to be a file\n" unless ( -f $fasta );
-    unless ( -d $bwa and -d $samtools and -d $samblaster and -d $sambamba and -d $gatk and -d $fastqc and -d $tabix and -d $bam2fq) {
+    unless ( -d $bwa and -d $samtools and -d $samblaster and -d $sambamba and -d $gatk and -d $fastqc and -d $tabix and -d $bam2fq and -d $wham) {
         croak "Software paths enter are not directories\n";
     }
     $bwa =~ s/\/$//g;
@@ -89,6 +93,7 @@ sub build_machine_config {
     $tabix =~ s/\/$//g;
     $bundle =~ s/\/$//g;
     $bam2fq =~ s/\/$//g;
+    $wham =~ s/\/$//g;
     croak "GATK bundle path not found\n"    unless ( -d $bundle );
     croak "UGP background path not found\n" unless ( -d $backgrounds );
 
@@ -100,7 +105,8 @@ sub build_machine_config {
     my $gatk_v       = gatk_version($gatk);
     my $fastqc_v     = fastqc_version($fastqc);
     my $tabix_v      = tabix_version($tabix);
-    chomp( $bwa_v, $samtools_v, $samblaster, $sambamba, $gatk_v, $fastqc_v, $tabix_v );
+    my $wham_v       = wham_version($wham);
+    chomp( $bwa_v, $samtools_v, $samblaster, $sambamba, $gatk_v, $fastqc_v, $tabix_v, $wham );
 
     #### Build the sections of the config file ####
 
@@ -118,6 +124,7 @@ sub build_machine_config {
     $config{main}{gatk_version}     = $gatk_v;
     $config{main}{fastqc_version}   = $fastqc_v;
     $config{main}{tabix_version}   = $tabix_v;
+    $config{main}{wham_version}   = $wham_v;
 
     $config{software}{BWA}      = $bwa;
     $config{software}{SamTools} = $samtools;
@@ -127,11 +134,12 @@ sub build_machine_config {
     $config{software}{FastQC}   = $fastqc;
     $config{software}{Tabix} = $tabix;
     $config{software}{bam2fastq} = $bam2fq;
+    $config{software}{WHAM} = $wham;
 
     # add knowns
     $config{main}{known_indels} = [
-        "$bundle/Mills_and_1000G_gold_standard.indels.b37.vcf",
-        "$bundle/1000G_phase1.indels.b37.vcf"
+    "$bundle/Mills_and_1000G_gold_standard.indels.b37.vcf",
+    "$bundle/1000G_phase1.indels.b37.vcf"
     ];
     $config{main}{known_dbsnp} = "$bundle/dbsnp_137.b37.vcf";
 
@@ -155,9 +163,8 @@ sub build_machine_config {
     # write file
     write_config %config, $new_config;
 
-    print "\nFinished\n";
-    print
-    "Please run project_config for you individual project with the option --config $host\.cfg\n";
+    say "\nFinished";
+    say "Please run project_config for you individual project with the option --config $host\.cfg\n";
 }
 
 ##--------------------------------------------------------
@@ -280,3 +287,21 @@ sub tabix_version {
 
 ##--------------------------------------------------------
 
+sub wham_version {
+    my $wham_p = shift;
+    my $cmd   = $wham_p . '/WHAM-GRAPHENING';
+
+    my $in = '';
+    my $pid = open3( $in, ">&STDERR", \*PH, "$cmd" );
+    my $version;
+    while (<PH>) {
+        next unless ( $_ =~ /^Version/ );
+        my ( $name, $ver ) = split ":", $_;
+        $ver =~ s/^\s+$//g;
+        $version = $ver;
+    }
+    waitpid( $pid, 0 );
+    return $version;
+}
+
+##--------------------------------------------------------

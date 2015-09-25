@@ -4,6 +4,7 @@ use IPC::System::Simple qw|run|;
 use Config::Std;
 use File::Basename;
 use Parallel::ForkManager;
+use File::Copy;
 use IO::File;
 
 extends 'Base';
@@ -17,6 +18,7 @@ with qw|
   GATK
   ClusterUtils
   Tabix
+  WHAM
   |;
 
 ##-----------------------------------------------------------
@@ -135,6 +137,9 @@ sub UGP_Pipeline {
             $self->_cluster;
         }
     }
+
+    ## sent copy of log file to output directory.
+    copy($self->{log_file}, $self->main->{output} );
     return;
 }
 
