@@ -169,7 +169,7 @@ sub timestamp {
 
 sub WARN {
     my ( $self, $message ) = @_;
-    print STDOUT $message, "\n";
+    print STDOUT "[WARN] $message\n";
     return;
 }
 
@@ -213,6 +213,7 @@ sub LOG {
         print $LOG "Sambamba: " . $self->main->{sambamba_version},     "\n";
         print $LOG "FastQC: " . $self->main->{fastqc_version},         "\n";
         print $LOG "Tabix: " . $self->main->{tabix_version},           "\n";
+        print $LOG "WHAM: " . $self->main->{wham_version},           "\n";
         print $LOG "-" x 55, "\n";
     }
     elsif ( $type eq 'start' ) {

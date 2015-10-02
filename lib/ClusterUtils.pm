@@ -33,7 +33,7 @@ source /uufs/chpc.utah.edu/common/home/u0413537/.bashrc
 
 # clean up before start
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
-find /tmp -user u0413537 -exec rm -rf {} \;
+find /tmp -user u0413537 -exec rm -rf {} \\;
 
 $cmdNode
 
@@ -41,7 +41,7 @@ wait
 
 # clean up after finish.
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
-find /tmp -user u0413537 -exec rm -rf {} \;
+find /tmp -user u0413537 -exec rm -rf {} \\;
 
 EOM
     return $sbatch;
@@ -91,7 +91,7 @@ source /uufs/chpc.utah.edu/common/home/u0413537/.bashrc
 
 # clean up before start
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
-find /tmp -user u0413537 -exec rm -rf {} \;
+find /tmp -user u0413537 -exec rm -rf {} \\;
 
 $cpNode
 
@@ -106,7 +106,7 @@ find /scratch/local/ -user u0413537 -exec mv -n {} $output \\;
 
 # clean up after finish.
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
-find /tmp -user u0413537 -exec rm -rf {} \;
+find /tmp -user u0413537 -exec rm -rf {} \\;
 
 EOM
     return $sbatch;
@@ -139,7 +139,7 @@ source /uufs/chpc.utah.edu/common/home/u0413537/.bashrc
 
 # clean up before start
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
-find /tmp -user u0413537 -exec rm -rf {} \;
+find /tmp -user u0413537 -exec rm -rf {} \\;
 
 $cmdNode
 
@@ -147,7 +147,7 @@ wait
 
 # clean up after finish.
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
-find /tmp -user u0413537 -exec rm -rf {} \;
+find /tmp -user u0413537 -exec rm -rf {} \\;
 
 EOM
     return $sbatch;

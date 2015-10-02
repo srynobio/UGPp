@@ -19,6 +19,7 @@ with qw|
   ClusterUtils
   Tabix
   WHAM
+  Utils
   |;
 
 ##-----------------------------------------------------------
@@ -139,7 +140,7 @@ sub UGP_Pipeline {
     }
 
     ## sent copy of log file to output directory.
-    copy($self->{log_file}, $self->main->{output} );
+    copy($self->{log_file}, $self->main->{output} ) if $self->execute;
     return;
 }
 

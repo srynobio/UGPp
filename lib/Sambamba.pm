@@ -98,8 +98,9 @@ sub sambamba_bam_merge {
         my $cmd = sprintf( "%s/sambamba merge -t %s %s %s",
             $config->{Sambamba}, $opts->{nthreads}, $merged_bam,
             join( " ", @ordered_list ) );
-        push @cmds, $cmd;
+        push @cmds, [$cmd];
     }
+    $self->bundle(\@cmds);
 }
 
 ##-----------------------------------------------------------
