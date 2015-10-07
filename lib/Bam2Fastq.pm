@@ -47,9 +47,8 @@ sub nantomics_bam2fastq {
     my $bams   = $self->file_retrieve;
 
     if ( !$self->execute ) {
-        $self->WARN(
-            "bam2fastq will does not generate review commands.");
-            return;
+        $self->WARN("bam2fastq will does not generate review commands.");
+        return;
     }
 
     my @cmds;
@@ -62,8 +61,8 @@ sub nantomics_bam2fastq {
         my $filename = $file->{name};
         ( my $id, undef ) = split /--/, $filename;
 
-        my $pair1 = $id . '_1.fastq.gz';
-        my $pair2 = $id . '_2.fastq.gz';
+        my $pair1 = $file->{path} . $id . '_1.fastq.gz';
+        my $pair2 = $file->{path} . $id . '_2.fastq.gz';
 
         my $cmd = sprintf(
             "%s/bam2fastq.pl %s %s -fq %s -fq2 %s",
