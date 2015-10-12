@@ -103,30 +103,78 @@ sub wham_merge_indiv {
 
 ##-----------------------------------------------------------
 
-sub wham_genotyping {
-    my $self = shift;
-    $self->pull;
+sub wham_filter {
+	my $self = shift;
+	$self->pull;
 
-    my $config = $self->options;
-    my $opts   = $self->tool_options('wham_genotyping');
-    my $files  = $self->file_retrieve('wham_merge_indiv');
-    my $bam_files  = $self->file_retrieve('sambamba_bam_merge');
+	my $config = $self->options;
+	my $opts   = $self->tool_options('wham_filter');
+	my $files  = $self->file_retrieve('wham_merge_indiv');
 
-    ## collect polished bams.
-    my $bams = join(",", @{$bam_files});
+	open( my $VCF,'<',  @{$files}[0] );
 
-    my $file   = $self->file_frags( $files->[0] );
-    my $output = $file->{path} . $config->{ugp_id} . "_final_WHAM.vcf";
-    $self->file_store($output);
+	my @kept;
+	foreach my $line (<$VCF>) {
+		chomp $line;
 
-    my $threads;
-    ( $opts->{x} ) ? ( $threads = $opts->{x} ) : ( $threads = 1 );
+		my @parts = split /\t/, $line;
+		my @info  = split /;/,  $parts[7];
+	
+		foreach my $pair (@info) {
+			chomp $pair;
+			my ( $id, $value ) = split /=/, $pair;
 
-    my $cmd = sprintf( "%s/WHAM-GRAPHENING -a %s -x %s -b %s -f %s > %s",
-        $config->{WHAM}, $config->{fasta}, $threads, $files->[0], $bams, $output );
+			next unless ( $id eq 'SUPPORT' or $id eq 'SVLEN');
 
-    $self->bundle( \$cmd );
+			if ( $id eq 'SVLEN' ) {
+				unless ( $value <= $opts->{lt_svlen} and $value >= $opts->{gt_svlen}) {
+					undef $line;
+					next;
+				}
+			}
+
+			if ( $id eq 'SUPPORT') {	
+				my ( $left, $right ) = split /,/, $value;
+				unless ( $left >= $opts->{support} and $right >= $opts->{support} ) {
+					undef $line;
+					next;
+				}
+			}
+		}
+			push @kept, $line if $line;
+	}
+	(my $output = @{$files}[0]) =~ s/\.vcf$/\_filtered.vcf/;
+
+	open(my $OUTPUT, '>', $output);
+	map { say $OUTPUT $_ } @kept;
 }
+
+##-----------------------------------------------------------
+
+#sub wham_genotyping {
+#    my $self = shift;
+#    $self->pull;
+#
+#    my $config = $self->options;
+#    my $opts   = $self->tool_options('wham_genotyping');
+#    my $files  = $self->file_retrieve('wham_merge_indiv');
+#    my $bam_files  = $self->file_retrieve('sambamba_bam_merge');
+#
+#    ## collect polished bams.
+#    my $bams = join(",", @{$bam_files});
+#
+#    my $file   = $self->file_frags( $files->[0] );
+#    my $output = $file->{path} . $config->{ugp_id} . "_final_WHAM.vcf";
+#    $self->file_store($output);
+#
+#    my $threads;
+#    ( $opts->{x} ) ? ( $threads = $opts->{x} ) : ( $threads = 1 );
+#
+#    my $cmd = sprintf( "%s/WHAM-GRAPHENING -a %s -x %s -b %s -f %s > %s",
+#        $config->{WHAM}, $config->{fasta}, $threads, $files->[0], $bams, $output );
+#
+#    $self->bundle( \$cmd );
+#}
 
 ##-----------------------------------------------------------
 

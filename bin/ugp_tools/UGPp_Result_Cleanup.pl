@@ -10,28 +10,28 @@ my $usage = "
 
 Synopsis:
 
-    UGP_Result_Cleanup.pl -dir <path> --run
+UGP_Result_Cleanup.pl -dir <path> --run
 
 Description:
 
-    Will take UGPp output directory and organize files into proper collections.
+Will take UGPp output directory and organize files into proper collections.
 
 
- Required options:
+Required options:
 
-    --input_directory, -dir Directory to clean up.
+--input_directory, -dir Directory to clean up.
 
 Additional options:
 
-    --run, -r   Run the clean up steps.  [DEFAULT: view data movement].
-    
+--run, -r   Run the clean up steps.  [DEFAULT: view data movement].
+
 \n";
 
 my ( $dir, $run );
 GetOptions(
-    "input_directory|dir=s" => \$dir,
-    "run|r"                 => \$run,
-);
+		"input_directory|dir=s" => \$dir,
+		"run|r"                 => \$run,
+	  );
 die $usage unless $dir;
 my $review = '1' unless $run;
 $dir =~ s/\/$//;
@@ -39,13 +39,13 @@ $dir =~ s/\/$//;
 say "Moving to $dir to create directory structure...";
 chdir $dir;
 make_path(
-    'Intermediate_Files', 'Reports',
-    'Reports/fastqc',     'Reports/stats',
-    'Reports/flagstat',   'VCF',
-    'VCF/GVCFs',          'VCF/Complete',
-    'QC',                 'Data/PolishedBAMs',
-    'Data/Primary_Data',
-) if $run;
+		'Intermediate_Files', 'Reports',
+		'Reports/fastqc',     'Reports/stats',
+		'Reports/flagstat',   'VCF',
+		'VCF/GVCFs',          'VCF/Complete',
+		'QC',                 'Data/PolishedBAMs',
+		'Data/Primary_Data', 'VCF/WHAM'
+	 ) if $run;
 
 ##----------------------------------------##
 
@@ -109,6 +109,15 @@ chomp(@fq);
 
 map { say "mv $_ $dir/Data/Primary_Data" } @fq if $review;
 map { `mv $_ $dir/Data/Primary_Data` } @fq     if $run;
+
+##----------------------------------------##
+
+say "Collecting WHAM files...";
+my @wham = `find $dir -maxdepth 1 -name "*WHAM*"`;
+chomp(@wham);
+
+map { say "mv $_ $dir/VCF/WHAM" } @wham if $review;
+map { `mv $_ $dir/VCF/WHAM` } @wham if $run;
 
 ##----------------------------------------##
 
