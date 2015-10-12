@@ -1,5 +1,5 @@
-#!/usr/bin/env perl
-# Thousand_genome_all_individuals.pl
+
+usand_genome_all_individuals.pl
 use strict;
 use warnings;
 use feature 'say';
@@ -126,3 +126,4 @@ sub get_dirs_of {
 }
 
 ## ---------------------------------- ##
+
