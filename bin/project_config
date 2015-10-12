@@ -29,8 +29,8 @@ Additional options:
     --config, -cfg      Configure file you would like to build from [default UGPp.cfg].
     --log, -l           Log file name for a given run.  [defaults to ugp_id-log.txt]
     --new_config, -nc   Name of the new config file generated. [default tmp.cfg]
-    --output_dir, -o    Path to write output files to.  [default to fastq dir via UGPp]
-    --workers, -w       Number of CPUs to distribute work across. [default 1]
+    --output_dir, -o    Path to write output files to.  [default fastq_dir]
+    --workers, -w       Number of CPUs to distribute work across. [default 0]
 
 EOU
 

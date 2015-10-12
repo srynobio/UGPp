@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 # machine_config
-use warnings;
+# use warnings;
 use strict;
 use feature 'say';
 use autodie;
@@ -47,7 +47,7 @@ sub build_machine_config {
     my $bundle = <STDIN>;
     print "Enter path to UGP background files [REQUIRED]: ";
     my $backgrounds = <STDIN>;
-    print "Enter path to bam2fastq.pl script [REQUIRED]: ";
+    print "Enter path to bam2fastq.pl script [not REQUIRED]: ";
     my $bam2fq = <STDIN>;
     print "Enter path to BWA directory [REQUIRED]: ";
     my $bwa = <STDIN>;
@@ -69,7 +69,7 @@ sub build_machine_config {
 
     chomp(
         $tmp,    $fasta,    $bundle, $backgrounds, $bwa,
-        $samtools, $samblaster, $sambamba, $gatk, $fastqc, $tabix, $bam2fq, $wham
+        $samtools, $samblaster, $sambamba, $gatk, $fastqc, $tabix, $wham
     );
 
     # set defaults and clean up.
@@ -81,7 +81,7 @@ sub build_machine_config {
     my $new_config ||= $host_tmp;
 
     croak "fasta entered does not appear to be a file\n" unless ( -f $fasta );
-    unless ( -d $bwa and -d $samtools and -d $samblaster and -d $sambamba and -d $gatk and -d $fastqc and -d $tabix and -d $bam2fq and -d $wham) {
+    unless ( -d $bwa and -d $samtools and -d $samblaster and -d $sambamba and -d $gatk and -d $fastqc and -d $tabix and -d $wham) {
         croak "Software paths enter are not directories\n";
     }
     $bwa =~ s/\/$//g;
