@@ -56,6 +56,11 @@ sub bwa_mem {
         my $bam      = $file1->{parts}[0] . "_" . $pair++ . "_sorted_Dedup.bam";
         my $path_bam = $config->{output} . $bam;
 
+        my $dis_bam =
+          $file1->{parts}[0] . "_" . $pair++ . "_sorted_Dedup_discordant.bam";
+        my $split_bam =
+          $file1->{parts}[0] . "_" . $pair++ . "_sorted_Dedup_splitter.bam";
+
         # store the output files.
         $self->file_store($path_bam);
 
@@ -64,15 +69,18 @@ sub bwa_mem {
           '\'@RG' . "\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\'";
 
         my $cmd = sprintf(
-            "%s/bwa mem -t %s -R %s %s %s %s 2> bwa_mem_%s.log | %s/samblaster --addMateTags | "
+            "%s/bwa mem -t %s -R %s %s %s %s 2> bwa_mem_%s.log | "
+              . "%s/samblaster --addMateTags --discordantFile %s --splitterFile %s | "
               . "%s/sambamba view --nthreads 1 -f bam -l 0 -S /dev/stdin | "
               . "%s/sambamba sort -m %sG --tmpdir=%s -o %s /dev/stdin",
             $config->{BWA},              $opts->{t},
             $r_group,                    $config->{fasta},
             $file1->{full},              $file2->{full},
             $id,                         $self->software->{Samblaster},
+            $dis_bam,                    $split_bam,
             $self->software->{Sambamba}, $self->software->{Sambamba},
-            $opts->{memory_limit},       $config->{tmp}, $path_bam
+            $opts->{memory_limit},       $config->{tmp},
+            $path_bam
         );
         push @cmds, [ $cmd, $file1->{full}, $file2->{full} ];
 
