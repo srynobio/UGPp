@@ -57,9 +57,9 @@ sub bwa_mem {
         my $path_bam = $config->{output} . $bam;
 
         my $dis_bam =
-          $file1->{parts}[0] . "_" . $pair++ . "_sorted_Dedup_discordant.bam";
+          $config->{output} . $file1->{parts}[0] . "_" . $pair++ . "_sorted_Dedup_discordant.bam";
         my $split_bam =
-          $file1->{parts}[0] . "_" . $pair++ . "_sorted_Dedup_splitter.bam";
+          $config->{output} . $file1->{parts}[0] . "_" . $pair++ . "_sorted_Dedup_splitter.bam";
 
         # store the output files.
         $self->file_store($path_bam);
