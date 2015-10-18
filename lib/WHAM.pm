@@ -5,8 +5,26 @@ use Moo::Role;
 ##---------------------- ATTRIBUTES -------------------------
 ##-----------------------------------------------------------
 
+has seqid_skip => ( 
+    is => 'rw', 
+    builder => 1, 
+);
+
 ##-----------------------------------------------------------
 ##------------------------ METHODS --------------------------
+##-----------------------------------------------------------
+
+sub _build_seqid_skip {
+    my $self = shift;
+
+    my @record;
+    for (my $data = <DATA>) {
+        push @record, $data;
+    }
+    my $ids = join( ",", @record );
+    $self->seqid_skip($ids);
+}
+
 ##-----------------------------------------------------------
 
 sub wham_graphing {
@@ -37,49 +55,100 @@ sub wham_graphing {
 
 ##-----------------------------------------------------------
 
-sub wham_merge_cat {
+sub wham_filter {
     my $self = shift;
     $self->pull;
 
     my $config = $self->options;
-    my $opts   = $self->tool_options('wham_merge_cat');
+    my $opts   = $self->tool_options('wham_filter');
     my $files  = $self->file_retrieve('wham_graphing');
 
     ## just temp the first item to get info.
     my $parts = $self->file_frags($files->[0]);
 
     my $join_file = join(" ", @{$files});
-    my $output = $parts->{path} . $config->{ugp_id} . "_merged.WHAM.vcf"; 
+    my $output = $parts->{path} . $config->{ugp_id} . "_filtered.WHAM.vcf";
     $self->file_store($output);
 
-    my $cmd = sprintf("cat %s > %s", $join_file, $output);
+    my $cmd = sprintf(
+        "cat %s | %s -filter -o %s", 
+        $join_file, $self->software->{wham_utils}, $output
+    );
     $self->bundle(\$cmd);
 }
 
 ##-----------------------------------------------------------
 
-sub wham_merge_sort {
+sub wham_sort {
     my $self = shift;
     $self->pull;
 
     my $config = $self->options;
-    my $opts   = $self->tool_options('wham_merge_sort');
-    my $files  = $self->file_retrieve('wham_merge_cat');
+    my $opts   = $self->tool_options('wham_sort');
+    my $files  = $self->file_retrieve('wham_filter');
 
-    ## just temp the first item to get info.
-    my $parts = $self->file_frags($files->[0]);
-
-    my $output = $parts->{path} . $config->{ugp_id} . "_merged_sorted.WHAM.vcf";
+    my $input = $files->[0];
+    (my $output = $input) =~ s/_filtered.WHAM.vcf/_filtered_sorted.WHAM.vcf/;
     $self->file_store($output);
 
-    my $cmd =
-      sprintf( "grep -v '^#' %s | sort -T %s -k1,1 -k2,2n > %s", 
-          @{$files}, $self->config->{main}->{tmp}, $output 
-      );
-
-    $self->bundle( \$cmd );
+    my $cmd = sprintf(
+        "%s -sort -i %s -o %s",
+        $self->software->{wham_utils}, $input, $output
+    );
+    $self->bundle(\$cmd);
 }
 
+
+##-----------------------------------------------------------
+=cut
+sub wham_merge_indiv {
+    my $self = shift;
+    $self->pull;
+
+    unless ( $self->execute) {
+        $self->WARN(
+            "Review of wham_merge_indiv command not possible "
+            ."only generated during run."
+        );
+        return;
+    }
+
+    my $config = $self->options;
+    my $opts   = $self->tool_options('wham_merge_indiv');
+    my $files  = $self->file_retrieve('wham_sort');
+
+    ## open to get line count.
+    open( my $FH, '<', $files->[0] );
+    my $count;
+    while ( my $line = <$FH> ) {
+        $count++;
+    }
+    close $FH;
+
+    ## number of files to make
+    my $file_number = int( $count / 200 ) + 1;
+
+    my $frags = $self->file_frags( $files->[0] );
+
+    my @collect;
+    for ( 0 .. $file_number ) {
+        my $new_file =
+          $frags->{path} . 'wham_utils_' . int( rand(1000) ) . '_WHAM.vcf';
+        push @collect, $new_file;
+    }
+
+    my @cmds;
+    for my $output (@collect) {
+        my $cmd = sprintf( "%s/mergeIndvs -f %s -s %s | %s -splitter -o %s",
+            $config->{WHAM}, $files->[0], $opts->{s},
+            $self->software->{wham_utils}, $output
+        );
+        $self->file_store($output);
+        push @cmds, $cmd;
+    }
+    $self->bundle( \@cmds );
+}
+=cut
 ##-----------------------------------------------------------
 
 sub wham_merge_indiv {
@@ -88,95 +157,172 @@ sub wham_merge_indiv {
 
     my $config = $self->options;
     my $opts   = $self->tool_options('wham_merge_indiv');
-    my $files  = $self->file_retrieve('wham_merge_sort');
+    my $files  = $self->file_retrieve('wham_sort');
 
-    ## just temp the first item to get info.
-    my $parts = $self->file_frags( $files->[0] );
+    ( my $output = $files->[0] ) =~ s/_filtered_sorted.WHAM.vcf/_mergeIndv.vcf/;
 
-    my $output = $parts->{path} . $config->{ugp_id} . "_mergeIndvs.WHAM.vcf";
+    my $cmd = sprintf( 
+        "%s/mergeIndvs -f %s -s %s > %s",
+        $config->{WHAM}, $files->[0], $opts->{s}, $output
+    );
     $self->file_store($output);
-
-    my $cmd = sprintf( "%s/mergeIndvs -f %s > %s",
-        $config->{WHAM}, $files->[0], $output );
     $self->bundle( \$cmd );
 }
 
+
 ##-----------------------------------------------------------
 
-sub wham_filter {
-	my $self = shift;
-	$self->pull;
+sub wham_splitter {
+    my $self = shift;
+    $self->pull;
 
-	my $config = $self->options;
-	my $opts   = $self->tool_options('wham_filter');
-	my $files  = $self->file_retrieve('wham_merge_indiv');
+    unless ( $self->execute) {
+        $self->WARN(
+            "Review of wham_splitter command not possible "
+            ."only generated during run."
+        );
+        return;
+    }
 
-	open( my $VCF,'<',  @{$files}[0] );
+    my $files  = $self->file_retrieve('wham_merge_indiv');
 
-	my @kept;
-	foreach my $line (<$VCF>) {
-		chomp $line;
+    # open to get content. 
+    open( my $FH, '<', $files->[0] );
+    my @lines;
+    while (<$FH>) {
+        push @lines, $_;
+    }
+    close $FH;
 
-		my @parts = split /\t/, $line;
-		my @info  = split /;/,  $parts[7];
-	
-		foreach my $pair (@info) {
-			chomp $pair;
-			my ( $id, $value ) = split /=/, $pair;
+    my @sections;
+    push @sections, [ splice @lines, 0, 200 ] while @lines;
 
-			next unless ( $id eq 'SUPPORT' or $id eq 'SVLEN');
+    ## get file parts
+    my $frags = $self->file_frags( $files->[0] );
 
-			if ( $id eq 'SVLEN' ) {
-				unless ( $value <= $opts->{lt_svlen} and $value >= $opts->{gt_svlen}) {
-					undef $line;
-					next;
-				}
-			}
+    $self->WARN("wham_splitter creating files of 200 lines long.");
 
-			if ( $id eq 'SUPPORT') {	
-				my ( $left, $right ) = split /,/, $value;
-				unless ( $left >= $opts->{support} and $right >= $opts->{support} ) {
-					undef $line;
-					next;
-				}
-			}
-		}
-			push @kept, $line if $line;
-	}
-	(my $output = @{$files}[0]) =~ s/\.vcf$/\_filtered.vcf/;
+    my @cmds;
+    for my $chunk (@sections) {
+        for my $ele ( @{$chunk} ) {
+            chomp $ele;
 
-	open(my $OUTPUT, '>', $output);
-	map { say $OUTPUT $_ } @kept;
+            my $output = 
+                $frags->{path} . 'UGP_split_temp_' . int( rand(1000) ) . '_WHAM.vcf';
+            open( my $OUT, '>>', $output );
+
+            say $OUT $ele;
+            $self->file_store($output);
+        }
+    }
 }
 
 ##-----------------------------------------------------------
 
-#sub wham_genotyping {
-#    my $self = shift;
-#    $self->pull;
-#
-#    my $config = $self->options;
-#    my $opts   = $self->tool_options('wham_genotyping');
-#    my $files  = $self->file_retrieve('wham_merge_indiv');
-#    my $bam_files  = $self->file_retrieve('sambamba_bam_merge');
-#
-#    ## collect polished bams.
-#    my $bams = join(",", @{$bam_files});
-#
-#    my $file   = $self->file_frags( $files->[0] );
-#    my $output = $file->{path} . $config->{ugp_id} . "_final_WHAM.vcf";
-#    $self->file_store($output);
-#
-#    my $threads;
-#    ( $opts->{x} ) ? ( $threads = $opts->{x} ) : ( $threads = 1 );
-#
-#    my $cmd = sprintf( "%s/WHAM-GRAPHENING -a %s -x %s -b %s -f %s > %s",
-#        $config->{WHAM}, $config->{fasta}, $threads, $files->[0], $bams, $output );
-#
-#    $self->bundle( \$cmd );
-#}
+sub wham_genotype {
+    my $self = shift;
+    $self->pull;
+
+    unless ( $self->execute) {
+        $self->WARN(
+            "Review of wham_genotype command not possible "
+            ."only generated during run."
+        );
+        return;
+    }
+
+    my $config    = $self->options;
+    my $opts      = $self->tool_options('wham_genotype');
+    my $files     = $self->file_retrieve('wham_splitter');
+    my $bam_files = $self->file_retrieve('sambamba_bam_merge');
+
+    my $join_bams = join( ",", @{$bam_files} );
+    my $skip_ids = $self->seqid_skip;
+
+    my @cmds;
+    for my $indiv ( @{$files} ) {
+        chomp $indiv;
+
+        ( my $output = $indiv ) =~ s/_WHAM.vcf/_genotyped_WHAM.vcf/;
+        $self->file_store($output);
+
+        my $threads;
+        ( $opts->{x} ) ? ( $threads = $opts->{x} ) : ( $threads = 1 );
+
+        my $cmd =
+          sprintf( "%s/WHAM-GRAPHENING -a %s -x %s -f %s -e %s -b %s > %s",
+            $config->{WHAM}, $config->{fasta}, $threads, $join_bams, $skip_ids,
+            $indiv, $output 
+        );
+        push @cmds, [$cmd];
+    }
+    $self->bundle( \@cmds );
+}
 
 ##-----------------------------------------------------------
 
 1;
 
+__DATA__
+GL000207.1
+GL000226.1
+GL000229.1
+GL000231.1
+GL000210.1
+GL000239.1
+GL000235.1
+GL000201.1
+GL000247.1
+GL000245.1
+GL000197.1
+GL000203.1
+GL000246.1
+GL000249.1
+GL000196.1
+GL000248.1
+GL000244.1
+GL000238.1
+GL000202.1
+GL000234.1
+GL000232.1
+GL000206.1
+GL000240.1
+GL000236.1
+GL000241.1
+GL000243.1
+GL000242.1
+GL000230.1
+GL000237.1
+GL000233.1
+GL000204.1
+GL000198.1
+GL000208.1
+GL000191.1
+GL000227.1
+GL000228.1
+GL000214.1
+GL000221.1
+GL000209.1
+GL000218.1
+GL000220.1
+GL000213.1
+GL000211.1
+GL000199.1
+GL000217.1
+GL000216.1
+GL000215.1
+GL000205.1
+GL000219.1
+GL000224.1
+GL000223.1
+GL000195.1
+GL000212.1
+GL000222.1
+GL000200.1
+GL000193.1
+GL000194.1
+GL000225.1
+GL000192.1
+NC_007605
+hs37d5
+phix

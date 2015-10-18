@@ -1,0 +1,134 @@
+#!/usr/bin/env perl
+use warnings;
+use strict;
+use IO::File;
+use Parallel::ForkManager;
+use Getopt::Long;
+use Storable;
+use Carp;
+
+my $usage = << "EOU";
+
+Synopsis:
+    Thousand_genome_recreator --sequence_index exome.index --population CEU --step download --cpu 10  --ftp ncbi	
+    Thousand_genome_recreator --sequence_index exome.index --population CEU --step join  --cpu 10
+
+Description:
+
+    This script was created to allow downloading of thousand genomes fastq files to be used 
+    as a background calling set with GATK.
+
+    In first step of the script will use 1000genome index file and download original fastq files.
+    In second step will collect all files for an individual and merge them into two
+    fastq paired files.
+
+    Script works best if done in two different step as ftp can be somewhat unpredictable.
+
+Required options:
+
+    -si,  --sequence_index: Sequence index from 1000Genomes. Provided in data directory.
+    -p,   --population:	Population file group to download.
+    -s,   --step:		Step for script to perform.  Order: download -> join
+
+Additional options:
+
+    -c,  --cpu:	Number of cpu to work across, default 1.
+        -h,  --help:	Prints this usage statement.
+
+EOU
+
+## Script setup
+my ( $si, $p, $step, $cpu, $help );
+GetOptions(
+    "sequence_index|si=s" => \$si,
+    "population|p=s"      => \$p,
+    "step|s=s"            => \$step,
+    "cpu|c=i"             => \$cpu,
+    "help|h"              => \$help,
+);
+croak $usage if $help;
+unless ( $si and $p and $step ) { croak "\nCorrect options not given\n$usage" }
+
+$cpu ||= 1;
+my $FH       = IO::File->new( $si, 'r' );
+my $pm       = Parallel::ForkManager->new($cpu);
+my $ncbi_ftp = 'ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/';
+
+# mkdir
+system("mkdir $p");
+chdir($p);
+
+my $wget = sub {
+    my ( %sets, @wget_cmds );
+    foreach my $line (<$FH>) {
+        chomp $line;
+
+        my @parts = split( "\t", $line );
+        next unless ( $parts[10] eq $p );
+        my @info = split( "\/", $parts[0] );
+
+        # get cmd for later;
+        my $cmd = sprintf( "wget %s%s", $ncbi_ftp, $parts[0] );
+        push @wget_cmds, $cmd;
+
+        my @path_info = split( "\/", $parts[0] );
+        push @{ $sets{ $parts[9] } }, $path_info[-1];
+    }
+
+    store \%sets, 'creator.store';
+    forker( \@wget_cmds );
+};
+
+my $zcat = sub {
+    my $sets = retrieve('creator.store');
+
+    my @cmds;
+    while ( my ( $name, $files ) = each %{$sets} ) {
+        my @sorted = sort( @{$files} );
+
+        if ( scalar @sorted > 2 ) {
+            my @one = grep { $_ =~ /_1/ } @sorted;
+            my @two = grep { $_ =~ /_2/ } @sorted;
+
+            my $outfile_one = $name . "_1.fastq.gz";
+            my $outfile_two = $name . "_2.fastq.gz";
+
+            my $cmd_one = sprintf( "zcat -c %s | gzip > %s",
+                join( " ", @one ), $outfile_one );
+            my $cmd_two = sprintf( "zcat -c %s | gzip > %s",
+                join( " ", @two ), $outfile_two );
+            push @cmds, $cmd_one;
+            push @cmds, $cmd_two;
+        }
+        else {
+            my $outfile_one = $name . "_1.fastq.gz";
+            my $outfile_two = $name . "_2.fastq.gz";
+
+            my $cmd_one = sprintf( "mv %s %s", shift @sorted, $outfile_one );
+            my $cmd_two = sprintf( "mv %s %s", shift @sorted, $outfile_two );
+            push @cmds, $cmd_one;
+            push @cmds, $cmd_two;
+        }
+    }
+    forker( \@cmds );
+};
+
+# which step?
+$wget->() if ( $step eq 'download' );
+$zcat->() if ( $step eq 'join' );
+
+##--------------------------------------------------------------
+##--------------------------- SUBS -----------------------------
+##--------------------------------------------------------------
+
+sub forker {
+    my $stack = shift;
+
+    foreach my $step ( @{$stack} ) {
+        $pm->start and next;
+        system("$step");
+        $pm->finish;
+    }
+    $pm->wait_all_children;
+    return;
+}

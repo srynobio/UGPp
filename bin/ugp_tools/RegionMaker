@@ -8,29 +8,29 @@ use lib "$FindBin::Bin/../../perl_libs/";
 use List::MoreUtils qw{ distinct };
 use Carp;
 
-my $usage = "
+my $usage = << "EOU";
 
 Synopsis:
 
-RegionMaker -f exon -p 25
+    RegionMaker -f exon -p 25
 
 Description:
 
-RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file
-to be used with GATK to decrease runtime when using a high number of 
-background files.
+    RegionMaker will download the current refseq GRCh37 GFF3 file and create a region file
+    to be used with GATK to decrease runtime when using a high number of 
+    background files.
 
 Required options:
 
---feature|f  : GFF3 feature to create regions. Must match exactly to GFF feature.
+    --feature|f  : GFF3 feature to create regions. Must match exactly to GFF feature.
 
 Additional options:
 
---padding|p  : Additional number of base-pairs to add to the start and end of a region.
+    --padding|p  : Additional number of base-pairs to add to the start and end of a region.
 
---help|h     : Prints this usage statement.
+    --help|h     : Prints this usage statement.
 
-\n";
+EOU
 
 my ( $feature, $pad, $help );
 GetOptions(
@@ -80,7 +80,8 @@ map { print $FO "$_\n" } @uniq;
 #`rm Updated* ref_GRCh37.gff3`;
 print "Finished\n";
 
-####--------------------------------------------------------------------
+## ---------------------------------------------------------- ##
+
 sub updateGATKGFF {
 
     my $inFH = IO::File->new( 'ref_GRCh37.gff3', 'r' )
@@ -106,5 +107,6 @@ sub updateGATKGFF {
     }
     $outFH->close;
 }
-####--------------------------------------------------------------------
+
+## ---------------------------------------------------------- ##
 

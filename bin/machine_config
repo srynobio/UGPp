@@ -65,11 +65,13 @@ sub build_machine_config {
     my $tabix = <STDIN>;
     print "Enter path to WHAM bin [REQUIRED]: ";
     my $wham = <STDIN>;
+    print "Enter path to wham_utils file [REQUIRED] (path to /UGPp/bin/upg_utils/wham_utils): ";
+    my $whamutils = <STDIN>;
     print "\nWorking....\n";
 
     chomp(
         $tmp,    $fasta,    $bundle, $backgrounds, $bwa,
-        $samtools, $samblaster, $sambamba, $gatk, $fastqc, $tabix, $wham
+        $samtools, $samblaster, $sambamba, $gatk, $fastqc, $tabix, $bam2fq, $wham, $whamutils
     );
 
     # set defaults and clean up.
@@ -80,8 +82,8 @@ sub build_machine_config {
     my $config     ||= '../data/UGPp.cfg';
     my $new_config ||= $host_tmp;
 
-    croak "fasta entered does not appear to be a file\n" unless ( -f $fasta );
-    unless ( -d $bwa and -d $samtools and -d $samblaster and -d $sambamba and -d $gatk and -d $fastqc and -d $tabix and -d $wham) {
+    croak "fasta entered does not appear to be a file\n" unless ( -f $fasta and -f $whamutils);
+    unless ( -d $bwa and -d $samtools and -d $samblaster and -d $sambamba and -d $gatk and -d $fastqc and -d $tabix and -d $wham ) {
         croak "Software paths enter are not directories\n";
     }
     $bwa =~ s/\/$//g;
@@ -94,6 +96,7 @@ sub build_machine_config {
     $bundle =~ s/\/$//g;
     $bam2fq =~ s/\/$//g;
     $wham =~ s/\/$//g;
+    $whamutils =~ s/\/$//g;
     croak "GATK bundle path not found\n"    unless ( -d $bundle );
     croak "UGP background path not found\n" unless ( -d $backgrounds );
 
@@ -135,6 +138,7 @@ sub build_machine_config {
     $config{software}{Tabix} = $tabix;
     $config{software}{bam2fastq} = $bam2fq;
     $config{software}{WHAM} = $wham;
+    $config{software}{wham_utils} = $whamutils;
 
     # add knowns
     $config{main}{known_indels} = [
