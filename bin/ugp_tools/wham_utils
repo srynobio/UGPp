@@ -1,0 +1,126 @@
+#!/usr/bin/env perl
+# wham_utils
+use strict;
+use warnings;
+use feature 'say';
+use autodie;
+use Getopt::Long;
+
+my $usage = << "EOU";
+
+Synopsis:
+
+    ./wham-utils --filter 
+    ./wham-utils --sort
+
+Description:
+
+    wham-utils is not designed to be run independently but instead as apart of 
+    a stream off of WHAM.
+
+    Its intent is to preform the filtering, sorting and line splitting steps used
+    in the UGP pipeline
+
+Options:
+
+    -filter   : Run the filtering step from STDIN.
+    -sort     : Run the grep sorting step from input file.
+    -temp     : temp location to allow unix sort to write to. [default /tmp].
+
+    -gt_svlen, -gts : Set the great than SVLEN value to filter on.
+    -lt_svlen, -lts : Set the less then SVLEN value to filter on.
+    -support, -s    : Set the lower SUPPORT value to filter on.
+
+    -input, -i  : Input file to preform utils on.  Currently only used on --sort step.
+    -output, -o : Output file to write to. Currently only used on --filter and --sort step.
+
+Additional options:
+
+    --help|h    : Prints this usage statement.
+
+EOU
+
+my %opts = ();
+GetOptions(
+    \%opts,           "filter",
+    "sort",           "splitter",
+    "merge_sort_header|msh",
+    "gt_svlen|gts=i", "lt_svlen|lts=i",
+    "support|s=i",    "input|i=s",
+    "output|o=s",     "temp|t=s",
+    "help"
+);
+
+if ($opts{help}) { say $usage; die }
+
+## defaults based on Zev
+$opts{gt_svlen} //= '30';
+$opts{lt_svlen} //= '5000000';
+$opts{support}  //= '4';
+
+## other defaults
+$opts{temp} //= '/tmp';
+
+filter_vcf()      if $opts{filter};
+sort_vcf()        if $opts{sort};
+sort_header_vcf() if $opts{merge_sort_header};
+
+## -------------------------------------------------------- ##
+
+sub filter_vcf {
+
+    my @kept;
+    while (<>) {
+        my $line = $_;
+        chomp $line;
+
+        next if ( $line =~ /^#/ );
+        my @parts = split /\t/, $line;
+        my @info  = split /;/,  $parts[7];
+
+        foreach my $pair (@info) {
+            chomp $pair;
+            my ( $id, $value ) = split /=/, $pair;
+
+            next unless ( $id eq 'SUPPORT' or $id eq 'SVLEN' );
+
+            if ( $id eq 'SVLEN' ) {
+                my $abs_value = abs($value);
+                unless ($abs_value <= $opts{lt_svlen}
+                        and $abs_value >= $opts{gt_svlen} )
+                {
+                    undef $line;
+                    next;
+                }
+            }
+
+            if ( $id eq 'SUPPORT' ) {
+                my ( $left, $right ) = split /,/, $value;
+                unless ($left >= $opts{support}
+                        and $right >= $opts{support} )
+                {
+                    undef $line;
+                    next;
+                }
+            }
+        }
+        push @kept, $line if $line;
+    }
+    open( my $OUTPUT, '>>', $opts{output} );
+    map { say $OUTPUT $_ } @kept;
+}
+
+## -------------------------------------------------------- ##
+
+sub sort_vcf {
+    my $file = $opts{input};
+    system("grep -v '^#' $file | sort -T $opts{temp} -k1,1 -k2,2n > $opts{output}");
+}
+
+## -------------------------------------------------------- ##
+
+sub sort_header_vcf {
+
+}
+
+## -------------------------------------------------------- ##
