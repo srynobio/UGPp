@@ -15,7 +15,7 @@ sub bam_cleanup {
 
     my $config = $self->options;
     my $opts   = $self->tool_options('bam_cleanup');
-    my $files  = $self->file_retrieve('sambamba_bam_merge');
+    my $files  = $self->file_retrieve('PrintReads');
 
     my @cmds;
     for my $bam ( @{$files} ) {

@@ -18,7 +18,8 @@ sub _build_seqid_skip {
     my $self = shift;
 
     my @record;
-    for (my $data = <DATA>) {
+    while(my $data = <DATA>) {
+	chomp $data;
         push @record, $data;
     }
     my $ids = join( ",", @record );
@@ -245,7 +246,7 @@ sub wham_genotype {
 
         ( my $output = $indiv ) =~ s/_WHAM.vcf/_genotyped_WHAM.vcf/;
         $self->file_store($output);
-
+	
         my $threads;
         ( $opts->{x} ) ? ( $threads = $opts->{x} ) : ( $threads = 1 );
 
@@ -261,6 +262,50 @@ sub wham_genotype {
 
 ##-----------------------------------------------------------
 
+sub wham_genotype_cat {
+	my $self = shift;
+	$self->pull;
+
+	unless ( $self->execute) {
+		$self->WARN(
+				"Review of wham_genotype_cat command not possible "
+				."only generated during run."
+			   );
+		return;
+	}
+
+	my $config    = $self->options;
+	my $opts      = $self->tool_options('wham_genotype_cat');
+	my $files     = $self->file_retrieve('wham_genotype');
+
+	# open to get content. 
+	open( my $FH, '<', $files->[0] );
+	my @lines;
+	while (<$FH>) {
+		chomp $_;
+		if ( $_ =~ /^#/ ) {
+			push @lines, $_;
+		}
+	}
+	close $FH;
+
+	my $parts = $self->file_frags($files->[0]);
+	my $output = $parts->{path} . $config->{ugp_id} . "_final.WHAM.vcf";
+	$self->file_store($output);
+
+	open(my $OUT, '>>', $output);
+	map { say $OUT $_ } @lines;
+	close $OUT;
+
+	my $join_file = join(" ", @{$files});
+	my $cmd = sprintf(
+			"cat %s | grep -v \'^#\' | sort -k1,1n -k2,2n >> %s",
+			$join_file, $output
+			);
+	$self->bundle(\$cmd);
+}
+
+##-----------------------------------------------------------
 1;
 
 __DATA__

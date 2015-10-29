@@ -82,7 +82,8 @@ my @flagstat = `find $dir -name \"*.flagstat\"`;
 my @r        = `find $dir -name \"*.R\"`;
 my @fastqc   = `find $dir -type f -name \"*fastqc*\"`;
 my @stats    = `find $dir -name \"*.stats\"`;
-chomp( @pdf, @flagstat, @r, @fastqc, @stats );
+my @logs     = `find $dir -name \"*-log.txt\"`;
+chomp( @pdf, @flagstat, @r, @fastqc, @stats, @logs);
 
 # move fastqc
 map { `mv $_ $dir/Reports/fastqc` } @fastqc     if $run;
@@ -95,6 +96,10 @@ map { say "mv $_ $dir/Reports/stats" } @stats if $review;
 # move flagstat files.
 map { `mv $_ $dir/Reports/flagstat` } @flagstat     if $run;
 map { say "mv $_ $dir/Reports/flagstat" } @flagstat if $review;
+
+# move log files.
+map { `mv $_ $dir/Reports` } @logs     if $run;
+map { say "mv $_ $dir/Reports" } @logs if $review;
 
 # keep the rest higher level.
 my @reports = ( @pdf, @r );
@@ -109,6 +114,15 @@ chomp(@fq);
 
 map { say "mv $_ $dir/Data/Primary_Data" } @fq if $review;
 map { `mv $_ $dir/Data/Primary_Data` } @fq     if $run;
+
+##----------------------------------------##
+
+say "Collecting unneeded WHAM files...";
+my @junkwham = `find $dir -maxdepth 1 -name "*split_temp*"`;
+chomp(@junkwham);
+
+map { `mv $_ $dir/Intermediate_Files` } @junkwham     if $run;
+map { say "mv $_ $dir/Intermediate_Files" } @junkwham if $review;
 
 ##----------------------------------------##
 

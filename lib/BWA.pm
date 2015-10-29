@@ -40,8 +40,7 @@ sub bwa_mem {
 
     # must have matching pairs.
     if ( scalar @seq_files % 2 ) {
-        $self->ERROR( "FQ files must be matching pairs. "
-              . " And directory has only fastq files." );
+        $self->ERROR( "FQ files must be matching pairs. " );
     }
 
     my @cmds;
@@ -70,14 +69,15 @@ sub bwa_mem {
 
         my $cmd = sprintf(
             "%s/bwa mem -t %s -R %s %s %s %s 2> bwa_mem_%s.log | "
-              . "%s/samblaster --addMateTags --discordantFile %s --splitterFile %s | "
+              . "%s/samblaster --addMateTags | "
+              #. "%s/samblaster --addMateTags --discordantFile %s --splitterFile %s | "
               . "%s/sambamba view --nthreads 1 -f bam -l 0 -S /dev/stdin | "
               . "%s/sambamba sort -m %sG --tmpdir=%s -o %s /dev/stdin",
             $config->{BWA},              $opts->{t},
             $r_group,                    $config->{fasta},
             $file1->{full},              $file2->{full},
             $id,                         $self->software->{Samblaster},
-            $dis_bam,                    $split_bam,
+#            $dis_bam,                    $split_bam,
             $self->software->{Sambamba}, $self->software->{Sambamba},
             $opts->{memory_limit},       $config->{tmp},
             $path_bam
