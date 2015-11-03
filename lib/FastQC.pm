@@ -13,7 +13,7 @@ sub fastqc_run {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('fastqc_run');
     my $gz     = $self->file_retrieve;
 
@@ -25,7 +25,7 @@ sub fastqc_run {
 
         my $cmd = sprintf( "%s/fastqc --threads %s -o %s -f fastq %s",
             $config->{FastQC}, $opts->{threads}, $config->{output}, $file );
-        push @cmds, [ $cmd, $file ];
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
     return;

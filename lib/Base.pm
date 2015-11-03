@@ -3,7 +3,9 @@ use Moo;
 use Config::Std;
 use File::Basename;
 use IO::Dir;
-use Storable qw(dclone);
+use Storable 'dclone';
+use File::Slurper 'read_lines';
+use feature 'say';
 
 #-----------------------------------------------------------
 #---------------------- ATTRIBUTES -------------------------
@@ -72,10 +74,19 @@ has execute => (
     is      => 'ro',
     default => sub {
         my $self = shift;
-        return $self->commandline->{run};
+        return $self->commandline->{run} || 0;
     },
 );
 
+has individuals => (
+    is      => 'ro',
+    default => sub {
+        my $self = shift;
+        return $self->commandline->{individuals} || 0;
+    },
+);
+
+## TODO review how this is used.
 has file_from_command => (
     is      => 'rw',
     default => sub {
@@ -92,50 +103,88 @@ sub _build_data_files {
 
     my $data_path = $self->data;
 
-    unless ( -e $data_path ) {
-        $self->WARN("Data directory not found our not used");
-        return;
+    unless ( -d $data_path ) {
+	    $self->WARN("Data directory not found or $data_path not a directory");
+	    unless ( $self->{commandline}->{file} ) {
+		    $self->ERROR("Data path or -f option must be used.");
+	    }
     }
-
-    unless ( $data_path =~ /\/$/ ) {
-        $data_path =~ s/$/\//;
-    }
-
-    #update path data
-    $self->{data} = $data_path;
-
-    #check for output directory.
-    if ( !$self->main->{output} ) {
-        $self->main->{output} = $data_path;
-    }
-    elsif ( $self->main->{output} ) {
-        my $out = $self->main->{output};
-        unless ( $out =~ /\/$/ ) {
-            $out =~ s/$/\//;
-            $self->main->{output} = $out;
-        }
-    }
-
-    my @file_info = fileparse($data_path);
-    my $DIR       = IO::Dir->new($data_path);
 
     my @file_path_list;
-    foreach my $file ( $DIR->read ) {
-        chomp $file;
-        next if ( -d $file );
-        push @file_path_list, "$file_info[1]$file_info[0]$file";
+    if ( $data_path ) {	
+	    unless ( $data_path =~ /\/$/ ) {
+		    $data_path =~ s/$/\//;
+	    }
+
+	    #update path data
+	    $self->{data} = $data_path;
+
+	    ## check for output directory.
+	    ## or add default.
+	    if ( ! $self->main->{output} ) {
+		    $self->main->{output} = $data_path;
+	    }
+	    elsif ( $self->main->{output} ) {
+		    my $out = $self->main->{output};
+		    unless ( $out =~ /\/$/ ) {
+			    $out =~ s/$/\//;
+			    $self->main->{output} = $out;
+		    }
+	    }
+
+	    my $DIR = IO::Dir->new($data_path);
+	    foreach my $file ( $DIR->read ) {
+		    chomp $file;
+		    next if ( -d $file );
+		    push @file_path_list, "$data_path$file";
+	    }
+	    $DIR->close;
     }
 
-    $self->WARN("[WARN] No data file found in given data directory: $data_path")
-      unless (@file_path_list);
+    ## file from the command line.
+    if ( $self->{commandline}->{file} ) {
+	    @file_path_list = read_lines($self->{commandline}->{file});
+
+	    if ( ! $self->main->{output} ) {
+		    my ( $name,$path ) = fileparse($file_path_list[0]);
+		    $self->main->{output} = $path;
+	    }
+	    elsif ( $self->main->{output} ) {
+		    my $out = $self->main->{output};
+		    unless ( $out =~ /\/$/ ) {
+			    $out =~ s/$/\//;
+			    $self->main->{output} = $out;
+		    }
+	    }	
+    }
     my @sorted_files = sort @file_path_list;
 
-    # store the begining file list in object
-    $self->{start_files} = \@sorted_files
-      unless $self->{commandline}->{file};
+    if ( ! @sorted_files ) {
+	    $self->ERROR("data path or -f option not found.");
+    }
+    $self->{start_files} = \@sorted_files;
 
-    $DIR->close;
+    ## make individual stacks
+    $self->_build_individuals if $self->individuals;
+
     return;
+}
+
+#-----------------------------------------------------------
+
+sub _build_individuals {
+	my $self = shift;
+	my $files = $self->{start_files};
+
+	my %individuals;
+	foreach my $data ( @{$files}) {
+		chomp $data;
+		my $filename = fileparse($data);
+		my @elm = split /_/, $filename;
+		$individuals{$elm[0]}++;
+	}
+	$self->{individuals} = \%individuals;
+	return;
 }
 
 #-----------------------------------------------------------
@@ -176,13 +225,13 @@ sub WARN {
 #-----------------------------------------------------------
 
 sub ERROR {
-    my ( $self, $message ) = @_;
-    my $ERROR = IO::File->new( 'FATAL.log', 'a+' );
+	my ( $self, $message ) = @_;
+	open (my $ERROR, '>>', 'FATAL.log');
 
-    print $ERROR $self->timestamp, ": $message\n";
-    print "Fatal error occured please check log file\n";
-    $ERROR->close;
-    die;
+	say $ERROR $self->timestamp, "[ERROR] $message";
+	say "Fatal error occured please check FATAL.log file";
+	$ERROR->close;
+	die;
 }
 
 #-----------------------------------------------------------
@@ -242,7 +291,7 @@ sub LOG {
 }
 
 #-----------------------------------------------------------
-
+=cut
 sub file_store {
     my ( $self, $file, $override ) = @_;
 
@@ -256,15 +305,45 @@ sub file_store {
     push @{ $self->{file_store}{$method} }, $file;
     return;
 }
+=cut
+
+sub file_store {
+    my ( $self, $file ) = @_;
+
+    my $caller = ( caller(1) )[3];
+    my ( $class, $method ) = split "::", $caller;
+
+    push @{ $self->{file_store}{$method} }, $file;
+    return;
+}
 
 #-----------------------------------------------------------
 
 sub file_retrieve {
-    my ( $self, $class ) = @_;
+	my ( $self, $class, $exact) = @_;
 
-    # first step of pipeline will have no data.
+	if ( ! $class ) {
+		return $self->{start_files};
+	}
+	if ( $class ) {
+		if ( $self->{file_store}{$class} ) {
+			my $copy = dclone( $self->{file_store} );
+			return $copy->{$class};
+
+		}
+		else {
+			( $exact ) ? (return) : (return $self->{start_files});
+		}
+	}
+
+
+
+
+
+=cut
+# first step of pipeline will have no data.
     # if not from commandline
-    if ( !$self->{commandline}->{file} and !$class ) {
+    if ( ! $self->{commandline}->{file} and ! $class ) {
         return $self->{start_files};
     }
 
@@ -287,23 +366,25 @@ sub file_retrieve {
         my $copy = dclone( $self->{file_store} );
         return $copy->{$class};
     }
+=cut
+
 }
 
 #-----------------------------------------------------------
 
 sub _make_store {
-    my ( $self, $class ) = @_;
-    my $list = $self->{commandline}->{file};
+	my ( $self, $class ) = @_;
+	my $list = $self->{commandline}->{file};
 
-    my $FH = IO::File->new($list)
-      or $self->ERROR("File $list can not be opened");
+	open( my $FH, '<', $list) 
+		or $self->ERROR("File $list can not be opened");
 
-    foreach my $file (<$FH>) {
-        chomp $file;
-        push @{ $self->{file_store}{$class} }, $file;
-    }
-    $FH->close;
-    return;
+	foreach my $file (<$FH>) {
+		chomp $file;
+		push @{ $self->{file_store}{$class} }, $file;
+	}
+	$FH->close;
+	return;
 }
 
 #-----------------------------------------------------------

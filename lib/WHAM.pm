@@ -32,7 +32,7 @@ sub wham_graphing {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('wham_graphing');
     my $files  = $self->file_retrieve('sambamba_bam_merge');
 
@@ -49,7 +49,7 @@ sub wham_graphing {
 
         my $cmd = sprintf( "%s/WHAM-GRAPHENING -a %s -k -x %s -f %s > %s",
             $config->{WHAM}, $config->{fasta}, $threads, $merged, $output );
-        push @cmds, [$cmd];
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
 }
@@ -60,7 +60,7 @@ sub wham_filter {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('wham_filter');
     my $files  = $self->file_retrieve('wham_graphing');
 
@@ -84,7 +84,7 @@ sub wham_sort {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('wham_sort');
     my $files  = $self->file_retrieve('wham_filter');
 
@@ -101,62 +101,12 @@ sub wham_sort {
 
 
 ##-----------------------------------------------------------
-=cut
-sub wham_merge_indiv {
-    my $self = shift;
-    $self->pull;
-
-    unless ( $self->execute) {
-        $self->WARN(
-            "Review of wham_merge_indiv command not possible "
-            ."only generated during run."
-        );
-        return;
-    }
-
-    my $config = $self->options;
-    my $opts   = $self->tool_options('wham_merge_indiv');
-    my $files  = $self->file_retrieve('wham_sort');
-
-    ## open to get line count.
-    open( my $FH, '<', $files->[0] );
-    my $count;
-    while ( my $line = <$FH> ) {
-        $count++;
-    }
-    close $FH;
-
-    ## number of files to make
-    my $file_number = int( $count / 200 ) + 1;
-
-    my $frags = $self->file_frags( $files->[0] );
-
-    my @collect;
-    for ( 0 .. $file_number ) {
-        my $new_file =
-          $frags->{path} . 'wham_utils_' . int( rand(1000) ) . '_WHAM.vcf';
-        push @collect, $new_file;
-    }
-
-    my @cmds;
-    for my $output (@collect) {
-        my $cmd = sprintf( "%s/mergeIndvs -f %s -s %s | %s -splitter -o %s",
-            $config->{WHAM}, $files->[0], $opts->{s},
-            $self->software->{wham_utils}, $output
-        );
-        $self->file_store($output);
-        push @cmds, $cmd;
-    }
-    $self->bundle( \@cmds );
-}
-=cut
-##-----------------------------------------------------------
 
 sub wham_merge_indiv {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('wham_merge_indiv');
     my $files  = $self->file_retrieve('wham_sort');
 
@@ -174,19 +124,31 @@ sub wham_merge_indiv {
 ##-----------------------------------------------------------
 
 sub wham_splitter {
-    my $self = shift;
-    $self->pull;
+	my $self = shift;
+	$self->pull;
 
-    unless ( $self->execute) {
-        $self->WARN(
-            "Review of wham_splitter command not possible "
-            ."only generated during run."
-        );
-        return;
-    }
+=cut
+unless ( $self->execute) {
+$self->WARN(
+"Review of wham_splitter command not possible "
+."only generated during run."
+);
+return;
+}
+=cut
+	my $files  = $self->file_retrieve('wham_merge_indiv');
 
-    my $files  = $self->file_retrieve('wham_merge_indiv');
+	my $cmd = sprintf(
+			"split -l 200 %s UGP_split_temp_",
+			$files->[0]
+			);
 
+	$self->bundle(\$cmd);
+	return;
+}
+
+
+=cut
     # open to get content. 
     open( my $FH, '<', $files->[0] );
     my @lines;
@@ -217,6 +179,7 @@ sub wham_splitter {
         }
     }
 }
+=cut
 
 ##-----------------------------------------------------------
 
@@ -232,13 +195,17 @@ sub wham_genotype {
         return;
     }
 
-    my $config    = $self->options;
+    my $config    = $self->class_config;
     my $opts      = $self->tool_options('wham_genotype');
-    my $files     = $self->file_retrieve('wham_splitter');
+#    my $files     = $self->file_retrieve('wham_splitter');
     my $bam_files = $self->file_retrieve('sambamba_bam_merge');
 
     my $join_bams = join( ",", @{$bam_files} );
     my $skip_ids = $self->seqid_skip;
+
+###
+#    my $file = $self->file_retrieve('wham_merge_indiv');
+
 
     my @cmds;
     for my $indiv ( @{$files} ) {
@@ -251,15 +218,18 @@ sub wham_genotype {
         ( $opts->{x} ) ? ( $threads = $opts->{x} ) : ( $threads = 1 );
 
         my $cmd =
-          sprintf( "%s/WHAM-GRAPHENING -a %s -x %s -f %s -e %s -b %s > %s",
+#          sprintf( "%s/WHAM-GRAPHENING -a %s -x %s -f %s -e %s -b %s > %s",
+          sprintf( "split -l 200 %s | %s/WHAM-GRAPHENING -a %s -x %s -f %s -e %s -b - > %s",
             $config->{WHAM}, $config->{fasta}, $threads, $join_bams, $skip_ids,
             $indiv, $output 
         );
-        push @cmds, [$cmd];
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
 }
 
+
+find $self->output -name "UGP_split_temp_*"|xargs 
 ##-----------------------------------------------------------
 
 sub wham_genotype_cat {
@@ -274,7 +244,7 @@ sub wham_genotype_cat {
 		return;
 	}
 
-	my $config    = $self->options;
+	my $config    = $self->class_config;
 	my $opts      = $self->tool_options('wham_genotype_cat');
 	my $files     = $self->file_retrieve('wham_genotype');
 

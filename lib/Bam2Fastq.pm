@@ -13,7 +13,7 @@ sub bam2fastq {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('bam2fastq');
     my $bams   = $self->file_retrieve;
 
@@ -30,7 +30,7 @@ sub bam2fastq {
 
         my $cmd = sprintf( "%s/bam2fastq.pl %s %s",
             $config->{Bam2Fastq}, $file, $opts->{command_string} );
-        push @cmds, [$cmd];
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
     return;
@@ -42,7 +42,7 @@ sub nantomics_bam2fastq {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('nantomics_bam2fastq');
     my $bams   = $self->file_retrieve;
 
@@ -69,7 +69,7 @@ sub nantomics_bam2fastq {
             $config->{Bam2Fastq}, $bam, $opts->{command_string},
             $pair1, $pair2,
         );
-        push @cmds, [$cmd];
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
     return;

@@ -53,8 +53,6 @@ Additional options:
 
     --qstat_limit, -ql      Limit to the number of qstat jobs to launch at one time. [DEFAULT 10]
 
-    --log_path, -lp         Path to right log file too, helpful with multi-runs per machine.  [DEFAULT current]
-
     --help, -h              Print this usage statement.
 
 EOU
@@ -67,7 +65,8 @@ GetOptions(
     "error_check|ec",      "file|f=s",
     "jobs_per_node|jpn=i", "slurm_template|slurm=s",
     "split_combine|sc=i",  "help|h",
-    "log_path|lp=s", "qstat_limit|ql=i"
+    "qstat_limit|ql=i",
+	"individuals|i",
 );
 croak $usage if $c_opts{help};
 
@@ -78,7 +77,6 @@ if ( $c_opts{clean} ) {
 }
 
 if ( $c_opts{error_check} ) {
-    print "checking for errors and exceptions...\n";
     system("grep --exclude=\"UGPp\" -i 'error' *");
     system("grep -i 'exceptions' *.log-*");
     system("grep -i 'failed' *.log-*");
@@ -90,7 +88,7 @@ croak "Required options not met\n$usage" unless ( $c_opts{interval_list} and $c_
 $c_opts{engine} //= 'server';
 if ( $c_opts{file} and -e 'CMD_stack.store' ) { `rm CMD_stack.store` }
 
-my $t = UGP->new( commandline => \%c_opts, );
+my $ugp = UGP->new( commandline => \%c_opts, );
 
-$t->UGP_Pipeline;
+$ugp->pipeline;
 

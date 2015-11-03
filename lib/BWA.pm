@@ -13,7 +13,7 @@ sub bwa_index {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('bwa_index');
 
     my $cmd = sprintf( "%s/bwa -a %s index %s %s\n",
@@ -27,7 +27,7 @@ sub bwa_mem {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('bwa_mem');
     my $files  = $self->file_retrieve('fastqc_run');
 
@@ -82,8 +82,7 @@ sub bwa_mem {
             $opts->{memory_limit},       $config->{tmp},
             $path_bam
         );
-        push @cmds, [ $cmd, $file1->{full}, $file2->{full} ];
-
+        push @cmds, $cmd;
         $id++;
     }
     $self->bundle( \@cmds );

@@ -4,8 +4,9 @@ use IPC::System::Simple qw|run|;
 use Config::Std;
 use File::Basename;
 use Parallel::ForkManager;
-use File::Copy;
 use IO::File;
+use File::Slurper 'read_lines';
+use feature 'say';
 
 extends 'Base';
 
@@ -22,15 +23,35 @@ with qw|
   Utils
   |;
 
+## Master lookup of steps which need to be group called.
+my $grouped_called = {
+    GenotypeGVCF              => '1',
+    CatVariants_Genotype      => '1',
+    VariantRecalibrator_SNP   => '1',
+    VariantRecalibrator_INDEL => '1',
+    ApplyRecalibration_SNP    => '1',
+    ApplyRecalibration_INDEL  => '1',
+    CombineVariants           => '1',
+    bgzip                     => '1',
+    tabix                     => '1',
+    wham_filter               => '1',
+    wham_sort                 => '1',
+    wham_merge_indiv          => '1',
+    wham_splitter             => '1',
+    wham_genotype             => '1',
+    wham_genotype_cat         => '1',
+    bam_cleanup               => '1',
+};
+
 ##-----------------------------------------------------------
 ##---------------------- ATTRIBUTES -------------------------
 ##-----------------------------------------------------------
 
-has options => (
+has class_config => (
     is      => 'ro',
     default => sub {
         my $self = shift;
-        return $self->{options};
+        return $self->{class_config};
     }
 );
 
@@ -39,7 +60,7 @@ has output => (
     lazy    => 1,
     default => sub {
         my $self = shift;
-        return $self->{options}->{output};
+        return $self->main->{output};
     },
 );
 
@@ -59,22 +80,6 @@ has 'slurm_template' => (
     },
 );
 
-has 'log_path' => (
-    is      => 'ro',
-    default => sub {
-        my $self = shift;
-        return unless ( $self->commandline->{log_path} );
-
-        my $path = $self->commandline->{log_path};
-
-        if ( $path =~ /\/$/ ) { return $path }
-        else {
-            $path =~ s/$/\//;
-            return $path;
-        }
-    },
-);
-
 has qstat_limit => (
     is      => 'ro',
     default => sub {
@@ -88,10 +93,9 @@ has qstat_limit => (
 ##---------------------- METHODS ----------------------------
 ##-----------------------------------------------------------
 
-sub UGP_Pipeline {
+sub pipeline {
     my $self = shift;
 
-    my $PROG;
     my %progress_list;
     my $steps = $self->order;
 
@@ -99,8 +103,7 @@ sub UGP_Pipeline {
         $self->LOG('config');
 
         if ( -e 'PROGRESS' and -s 'PROGRESS' ) {
-            my @progress = `cat PROGRESS`;
-            chomp @progress;
+            my @progress = read_lines('PROGRESS');
 
             map {
                 my @prgs = split ":", $_;
@@ -111,26 +114,43 @@ sub UGP_Pipeline {
     }
 
     # collect the cmds on stack.
-    my @cmd_stack;
     foreach my $sub ( @{$steps} ) {
         chomp $sub;
 
+        ## next if $sub commands already done.
+        next if ( $progress_list{$sub} and $progress_list{$sub} eq 'complete' );
+
         eval { $self->$sub };
-        if ($@) { $self->ERROR("Error when calling $sub: $@") }
-
-        if ( $progress_list{$sub} and $progress_list{$sub} eq 'complete' ) {
-            delete $self->{bundle};
-            next;
+        if ($@) {
+            $self->ERROR("Error during call to $sub: $@");
         }
+    }
 
-        # print stack for review
-        if ( !$self->execute ) {
-            my $stack = $self->{bundle};
-            map { print "Review of command[s] from: $sub => @$_[0]\n" }
-              @{ $stack->{$sub} };
-            delete $stack->{$sub};
-            next;
+    ## order important here
+    ## first run all individuals then group commands.
+    $self->launch_cmds('individuals');
+    $self->launch_cmds('group');
+    return;
+}
+
+#-----------------------------------------------------------
+
+sub launch_cmds {
+    my ( $self, $step ) = @_;
+
+    my $stack;
+    ( $step eq 'individuals' )
+      ? ( $stack = $self->{individuals_stack} )
+      : ( $stack = $self->{bundle} );
+
+    # print stack for review
+    if ( !$self->execute ) {
+        foreach my $peps ( keys %{$stack} ) {
+            say "Review of command[s] for individual: $peps";
+            map { say "\t$_" } @{ $stack->{$peps} };
         }
+    }
+    else {
         if ( $self->engine eq 'server' ) {
             $self->_server;
         }
@@ -138,9 +158,6 @@ sub UGP_Pipeline {
             $self->_cluster;
         }
     }
-
-    ## sent copy of log file to output directory.
-    copy($self->{log_file}, $self->main->{output} ) if $self->execute;
     return;
 }
 
@@ -163,7 +180,7 @@ sub pull {
     # for caller ease, return one large hashref.
     my %options = ( %{ $self->main }, %programs );
 
-    $self->{options} = \%options;
+    $self->{class_config} = \%options;
     return $self;
 }
 
@@ -177,35 +194,40 @@ sub bundle {
     my ( $package, $sub ) = split /::/, $caller;
 
     # what type of call
-    my $call_type = ref $cmd;
-    unless ( $call_type and $call_type ne 'HASH' ) {
-        $self->ERROR(
-            "bundled command from $sub command must be an scalar or array reference."
-        );
+    my $ref_type = ref $cmd;
+    unless ( $ref_type =~ /(ARRAY|SCALAR)/ ) {
+        $self->ERROR("bundle method expects reference to array or scalar.");
     }
 
     my $id;
-    if ( $call_type eq 'ARRAY' ) {
-        foreach my $cmd ( @{$cmd} ) {
-            if ( $cmd->[0] ) {
-                my $log     = "$sub.log-" . ++$id;
-                my $add_log = $cmd->[0] . " 2> $log";
-                $cmd->[0] = $add_log;
-            }
+    my @cmds;
+    if ( $ref_type eq 'ARRAY' ) {
+        foreach my $i ( @{$cmd} ) {
+            my $log     = "$sub.log-" . ++$id;
+            my $add_log = $i . " 2> $log";
+            $i = $add_log;
+            push @cmds, $i;
         }
     }
-
-    # place in list and add log file;
-    my @cmds;
-    if ( ref $cmd eq 'ARRAY' ) {
-        @cmds = @{$cmd};
+    else {
+        my $i       = $$cmd;
+        my $log     = "$sub.log-" . ++$id;
+        my $add_log = $i . " 2> $log";
+        $i = $add_log;
+        push @cmds, $i;
     }
-    else { @cmds = [$$cmd] }
-    chomp @cmds;
 
-    # add to object
-    $self->{bundle}{$sub} = \@cmds;
+    ## place in object bundle or individual stack.
+    if ( $grouped_called->{$sub} ) {
+        $self->{bundle}{$sub} = \@cmds;
+    }
 
+    if ( $self->individuals and !$grouped_called->{$sub} ) {
+        foreach my $indv ( keys %{ $self->individuals } ) {
+            my @found = grep { /$indv/ } @cmds;
+            push @{ $self->{individuals_stack}{$indv} }, @found;
+        }
+    }
     return;
 }
 

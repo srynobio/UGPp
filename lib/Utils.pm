@@ -1,5 +1,6 @@
 package Utils;
 use Moo::Role;
+use IO::Dir;
 
 ##-----------------------------------------------------------
 ##---------------------- ATTRIBUTES -------------------------
@@ -13,7 +14,7 @@ sub bam_cleanup {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('bam_cleanup');
     my $files  = $self->file_retrieve('PrintReads');
 
@@ -22,7 +23,7 @@ sub bam_cleanup {
         chomp $bam;
 
         my $cmd = sprintf( "rm %s", $bam );
-        push @cmds, [$cmd];
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
 }

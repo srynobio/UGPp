@@ -13,7 +13,7 @@ sub sambamba_merge {
     my $self = shift;
     $self->pull;
 
-    my $config    = $self->options;
+    my $config    = $self->class_config;
     my $opts      = $self->tool_options('sambamba_merge');
     my $sam_files = $self->file_retrieve('bwa_mem');
 
@@ -58,7 +58,7 @@ sub sambamba_merge {
 
         my $cmd = sprintf( "%s/sambamba merge --nthreads %s %s %s",
             $config->{Sambamba}, $opts->{nthreads}, $output, $input );
-        push @cmds, [ $cmd, @{ $id_collect{$id} } ];
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
 }
@@ -69,7 +69,7 @@ sub sambamba_bam_merge {
     my $self = shift;
     $self->pull;
 
-    my $config      = $self->options;
+    my $config      = $self->class_config;
     my $opts        = $self->tool_options('sambamba_bam_merge');
     my $polish_bams = $self->file_retrieve('PrintReads');
 
@@ -98,7 +98,7 @@ sub sambamba_bam_merge {
         my $cmd = sprintf( "%s/sambamba merge -t %s %s %s",
             $config->{Sambamba}, $opts->{nthreads}, $merged_bam,
             join( " ", @ordered_list ) );
-        push @cmds, [$cmd];
+        push @cmds, $cmd;
     }
     $self->bundle(\@cmds);
 }

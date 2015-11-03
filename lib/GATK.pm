@@ -35,8 +35,7 @@ sub _build_intervals {
     my $itv  = $self->commandline->{interval_list};
 
     # create, print and store regions.
-    my $REGION = IO::File->new( $itv, 'r' )
-      or
+    open( my $REGION, '<', $itv) or 
       $self->ERROR('Interval file not found or not provided on command line.');
 
     my %regions;
@@ -54,13 +53,13 @@ sub _build_intervals {
             push @inv_file, $output_reg;
             next;
         }
-        else {
-            my $LISTFILE = IO::File->new( $output_reg, 'w' ) if $self->execute;
+        else { 
+		open( my $LISTFILE, '>>', $output_reg) if $self->execute;
 
-            foreach my $list ( @{ $regions{$chr} } ) {
-                print $LISTFILE "$list\n" if $self->execute;
-            }
-            push @inv_file, $output_reg;
+		foreach my $list ( @{ $regions{$chr} } ) {
+			say $LISTFILE "$list" if $self->execute;
+		}
+		push @inv_file, $output_reg;
         }
     }
     my @sort_inv = sort @inv_file;
@@ -71,7 +70,7 @@ sub _build_intervals {
 
 sub _build_indels {
     my $self   = shift;
-    my $knowns = $self->options->{known_indels};
+    my $knowns = $self->class_config->{known_indels};
 
     $self->ERROR('Issue building known indels from file') unless ($knowns);
 
@@ -88,7 +87,7 @@ sub _build_indels {
 
 sub _build_dbsnp {
     my $self   = shift;
-    my $knowns = $self->options->{known_dbsnp};
+    my $knowns = $self->class_config->{known_dbsnp};
 
     $self->ERROR('Issue building known dbsnp from file') unless ($knowns);
 
@@ -102,17 +101,14 @@ sub RealignerTargetCreator {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('RealignerTargetCreator');
 
     my $single = $self->file_retrieve('bwa_mem');
-    my $multi  = $self->file_retrieve('sambamba_merge');
+    my $multi  = $self->file_retrieve('sambamba_merge', 'exact');
 
     my $combined;
     ($multi) ? ( $combined = $multi ) : ( $combined = $single );
-
-    # collect known files to transfer to cluster node
-    my $kn = join( '* ', @{ $self->options->{known_indels} } );
 
     my @cmds;
     foreach my $in ( @{$combined} ) {
@@ -140,10 +136,9 @@ sub RealignerTargetCreator {
                 $opts->{num_threads}, $self->indels,
                 $region,              $output
             );
-            push @cmds, [ $cmd, $in, $region, $kn ];
+            push @cmds, $cmd;
         }
     }
-
     $self->bundle( \@cmds );
 }
 
@@ -153,21 +148,17 @@ sub IndelRealigner {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('IndelRealigner');
 
     my $single = $self->file_retrieve('bwa_mem');
-    my $multi  = $self->file_retrieve('sambamba_merge');
+    my $multi  = $self->file_retrieve('sambamba_merge', 'exact');
 
     my $combined;
-    if   ($multi) { $combined = $multi }
-    else          { $combined = $single }
+    ($multi) ? ( $combined = $multi ) : ( $combined = $single );
 
     my $target = $self->file_retrieve('RealignerTargetCreator');
     ( my $known = $self->indels ) =~ s/--known/-known/g;
-
-    # collect known files to transfer to cluster node
-    my $kn = join( '* ', @{ $self->options->{known_indels} } );
 
     my @cmds;
     foreach my $dep ( @{$combined} ) {
@@ -196,7 +187,7 @@ sub IndelRealigner {
                 $intv[0],        $region,             $known,
                 $output
             );
-            push @cmds, [ $cmd, $dep, $region, $intv[0], $kn ];
+            push @cmds, $cmd;
         }
     }
     $self->bundle( \@cmds );
@@ -208,17 +199,12 @@ sub BaseRecalibrator {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('BaseRecalibrator');
     my $align  = $self->file_retrieve('IndelRealigner');
 
     my $known_indels = $self->indels;
     $known_indels =~ s/known/knownSites/g;
-
-    # collect known files to transfer to cluster node
-    my $kn = join( '* ',
-        @{ $self->options->{known_indels} },
-        $self->options->{known_dbsnp} );
 
     my @cmds;
     foreach my $aln ( @{$align} ) {
@@ -238,7 +224,7 @@ sub BaseRecalibrator {
             $opts->{num_cpu_threads_per_data_thread}, $self->dbsnp,
             $known_indels,                            $output
         );
-        push @cmds, [ $cmd, $aln, $kn ];
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
 }
@@ -249,7 +235,7 @@ sub PrintReads {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('PrintReads');
     my $table  = $self->file_retrieve('BaseRecalibrator');
     my $align  = $self->file_retrieve('IndelRealigner');
@@ -275,15 +261,13 @@ sub PrintReads {
               . "--num_cpu_threads_per_data_thread %s "
               . "--disable_auto_index_creation_and_locking_when_reading_rods "
               . "-BQSR %s -o %s",
-
-            #. "--num_cpu_threads_per_data_thread %s -BQSR %s -o %s",
             $opts->{xmx},                             $opts->{gc_threads},
             $config->{tmp},                           $config->{GATK},
             $config->{fasta},                         $bam,
             $opts->{num_cpu_threads_per_data_thread}, $recal_t,
             $output
         );
-        push @cmds, [ $cmd, $bam, $recal_t ];
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
 }
@@ -294,12 +278,12 @@ sub HaplotypeCaller {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('HaplotypeCaller');
 
     # collect files and stack them.
     my $reads = $self->file_retrieve('PrintReads');
-    my @inputs = map { "$_" } @{$reads};
+###    my @inputs = map { "$_" } @{$reads};
 
     my @cmds;
     foreach my $bam ( @{$reads} ) {
@@ -353,7 +337,7 @@ sub HaplotypeCaller {
                     $region,
                     $output
                 );
-                push @cmds, [ $cmd, $bam, $region ];
+                push @cmds, $cmd;
             }
         }
         else {
@@ -401,7 +385,7 @@ sub HaplotypeCaller {
                 $intv[0],
                 $output
             );
-            push @cmds, [ $cmd, $bam, $intv[0] ];
+            push @cmds, $cmd;
         }
     }
     $self->bundle( \@cmds );
@@ -413,7 +397,7 @@ sub CatVariants {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
 
     my $gvcf = $self->file_retrieve('HaplotypeCaller');
     my @iso = grep { /\.gvcf$/ } @{$gvcf};
@@ -462,7 +446,7 @@ sub CatVariants {
               . "--variant_index_type LINEAR  "
               . "--variant_index_parameter 128000 --assumeSorted  %s -out %s",
             $config->{GATK}, $config->{fasta}, $variant, $pathFile );
-        push @cmds, [ $cmd, @ordered_list ];
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
 }
@@ -470,46 +454,47 @@ sub CatVariants {
 ##-----------------------------------------------------------
 
 sub CombineGVCF {
-    my $self = shift;
-    $self->pull;
+	my $self = shift;
+	$self->pull;
 
-    my $config = $self->options;
-    my $opts   = $self->tool_options('CombineGVCF');
+	my $config = $self->class_config;
+	my $opts   = $self->tool_options('CombineGVCF');
 
-    my $gvcf = $self->file_retrieve('CatVariants');
-    my @iso = grep { /\.vcf$/ } @{$gvcf};
+	my $gvcf = $self->file_retrieve('CatVariants');
+	my @iso = grep { /\.vcf$/ } @{$gvcf};
 
-    # only need to start combining if have a
-    # large collection of gvcfs
-    if ( scalar @iso < 200 ) { return }
+	# only need to start combining if have a
+	# large collection of gvcfs
+	if ( scalar @iso < 200 ) { return }
 
-    my $split = $self->commandline->{split_combine};
+	my $split = $self->commandline->{split_combine} || 200;
 
-    my @cmds;
-    if ( $self->commandline->{split_combine} ) {
-        my @var;
-        push @var, [ splice @iso, 0, $split ] while @iso;
+# if ( $self->commandline->{split_combine} ) {
+	my @var;
+	push @var, [ splice @iso, 0, $split ] while @iso;
 
-        my $id;
-        foreach my $split (@var) {
-            my $variants = join( " --variant ", @$split );
+	my $id;
+	my @cmds;
+	foreach my $split (@var) {
+		my $variants = join( " --variant ", @$split );
 
-            $id++;
-            my $output =
-              $self->output . $config->{ugp_id} . ".$id.mergeGvcf.vcf";
-            $self->file_store($output);
+		$id++;
+		my $output =
+			$self->output . $config->{ugp_id} . ".$id.mergeGvcf.vcf";
+		$self->file_store($output);
 
-            my $cmd = sprintf(
-                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
-                  . " -T CombineGVCFs -R %s "
-                  . "--disable_auto_index_creation_and_locking_when_reading_rods "
-                  . "--variant %s -o %s",
-                $opts->{xmx}, $opts->{gc_threads}, $config->{GATK},
-                $config->{fasta}, $variants, $output );
+		my $cmd = sprintf(
+				"java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
+				. " -T CombineGVCFs -R %s "
+				. "--disable_auto_index_creation_and_locking_when_reading_rods "
+				. "--variant %s -o %s",
+				$opts->{xmx}, $opts->{gc_threads}, $config->{GATK},
+				$config->{fasta}, $variants, $output );
 
-            push @cmds, [ $cmd, @{$split} ];
-        }
-    }
+		push @cmds, $cmd;
+	}
+# }
+=cut
     else {
         my $variants = join( " --variant ", @iso );
 
@@ -524,8 +509,9 @@ sub CombineGVCF {
             $opts->{xmx}, $opts->{gc_threads}, $config->{GATK},
             $config->{fasta}, $variants, $output );
 
-        push @cmds, [ $cmd, $variants ];
+        push @cmds, $cmd;
     }
+=cut
     $self->bundle( \@cmds );
 }
 
@@ -535,11 +521,11 @@ sub GenotypeGVCF {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('GenotypeGVCF');
 
     my @gcated;
-    my $data = $self->file_retrieve('CombineGVCF');
+    my $data = $self->file_retrieve('CombineGVCF', 'exact');
     if ($data) {
         @gcated = grep { /mergeGvcf/ } @{$data};
 
@@ -603,7 +589,7 @@ sub GenotypeGVCF {
                 $input,          $region,             $output
             );
         }
-        push @cmds, [ $cmd, @gcated, @backs ];
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
 }
@@ -611,49 +597,46 @@ sub GenotypeGVCF {
 ##-----------------------------------------------------------
 
 sub CatVariants_Genotype {
-    my $self = shift;
-    $self->pull;
+	my $self = shift;
+	$self->pull;
 
-    my $config = $self->options;
+	my $config = $self->class_config;
 
-    my $vcf = $self->file_retrieve('GenotypeGVCF');
-    my @iso = grep { /genotyped.vcf$/ } @{$vcf};
+	my $vcf = $self->file_retrieve('GenotypeGVCF');
+	my @iso = grep { /genotyped.vcf$/ } @{$vcf};
 
-    my %indiv;
-    my $path;
-    my @cmds;
-    foreach my $file (@iso) {
-        chomp $file;
+	my %indiv;
+	my $path;
+	my @cmds;
+	foreach my $file (@iso) {
+		chomp $file;
 
-        my $frags = $self->file_frags($file);
-        $path = $frags->{path};
+		my $frags = $self->file_frags($file);
+		$path = $frags->{path};
 
-        my $key = $frags->{parts}[0];
-        push @{ $indiv{$key} }, $file;
-    }
+		my $key = $frags->{parts}[0];
+		push @{ $indiv{$key} }, $file;
+	}
 
-    # put the file in correct order.
-    my @ordered_list;
-    for ( 1 .. 22, 'X', 'Y', 'MT' ) {
-        my $chr = 'chr' . $_;
-        push @ordered_list, $indiv{$chr}->[0];
-    }
+        # put the file in correct order.
+	my @ordered_list;
+	for ( 1 .. 22, 'X', 'Y', 'MT' ) {
+		my $chr = 'chr' . $_;
+		push @ordered_list, $indiv{$chr}->[0];
+	}
 
-    my $variant = join( " -V ", @ordered_list );
-    $variant =~ s/^/-V /;
+	my $variant = join( " -V ", @ordered_list );
+	$variant =~ s/^/-V /;
 
-    my $output = $self->output . $config->{ugp_id} . '_cat_genotyped.vcf';
-    $self->file_store($output);
+	my $output = $self->output . $config->{ugp_id} . '_cat_genotyped.vcf';
+	$self->file_store($output);
 
-    my $cmd = sprintf(
-        "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
-          . "--assumeSorted  %s -out %s",
-        $config->{GATK}, $config->{fasta}, $variant, $output );
-
-    push @cmds, [ $cmd, @ordered_list ];
-    $self->bundle( \@cmds );
-
-    #$self->bundle(\$cmd);
+	my $cmd = sprintf(
+			"java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
+			. "--assumeSorted  %s -out %s",
+			$config->{GATK}, $config->{fasta}, $variant, $output
+	);
+	$self->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------
@@ -662,7 +645,7 @@ sub VariantRecalibrator_SNP {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('VariantRecalibrator_SNP');
 
     my $genotpd = $self->file_retrieve('CatVariants_Genotype');
@@ -680,7 +663,6 @@ sub VariantRecalibrator_SNP {
     my $resource = $config->{resource_SNP};
     my $anno     = $config->{use_annotation_SNP};
 
-    my @cmds;
     my $cmd = sprintf(
         "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
           . " -T VariantRecalibrator -R %s --minNumBadVariants %s --num_threads %s "
@@ -694,8 +676,7 @@ sub VariantRecalibrator_SNP {
         $recalFile, $tranchFile,
         $rscriptFile
     );
-    push @cmds, [$cmd];
-    $self->bundle( \@cmds );
+    $self->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------
@@ -704,7 +685,7 @@ sub VariantRecalibrator_INDEL {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('VariantRecalibrator_INDEL');
 
     my $genotpd = $self->file_retrieve('CatVariants_Genotype');
@@ -722,7 +703,6 @@ sub VariantRecalibrator_INDEL {
     my $resource = $config->{resource_INDEL};
     my $anno     = $config->{use_annotation_INDEL};
 
-    my @cmds;
     my $cmd = sprintf(
         "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T VariantRecalibrator "
           . "--disable_auto_index_creation_and_locking_when_reading_rods "
@@ -735,8 +715,7 @@ sub VariantRecalibrator_INDEL {
         $recalFile, $tranchFile,
         $rscriptFile
     );
-    push @cmds, [$cmd];
-    $self->bundle( \@cmds );
+    $self->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------
@@ -745,7 +724,7 @@ sub ApplyRecalibration_SNP {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('ApplyRecalibration_SNP');
 
     my $recal_files = $self->file_retrieve('VariantRecalibrator_SNP');
@@ -756,7 +735,6 @@ sub ApplyRecalibration_SNP {
     ( my $output = $genotpd ) =~ s/_genotyped.vcf$/_recal_SNP.vcf/g;
     $self->file_store($output);
 
-    my @cmds;
     my $cmd = sprintf(
         "java -jar -Xmx%sg -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
           . "--disable_auto_index_creation_and_locking_when_reading_rods "
@@ -767,8 +745,7 @@ sub ApplyRecalibration_SNP {
         $genotpd,                 shift @{$recal_files},
         shift @{$recal_files},    $output
     );
-    push @cmds, [$cmd];
-    $self->bundle( \@cmds );
+    $self->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------
@@ -777,7 +754,7 @@ sub ApplyRecalibration_INDEL {
     my $self = shift;
     $self->pull;
 
-    my $config      = $self->options;
+    my $config      = $self->class_config;
     my $opts        = $self->tool_options('ApplyRecalibration_INDEL');
     my $recal_files = $self->file_retrieve('VariantRecalibrator_INDEL');
     my $get         = $self->file_retrieve('CatVariants_Genotype');
@@ -787,7 +764,6 @@ sub ApplyRecalibration_INDEL {
     ( my $output = $genotpd ) =~ s/_genotyped.vcf$/_recal_INDEL.vcf/g;
     $self->file_store($output);
 
-    my @cmds;
     my $cmd = sprintf(
         "java -jar -Xmx%sg -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T ApplyRecalibration "
           . "--disable_auto_index_creation_and_locking_when_reading_rods "
@@ -798,8 +774,7 @@ sub ApplyRecalibration_INDEL {
         $genotpd,                 shift @{$recal_files},
         shift @{$recal_files},    $output
     );
-    push @cmds, [$cmd];
-    $self->bundle( \@cmds );
+    $self->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------
@@ -808,7 +783,7 @@ sub CombineVariants {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('CombineVariants');
 
     my $snp_files   = $self->file_retrieve('ApplyRecalibration_SNP');
@@ -821,7 +796,6 @@ sub CombineVariants {
       $config->{output} . $config->{ugp_id} . "_Final+Backgrounds.vcf";
     $self->file_store($output);
 
-    my @cmds;
     my $cmd = sprintf(
         "java -jar -Xmx%sg -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar -T CombineVariants -R %s "
           . "--disable_auto_index_creation_and_locking_when_reading_rods "
@@ -832,8 +806,7 @@ sub CombineVariants {
         join( " ", @app_snp ), join( " ", @app_ind ),
         $output
     );
-    push @cmds, [$cmd];
-    $self->bundle( \@cmds );
+    $self->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------

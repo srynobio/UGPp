@@ -13,7 +13,7 @@ sub bgzip {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('bgzip');
 
     my $combine_file = $self->file_retrieve('CombineVariants');
@@ -32,7 +32,7 @@ sub tabix {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('tabix');
 
     my $combine_file = $self->file_retrieve('bgzip');
