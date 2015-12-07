@@ -5,9 +5,9 @@ use Moo::Role;
 ##---------------------- ATTRIBUTES -------------------------
 ##-----------------------------------------------------------
 
-has seqid_skip => ( 
-    is => 'rw', 
-    builder => 1, 
+has seqid_skip => (
+    is      => 'rw',
+    builder => 1,
 );
 
 ##-----------------------------------------------------------
@@ -18,8 +18,8 @@ sub _build_seqid_skip {
     my $self = shift;
 
     my @record;
-    while(my $data = <DATA>) {
-	chomp $data;
+    while ( my $data = <DATA> ) {
+        chomp $data;
         push @record, $data;
     }
     my $ids = join( ",", @record );
@@ -65,17 +65,15 @@ sub wham_filter {
     my $files  = $self->file_retrieve('wham_graphing');
 
     ## just temp the first item to get info.
-    my $parts = $self->file_frags($files->[0]);
+    my $parts = $self->file_frags( $files->[0] );
 
-    my $join_file = join(" ", @{$files});
+    my $join_file = join( " ", @{$files} );
     my $output = $parts->{path} . $config->{ugp_id} . "_filtered.WHAM.vcf";
     $self->file_store($output);
 
-    my $cmd = sprintf(
-        "cat %s | %s -filter -o %s", 
-        $join_file, $self->software->{wham_utils}, $output
-    );
-    $self->bundle(\$cmd);
+    my $cmd = sprintf( "cat %s | %s -filter -o %s",
+        $join_file, $self->software->{wham_utils}, $output );
+    $self->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------
@@ -89,67 +87,17 @@ sub wham_sort {
     my $files  = $self->file_retrieve('wham_filter');
 
     my $input = $files->[0];
-    (my $output = $input) =~ s/_filtered.WHAM.vcf/_filtered_sorted.WHAM.vcf/;
+    ( my $output = $input ) =~ s/_filtered.WHAM.vcf/_filtered_sorted.WHAM.vcf/;
     $self->file_store($output);
 
     my $cmd = sprintf(
         "%s -sort -i %s -o %s",
-        $self->software->{wham_utils}, $input, $output
+        $self->software->{wham_utils},
+        $input, $output
     );
-    $self->bundle(\$cmd);
+    $self->bundle( \$cmd );
 }
 
-
-##-----------------------------------------------------------
-=cut
-sub wham_merge_indiv {
-    my $self = shift;
-    $self->pull;
-
-    unless ( $self->execute) {
-        $self->WARN(
-            "Review of wham_merge_indiv command not possible "
-            ."only generated during run."
-        );
-        return;
-    }
-
-    my $config = $self->options;
-    my $opts   = $self->tool_options('wham_merge_indiv');
-    my $files  = $self->file_retrieve('wham_sort');
-
-    ## open to get line count.
-    open( my $FH, '<', $files->[0] );
-    my $count;
-    while ( my $line = <$FH> ) {
-        $count++;
-    }
-    close $FH;
-
-    ## number of files to make
-    my $file_number = int( $count / 200 ) + 1;
-
-    my $frags = $self->file_frags( $files->[0] );
-
-    my @collect;
-    for ( 0 .. $file_number ) {
-        my $new_file =
-          $frags->{path} . 'wham_utils_' . int( rand(1000) ) . '_WHAM.vcf';
-        push @collect, $new_file;
-    }
-
-    my @cmds;
-    for my $output (@collect) {
-        my $cmd = sprintf( "%s/mergeIndvs -f %s -s %s | %s -splitter -o %s",
-            $config->{WHAM}, $files->[0], $opts->{s},
-            $self->software->{wham_utils}, $output
-        );
-        $self->file_store($output);
-        push @cmds, $cmd;
-    }
-    $self->bundle( \@cmds );
-}
-=cut
 ##-----------------------------------------------------------
 
 sub wham_merge_indiv {
@@ -162,14 +110,11 @@ sub wham_merge_indiv {
 
     ( my $output = $files->[0] ) =~ s/_filtered_sorted.WHAM.vcf/_mergeIndv.vcf/;
 
-    my $cmd = sprintf( 
-        "%s/mergeIndvs -f %s -s %s > %s",
-        $config->{WHAM}, $files->[0], $opts->{s}, $output
-    );
+    my $cmd = sprintf( "%s/mergeIndvs -f %s -s %s > %s",
+        $config->{WHAM}, $files->[0], $opts->{s}, $output );
     $self->file_store($output);
     $self->bundle( \$cmd );
 }
-
 
 ##-----------------------------------------------------------
 
@@ -177,17 +122,15 @@ sub wham_splitter {
     my $self = shift;
     $self->pull;
 
-    unless ( $self->execute) {
-        $self->WARN(
-            "Review of wham_splitter command not possible "
-            ."only generated during run."
-        );
+    unless ( $self->execute ) {
+        $self->WARN( "Review of wham_splitter command not possible "
+              . "only generated during run." );
         return;
     }
 
-    my $files  = $self->file_retrieve('wham_merge_indiv');
+    my $files = $self->file_retrieve('wham_merge_indiv');
 
-    # open to get content. 
+    # open to get content.
     open( my $FH, '<', $files->[0] );
     my @lines;
     while (<$FH>) {
@@ -205,16 +148,11 @@ sub wham_splitter {
 
     my @cmds;
     for my $chunk (@sections) {
-        for my $ele ( @{$chunk} ) {
-            chomp $ele;
-
-            my $output = 
-                $frags->{path} . 'UGP_split_temp_' . int( rand(1000) ) . '_WHAM.vcf';
-            open( my $OUT, '>>', $output );
-
-            say $OUT $ele;
-            $self->file_store($output);
-        }
+        my $output =
+          $frags->{path} . 'UGP_split_temp_' . int( rand(1000) ) . '_WHAM.vcf';
+        open( my $OUT, '>>', $output );
+        $self->file_store($output);
+        map { print $OUT $_ } @{$chunk};
     }
 }
 
@@ -224,11 +162,9 @@ sub wham_genotype {
     my $self = shift;
     $self->pull;
 
-    unless ( $self->execute) {
-        $self->WARN(
-            "Review of wham_genotype command not possible "
-            ."only generated during run."
-        );
+    unless ( $self->execute ) {
+        $self->WARN( "Review of wham_genotype command not possible "
+              . "only generated during run." );
         return;
     }
 
@@ -246,15 +182,14 @@ sub wham_genotype {
 
         ( my $output = $indiv ) =~ s/_WHAM.vcf/_genotyped_WHAM.vcf/;
         $self->file_store($output);
-	
+
         my $threads;
         ( $opts->{x} ) ? ( $threads = $opts->{x} ) : ( $threads = 1 );
 
         my $cmd =
           sprintf( "%s/WHAM-GRAPHENING -a %s -x %s -f %s -e %s -b %s > %s",
             $config->{WHAM}, $config->{fasta}, $threads, $join_bams, $skip_ids,
-            $indiv, $output 
-        );
+            $indiv, $output );
         push @cmds, [$cmd];
     }
     $self->bundle( \@cmds );
@@ -263,46 +198,42 @@ sub wham_genotype {
 ##-----------------------------------------------------------
 
 sub wham_genotype_cat {
-	my $self = shift;
-	$self->pull;
+    my $self = shift;
+    $self->pull;
 
-	unless ( $self->execute) {
-		$self->WARN(
-				"Review of wham_genotype_cat command not possible "
-				."only generated during run."
-			   );
-		return;
-	}
+    unless ( $self->execute ) {
+        $self->WARN( "Review of wham_genotype_cat command not possible "
+              . "only generated during run." );
+        return;
+    }
 
-	my $config    = $self->options;
-	my $opts      = $self->tool_options('wham_genotype_cat');
-	my $files     = $self->file_retrieve('wham_genotype');
+    my $config = $self->options;
+    my $opts   = $self->tool_options('wham_genotype_cat');
+    my $files  = $self->file_retrieve('wham_genotype');
 
-	# open to get content. 
-	open( my $FH, '<', $files->[0] );
-	my @lines;
-	while (<$FH>) {
-		chomp $_;
-		if ( $_ =~ /^#/ ) {
-			push @lines, $_;
-		}
-	}
-	close $FH;
+    # open to get header.
+    open( my $FH, '<', $files->[0] );
+    my @lines;
+    while (<$FH>) {
+        chomp $_;
+        if ( $_ =~ /^#/ ) {
+            push @lines, $_;
+        }
+    }
+    close $FH;
 
-	my $parts = $self->file_frags($files->[0]);
-	my $output = $parts->{path} . $config->{ugp_id} . "_final.WHAM.vcf";
-	$self->file_store($output);
+    my $parts  = $self->file_frags( $files->[0] );
+    my $output = $parts->{path} . $config->{ugp_id} . "_final.WHAM.vcf";
+    $self->file_store($output);
 
-	open(my $OUT, '>>', $output);
-	map { say $OUT $_ } @lines;
-	close $OUT;
+    open( my $OUT, '>>', $output );
+    map { say $OUT $_ } @lines;
+    close $OUT;
 
-	my $join_file = join(" ", @{$files});
-	my $cmd = sprintf(
-			"cat %s | grep -v \'^#\' | sort -k1,1n -k2,2n >> %s",
-			$join_file, $output
-			);
-	$self->bundle(\$cmd);
+    my $join_file = join( " ", @{$files} );
+    my $cmd = sprintf( "cat %s | grep -v \'^#\' | sort -k1,1n -k2,2n > %s",
+        $join_file, $output );
+    $self->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------

@@ -23,7 +23,7 @@ sub ucgd {
 
     my $sbatch = <<"EOM";
 #!/bin/bash
-#SBATCH -t 72:00:00
+#SBATCH -t 336:00:00
 #SBATCH -N 1
 #SBATCH -A ucgd-kp
 #SBATCH -p ucgd-kp
@@ -131,11 +131,8 @@ sub guest {
 #SBATCH -t 72:00:00
 #SBATCH -N 1
 #SBATCH -A owner-guest
-#SBATCH -p kingspeak-guest
-#SBATCH -C avey|bedrov|calaf|facelli|frost|gertz|hci|lebohec|lin|mason|molinero|sdss|sigman|steele|strong|tavtigian|varley|wjohnson|zpu
 
 source /uufs/chpc.utah.edu/common/home/u0413537/.bash_profile
-source /uufs/chpc.utah.edu/common/home/u0413537/.bashrc
 
 # clean up before start
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
