@@ -93,12 +93,13 @@ for my $indiv (@individuals) {
 
         my $ftpcmd =
                 "wget ftp://ftp-trace.ncbi.nih.gov/1000genomes/" .
-                "ftp/phase3/data/$indiv/sequence_read/* .";
+                "ftp/phase3/data/$indiv/sequence_read/* . > download.error";
         push @{$cmd_stack{$indiv}}, $ftpcmd;
         push @collected_individuals, $indiv;
         $collected++;
 }
 
+open(my $ERR, '>>', 'download.error');
 for my $cmd ( keys %cmd_stack) {
         chomp $cmd;
 
@@ -109,7 +110,7 @@ for my $cmd ( keys %cmd_stack) {
         my $wget = $cmd_stack{$cmd}[0];
         eval { `$wget` };
         if ( $@ ) {
-                say "WARN: $cmd & $wget had issues";
+                say $ERR "WARN: $cmd & $wget had issues";
                 next;
         }
         $pm->finish;
