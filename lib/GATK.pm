@@ -664,7 +664,6 @@ sub VariantRecalibrator_SNP {
 
     my $config = $self->options;
     my $opts   = $self->tool_options('VariantRecalibrator_SNP');
-
     my $genotpd = $self->file_retrieve('CatVariants_Genotype');
 
     my $recalFile =
