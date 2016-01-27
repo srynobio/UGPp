@@ -41,9 +41,10 @@ chdir $dir;
 make_path(
     'Intermediate_Files', 'Reports',
     'Reports/fastqc',     'Reports/stats',
-    'Reports/flagstat',   'VCF',
+    'Reports/flagstat',   'Reports/BAMQC',
+    'Reports/VCFQC', 'VCF',
     'VCF/GVCFs',          'VCF/Complete',
-    'QC',                 'Data/PolishedBAMs',
+    'Data/PolishedBAMs',
     'Data/Primary_Data', 'VCF/WHAM'
 ) if $run;
 
