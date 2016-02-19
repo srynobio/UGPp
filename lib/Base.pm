@@ -3,7 +3,9 @@ use Moo;
 use Config::Std;
 use File::Basename;
 use IO::Dir;
-use Storable qw(dclone);
+use Storable 'dclone';
+use File::Slurper 'read_lines';
+use feature 'say';
 
 #-----------------------------------------------------------
 #---------------------- ATTRIBUTES -------------------------
@@ -11,7 +13,7 @@ use Storable qw(dclone);
 
 has VERSION => (
     is      => 'ro',
-    default => sub { '1.4.0' },
+    default => sub { '1.0.0' },
 );
 
 has commandline => (
@@ -72,14 +74,15 @@ has execute => (
     is      => 'ro',
     default => sub {
         my $self = shift;
-        return $self->commandline->{run};
+        return $self->commandline->{run} || 0;
     },
 );
 
-has file_from_command => (
-    is      => 'rw',
+has individuals => (
+    is      => 'ro',
     default => sub {
-        return undef;
+        my $self = shift;
+        return $self->commandline->{individuals} || 0;
     },
 );
 
@@ -92,49 +95,66 @@ sub _build_data_files {
 
     my $data_path = $self->data;
 
-    unless ( -e $data_path ) {
-        $self->WARN("Data directory not found our not used");
-        return;
-    }
-
-    unless ( $data_path =~ /\/$/ ) {
-        $data_path =~ s/$/\//;
-    }
-
-    #update path data
-    $self->{data} = $data_path;
-
-    #check for output directory.
-    if ( !$self->main->{output} ) {
-        $self->main->{output} = $data_path;
-    }
-    elsif ( $self->main->{output} ) {
-        my $out = $self->main->{output};
-        unless ( $out =~ /\/$/ ) {
-            $out =~ s/$/\//;
-            $self->main->{output} = $out;
+    unless ( -d $data_path ) {
+        $self->WARN("Data directory not found or $data_path not a directory");
+        unless ( $self->{commandline}->{file} ) {
+            $self->ERROR("Data path or -f option must be used.");
         }
     }
 
-    my @file_info = fileparse($data_path);
-    my $DIR       = IO::Dir->new($data_path);
-
     my @file_path_list;
-    foreach my $file ( $DIR->read ) {
-        chomp $file;
-        next if ( -d $file );
-        push @file_path_list, "$file_info[1]$file_info[0]$file";
+    if ($data_path) {
+        unless ( $data_path =~ /\/$/ ) {
+            $data_path =~ s/$/\//;
+        }
+
+        #update path data
+        $self->{data} = $data_path;
+
+        ## check for output directory.
+        ## or add default.
+        if ( !$self->main->{output} ) {
+            $self->main->{output} = $data_path;
+        }
+        elsif ( $self->main->{output} ) {
+            my $out = $self->main->{output};
+            unless ( $out =~ /\/$/ ) {
+                $out =~ s/$/\//;
+                $self->main->{output} = $out;
+            }
+        }
+
+        my $DIR = IO::Dir->new($data_path);
+        foreach my $file ( $DIR->read ) {
+            chomp $file;
+            next if ( -d $file );
+            push @file_path_list, "$data_path$file";
+        }
+        $DIR->close;
     }
 
-    $self->WARN("[WARN] No data file found in given data directory: $data_path")
-      unless (@file_path_list);
+    ## file from the command line.
+    if ( $self->{commandline}->{file} ) {
+        @file_path_list = read_lines( $self->{commandline}->{file} );
+
+        if ( !$self->main->{output} ) {
+            my ( $name, $path ) = fileparse( $file_path_list[0] );
+            $self->main->{output} = $path;
+        }
+        elsif ( $self->main->{output} ) {
+            my $out = $self->main->{output};
+            unless ( $out =~ /\/$/ ) {
+                $out =~ s/$/\//;
+                $self->main->{output} = $out;
+            }
+        }
+    }
     my @sorted_files = sort @file_path_list;
 
-    # store the begining file list in object
-    $self->{start_files} = \@sorted_files
-      unless $self->{commandline}->{file};
-
-    $DIR->close;
+    if ( !@sorted_files ) {
+        $self->ERROR("data path or -f option not found.");
+    }
+    $self->{start_files} = \@sorted_files;
     return;
 }
 
@@ -167,9 +187,59 @@ sub timestamp {
 
 #-----------------------------------------------------------
 
+sub file_store {
+    my ( $self, $file ) = @_;
+
+    my $caller = ( caller(1) )[3];
+    my ( $class, $method ) = split "::", $caller;
+
+    push @{ $self->{file_store}{$method} }, $file;
+    return;
+}
+
+#-----------------------------------------------------------
+
+sub file_retrieve {
+    my ( $self, $class, $exact ) = @_;
+
+    if ( !$class ) {
+        return $self->{start_files};
+    }
+    if ($class) {
+        if ( $self->{file_store}{$class} ) {
+            my $copy = dclone( $self->{file_store} );
+            return $copy->{$class};
+        }
+        else {
+            ($exact) ? (return) : ( return $self->{start_files} );
+        }
+    }
+}
+
+#-----------------------------------------------------------
+
+sub _make_store {
+    my ( $self, $class ) = @_;
+    my $list = $self->{commandline}->{file};
+
+    open( my $FH, '<', $list )
+      or $self->ERROR("File $list can not be opened");
+
+    foreach my $file (<$FH>) {
+        chomp $file;
+        push @{ $self->{file_store}{$class} }, $file;
+    }
+    $FH->close;
+    return;
+}
+
+#-----------------------------------------------------------
+
 sub WARN {
     my ( $self, $message ) = @_;
-    print STDOUT "[WARN] $message\n";
+    open(my $WARN, '>>', 'WARN.log');
+
+    print $WARN "[WARN] $message\n";
     return;
 }
 
@@ -177,12 +247,12 @@ sub WARN {
 
 sub ERROR {
     my ( $self, $message ) = @_;
-    my $ERROR = IO::File->new( 'FATAL.log', 'a+' );
+    open( my $ERROR, '>>', 'FATAL.log' );
 
-    print $ERROR $self->timestamp, ": $message\n";
-    print "Fatal error occured please check log file\n";
+    say $ERROR $self->timestamp, "[ERROR] $message";
+    say "Fatal error occured please check FATAL.log file";
     $ERROR->close;
-    die;
+    exit(0);
 }
 
 #-----------------------------------------------------------
@@ -193,15 +263,16 @@ sub LOG {
 
     my @time = split /\s+/, $self->timestamp;
     my $log_time = "$time[1]_$time[2]_$time[4]";
-    my $default_log = 'UGPp_UCGD_Pipeline.GVCF.' . $self->VERSION . "_$log_time-log.txt";
+    my $default_log =
+      'UGPp_Pipeline.GVCF.' . $self->VERSION . "_$log_time-log.txt";
 
     my $log_file = $self->main->{log} || $default_log;
     $self->{log_file} = $log_file;
-    my $LOG = IO::File->new( $log_file, 'a+' );
+    open(my $LOG, '>>', $log_file);
 
     if ( $type eq 'config' ) {
         print $LOG "-" x 55;
-        print $LOG "\n----- UGP Pipeline -----\n";
+        print $LOG "\n----- UGPp Pipeline -----\n";
         print $LOG "-" x 55;
         print $LOG "\nRan on ", $self->timestamp;
         print $LOG "\nUsing the following programs:\n";
@@ -213,14 +284,14 @@ sub LOG {
         print $LOG "Sambamba: " . $self->main->{sambamba_version},     "\n";
         print $LOG "FastQC: " . $self->main->{fastqc_version},         "\n";
         print $LOG "Tabix: " . $self->main->{tabix_version},           "\n";
-        print $LOG "WHAM: " . $self->main->{wham_version},           "\n";
+        print $LOG "WHAM: " . $self->main->{wham_version},             "\n";
         print $LOG "-" x 55, "\n";
     }
     elsif ( $type eq 'start' ) {
         print $LOG "Started process $message at ", $self->timestamp, "\n";
     }
     elsif ( $type eq 'cmd' ) {
-        print $LOG "command started at ", $self->timestamp, " ==> @$message\n"
+        print $LOG "command started at ", $self->timestamp, " ==> $message\n"
           if $self->engine eq 'cluster';
         print $LOG "command started at ", $self->timestamp, " ==> $message\n"
           if $self->engine eq 'server';
@@ -238,71 +309,6 @@ sub LOG {
         $self->ERROR("Requested LOG message type unknown\n");
     }
     $LOG->close;
-    return;
-}
-
-#-----------------------------------------------------------
-
-sub file_store {
-    my ( $self, $file, $override ) = @_;
-
-    my $caller = ( caller(1) )[3];
-    my ( $class, $method ) = split "::", $caller;
-
-    # override of method to allow you to push file downstream
-    # without changing all forward calls.
-    $method = $override if $override;
-
-    push @{ $self->{file_store}{$method} }, $file;
-    return;
-}
-
-#-----------------------------------------------------------
-
-sub file_retrieve {
-    my ( $self, $class ) = @_;
-
-    # first step of pipeline will have no data.
-    # if not from commandline
-    if ( !$self->{commandline}->{file} and !$class ) {
-        return $self->{start_files};
-    }
-
-    # self discovery for first step
-    # of the pipeline
-    unless ($class) {
-        my $caller = ( caller(1) )[3];
-        my @caller = split "::", $caller;
-        $class = $caller[1];
-    }
-
-    if ( $self->{commandline}->{file} ) {
-        $self->_make_store($class);
-        $self->file_from_command('1');
-        delete $self->{commandline}->{file};
-        return $self->{file_store}{$class};
-    }
-
-    if ( $self->{file_store}{$class} ) {
-        my $copy = dclone( $self->{file_store} );
-        return $copy->{$class};
-    }
-}
-
-#-----------------------------------------------------------
-
-sub _make_store {
-    my ( $self, $class ) = @_;
-    my $list = $self->{commandline}->{file};
-
-    my $FH = IO::File->new($list)
-      or $self->ERROR("File $list can not be opened");
-
-    foreach my $file (<$FH>) {
-        chomp $file;
-        push @{ $self->{file_store}{$class} }, $file;
-    }
-    $FH->close;
     return;
 }
 

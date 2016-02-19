@@ -1,4 +1,4 @@
-package GATK;
+package gatk;
 use Moo::Role;
 use IO::File;
 use IO::Dir;
@@ -71,7 +71,7 @@ sub _build_intervals {
 
 sub _build_indels {
     my $self   = shift;
-    my $knowns = $self->options->{known_indels};
+    my $knowns = $self->class_config->{known_indels};
 
     $self->ERROR('Issue building known indels from file') unless ($knowns);
 
@@ -88,7 +88,7 @@ sub _build_indels {
 
 sub _build_dbsnp {
     my $self   = shift;
-    my $knowns = $self->options->{known_dbsnp};
+    my $knowns = $self->class_config->{known_dbsnp};
 
     $self->ERROR('Issue building known dbsnp from file') unless ($knowns);
 
@@ -102,7 +102,7 @@ sub RealignerTargetCreator {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('RealignerTargetCreator');
 
     my $single = $self->file_retrieve('bwa_mem');
@@ -112,10 +112,11 @@ sub RealignerTargetCreator {
     ($multi) ? ( $combined = $multi ) : ( $combined = $single );
 
     # collect known files to transfer to cluster node
-    my $kn = join( '* ', @{ $self->options->{known_indels} } );
+    my $kn = join( '* ', @{ $self->class_config->{known_indels} } );
 
     my @cmds;
     foreach my $in ( @{$combined} ) {
+        next unless ($in =~ /sorted_Dedup.bam$/);
         my $parts = $self->file_frags($in);
 
         foreach my $region ( @{ $self->intervals } ) {
@@ -135,12 +136,12 @@ sub RealignerTargetCreator {
                   . "-R %s -I %s --disable_auto_index_creation_and_locking_when_reading_rods "
                   . "--num_threads %s %s -L %s -o %s",
                 $opts->{xmx},         $opts->{gc_threads},
-                $config->{tmp},       $config->{GATK},
+                $config->{tmp},       $config->{gatk},
                 $config->{fasta},     $in,
                 $opts->{num_threads}, $self->indels,
                 $region,              $output
             );
-            push @cmds, [ $cmd, $in, $region, $kn ];
+            push @cmds, $cmd;
         }
     }
 
@@ -153,7 +154,7 @@ sub IndelRealigner {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('IndelRealigner');
 
     my $single = $self->file_retrieve('bwa_mem');
@@ -167,10 +168,11 @@ sub IndelRealigner {
     ( my $known = $self->indels ) =~ s/--known/-known/g;
 
     # collect known files to transfer to cluster node
-    my $kn = join( '* ', @{ $self->options->{known_indels} } );
+    my $kn = join( '* ', @{ $self->class_config->{known_indels} } );
 
     my @cmds;
     foreach my $dep ( @{$combined} ) {
+        next unless ($dep =~ /sorted_Dedup.bam$/);
         my $dep_parts = $self->file_frags($dep);
 
         my @target_region = grep { /$dep_parts->{parts}[0]\_/ } @{$target};
@@ -192,11 +194,11 @@ sub IndelRealigner {
                   . "--disable_auto_index_creation_and_locking_when_reading_rods "
                   . "-I %s -L %s -targetIntervals %s %s -o %s",
                 $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
-                $config->{GATK}, $config->{fasta},    $dep,
+                $config->{gatk}, $config->{fasta},    $dep,
                 $intv[0],        $region,             $known,
                 $output
             );
-            push @cmds, [ $cmd, $dep, $region, $intv[0], $kn ];
+            push @cmds, $cmd;
         }
     }
     $self->bundle( \@cmds );
@@ -208,7 +210,7 @@ sub BaseRecalibrator {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('BaseRecalibrator');
     my $align  = $self->file_retrieve('IndelRealigner');
 
@@ -217,8 +219,8 @@ sub BaseRecalibrator {
 
     # collect known files to transfer to cluster node
     my $kn = join( '* ',
-        @{ $self->options->{known_indels} },
-        $self->options->{known_dbsnp} );
+        @{ $self->class_config->{known_indels} },
+        $self->class_config->{known_dbsnp} );
 
     my @cmds;
     foreach my $aln ( @{$align} ) {
@@ -233,12 +235,12 @@ sub BaseRecalibrator {
               . "--num_cpu_threads_per_data_thread %s %s %s "
               . "--disable_auto_index_creation_and_locking_when_reading_rods -o %s",
             $opts->{xmx},                             $opts->{gc_threads},
-            $config->{tmp},                           $config->{GATK},
+            $config->{tmp},                           $config->{gatk},
             $config->{fasta},                         $aln,
             $opts->{num_cpu_threads_per_data_thread}, $self->dbsnp,
             $known_indels,                            $output
         );
-        push @cmds, [ $cmd, $aln, $kn ];
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
 }
@@ -249,7 +251,7 @@ sub PrintReads {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('PrintReads');
     my $table  = $self->file_retrieve('BaseRecalibrator');
     my $align  = $self->file_retrieve('IndelRealigner');
@@ -278,12 +280,12 @@ sub PrintReads {
 
             #. "--num_cpu_threads_per_data_thread %s -BQSR %s -o %s",
             $opts->{xmx},                             $opts->{gc_threads},
-            $config->{tmp},                           $config->{GATK},
+            $config->{tmp},                           $config->{gatk},
             $config->{fasta},                         $bam,
             $opts->{num_cpu_threads_per_data_thread}, $recal_t,
             $output
         );
-        push @cmds, [ $cmd, $bam, $recal_t ];
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
 }
@@ -294,7 +296,7 @@ sub HaplotypeCaller {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('HaplotypeCaller');
 
     # collect files and stack them.
@@ -305,6 +307,7 @@ sub HaplotypeCaller {
     foreach my $bam ( @{$reads} ) {
         my $file = $self->file_frags($bam);
 
+=cut
         if ( $self->file_from_command ) {
             my $search;
             foreach my $chr ( @{ $file->{parts} } ) {
@@ -340,7 +343,7 @@ sub HaplotypeCaller {
                     $opts->{xmx},
                     $opts->{gc_threads},
                     $config->{tmp},
-                    $config->{GATK},
+                    $config->{gatk},
                     $config->{fasta},
                     $opts->{num_cpu_threads_per_data_thread},
                     $opts->{standard_min_confidence_threshold_for_calling},
@@ -353,10 +356,11 @@ sub HaplotypeCaller {
                     $region,
                     $output
                 );
-                push @cmds, [ $cmd, $bam, $region ];
+                push @cmds, $cmd;
             }
         }
         else {
+=cut
             my $search;
             foreach my $chr ( @{ $file->{parts} } ) {
                 if ( $chr =~ /chr.*/ ) {
@@ -388,7 +392,7 @@ sub HaplotypeCaller {
                 $opts->{xmx},
                 $opts->{gc_threads},
                 $config->{tmp},
-                $config->{GATK},
+                $config->{gatk},
                 $config->{fasta},
                 $opts->{num_cpu_threads_per_data_thread},
                 $opts->{standard_min_confidence_threshold_for_calling},
@@ -401,8 +405,8 @@ sub HaplotypeCaller {
                 $intv[0],
                 $output
             );
-            push @cmds, [ $cmd, $bam, $intv[0] ];
-        }
+            push @cmds, $cmd;
+            #     }
     }
     $self->bundle( \@cmds );
 }
@@ -413,7 +417,7 @@ sub CatVariants {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
 
     my $gvcf = $self->file_retrieve('HaplotypeCaller');
     my @iso = grep { /\.gvcf$/ } @{$gvcf};
@@ -461,8 +465,8 @@ sub CatVariants {
             "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
               . "--variant_index_type LINEAR  "
               . "--variant_index_parameter 128000 --assumeSorted  %s -out %s",
-            $config->{GATK}, $config->{fasta}, $variant, $pathFile );
-        push @cmds, [ $cmd, @ordered_list ];
+            $config->{gatk}, $config->{fasta}, $variant, $pathFile );
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
 }
@@ -473,7 +477,7 @@ sub CombineGVCF {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('CombineGVCF');
 
     my $gvcf = $self->file_retrieve('CatVariants');
@@ -504,10 +508,10 @@ sub CombineGVCF {
                   . " -T CombineGVCFs -R %s "
                   . "--disable_auto_index_creation_and_locking_when_reading_rods "
                   . "--variant %s -o %s",
-                $opts->{xmx}, $opts->{gc_threads}, $config->{GATK},
+                $opts->{xmx}, $opts->{gc_threads}, $config->{gatk},
                 $config->{fasta}, $variants, $output );
 
-            push @cmds, [ $cmd, @{$split} ];
+            push @cmds, $cmd;
         }
     }
     else {
@@ -521,10 +525,10 @@ sub CombineGVCF {
               . " -T CombineGVCFs -R %s "
               . "--disable_auto_index_creation_and_locking_when_reading_rods "
               . "--variant %s -o %s",
-            $opts->{xmx}, $opts->{gc_threads}, $config->{GATK},
+            $opts->{xmx}, $opts->{gc_threads}, $config->{gatk},
             $config->{fasta}, $variants, $output );
 
-        push @cmds, [ $cmd, $variants ];
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
 }
@@ -535,23 +539,29 @@ sub GenotypeGVCF {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('GenotypeGVCF');
 
-    my @gcated;
-    my $data = $self->file_retrieve('CombineGVCF');
+    #my @gcated;
+    #my $data = $self->file_retrieve('CombineGVCF');
+     my $data = $self->file_retrieve('CatVariants');
+    #my $data = $self->file_retrieve('CombineGVCF');
+    my @gcated = grep { /(gCat.vcf$|g.vcf$)/ } @{$data};
+
+=cut    
     if ($data) {
         @gcated = grep { /mergeGvcf/ } @{$data};
 
         # if gCat files given at command line.
         unless ( @gcated ) {
-            @gcated = grep { /gCat.vcf$/ } @{$data};
+            @gcated = grep { /(gCat.vcf$|g.vcf$)/ } @{$data};
         }
     }
     else {
         $data = $self->file_retrieve('CatVariants');
-        @gcated = grep { /gCat.vcf$/ } @{$data};
+        @gcated = grep { /(gCat.vcf$|g.vcf$)/ } @{$data};
     }
+=cut
 
     # collect the 1k backgrounds.
     my (@backs);
@@ -587,7 +597,7 @@ sub GenotypeGVCF {
                   . "--disable_auto_index_creation_and_locking_when_reading_rods --num_threads %s "
                   . "--variant %s --variant %s -L %s -o %s",
                 $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
-                $config->{GATK}, $config->{fasta},    $opts->{num_threads},
+                $config->{gatk}, $config->{fasta},    $opts->{num_threads},
                 $input,          $back_variants,      $region,
                 $output
             );
@@ -599,11 +609,11 @@ sub GenotypeGVCF {
                   . "--disable_auto_index_creation_and_locking_when_reading_rods "
                   . "--num_threads %s --variant %s -L %s -o %s",
                 $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
-                $config->{GATK}, $config->{fasta},    $opts->{num_threads},
+                $config->{gakt}, $config->{fasta},    $opts->{num_threads},
                 $input,          $region,             $output
             );
         }
-        push @cmds, [ $cmd, @gcated, @backs ];
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
 }
@@ -614,7 +624,7 @@ sub CatVariants_Genotype {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
 
     my $vcf = $self->file_retrieve('GenotypeGVCF');
     my @iso = grep { /genotyped.vcf$/ } @{$vcf};
@@ -648,12 +658,10 @@ sub CatVariants_Genotype {
     my $cmd = sprintf(
         "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
           . "--assumeSorted  %s -out %s",
-        $config->{GATK}, $config->{fasta}, $variant, $output );
+        $config->{gatk}, $config->{fasta}, $variant, $output );
 
-    push @cmds, [ $cmd, @ordered_list ];
+    push @cmds, $cmd;
     $self->bundle( \@cmds );
-
-    #$self->bundle(\$cmd);
 }
 
 ##-----------------------------------------------------------
@@ -662,7 +670,7 @@ sub VariantRecalibrator_SNP {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('VariantRecalibrator_SNP');
     my $genotpd = $self->file_retrieve('CatVariants_Genotype');
 
@@ -686,14 +694,14 @@ sub VariantRecalibrator_SNP {
           . "--disable_auto_index_creation_and_locking_when_reading_rods "
           . "-resource:%s -an %s -input %s %s %s %s -mode SNP",
         $opts->{xmx},     $opts->{gc_threads},
-        $config->{tmp},   $config->{GATK},
+        $config->{tmp},   $config->{gatk},
         $config->{fasta}, $opts->{minNumBadVariants},
         $opts->{num_threads}, join( ' -resource:', @$resource ),
         join( ' -an ', @$anno ), @$genotpd,
         $recalFile, $tranchFile,
         $rscriptFile
     );
-    push @cmds, [$cmd];
+    push @cmds, $cmd;
     $self->bundle( \@cmds );
 }
 
@@ -703,7 +711,7 @@ sub VariantRecalibrator_INDEL {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('VariantRecalibrator_INDEL');
 
     my $genotpd = $self->file_retrieve('CatVariants_Genotype');
@@ -727,14 +735,14 @@ sub VariantRecalibrator_INDEL {
           . "--disable_auto_index_creation_and_locking_when_reading_rods "
           . "-R %s --minNumBadVariants %s --num_threads %s -resource:%s -an %s -input %s %s %s %s -mode INDEL",
         $opts->{xmx},     $opts->{gc_threads},
-        $config->{tmp},   $config->{GATK},
+        $config->{tmp},   $config->{gatk},
         $config->{fasta}, $opts->{minNumBadVariants},
         $opts->{num_threads}, join( ' -resource:', @$resource ),
         join( ' -an ', @$anno ), @$genotpd,
         $recalFile, $tranchFile,
         $rscriptFile
     );
-    push @cmds, [$cmd];
+    push @cmds, $cmd;
     $self->bundle( \@cmds );
 }
 
@@ -744,7 +752,7 @@ sub ApplyRecalibration_SNP {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('ApplyRecalibration_SNP');
 
     my $recal_files = $self->file_retrieve('VariantRecalibrator_SNP');
@@ -761,12 +769,12 @@ sub ApplyRecalibration_SNP {
           . "--disable_auto_index_creation_and_locking_when_reading_rods "
           . "-R %s --ts_filter_level %s --num_threads %s --excludeFiltered -input %s %s %s -mode SNP -o %s",
         $opts->{xmx},             $config->{tmp},
-        $config->{GATK},          $config->{fasta},
+        $config->{gatk},          $config->{fasta},
         $opts->{ts_filter_level}, $opts->{num_threads},
         $genotpd,                 shift @{$recal_files},
         shift @{$recal_files},    $output
     );
-    push @cmds, [$cmd];
+    push @cmds, $cmd;
     $self->bundle( \@cmds );
 }
 
@@ -776,7 +784,7 @@ sub ApplyRecalibration_INDEL {
     my $self = shift;
     $self->pull;
 
-    my $config      = $self->options;
+    my $config      = $self->class_config;
     my $opts        = $self->tool_options('ApplyRecalibration_INDEL');
     my $recal_files = $self->file_retrieve('VariantRecalibrator_INDEL');
     my $get         = $self->file_retrieve('CatVariants_Genotype');
@@ -792,12 +800,12 @@ sub ApplyRecalibration_INDEL {
           . "--disable_auto_index_creation_and_locking_when_reading_rods "
           . "-R %s --ts_filter_level %s --num_threads %s --excludeFiltered -input %s %s %s -mode INDEL -o %s",
         $opts->{xmx},             $config->{tmp},
-        $config->{GATK},          $config->{fasta},
+        $config->{gatk},          $config->{fasta},
         $opts->{ts_filter_level}, $opts->{num_threads},
         $genotpd,                 shift @{$recal_files},
         shift @{$recal_files},    $output
     );
-    push @cmds, [$cmd];
+    push @cmds, $cmd;
     $self->bundle( \@cmds );
 }
 
@@ -807,7 +815,7 @@ sub CombineVariants {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('CombineVariants');
 
     my $snp_files   = $self->file_retrieve('ApplyRecalibration_SNP');
@@ -826,12 +834,12 @@ sub CombineVariants {
           . "--disable_auto_index_creation_and_locking_when_reading_rods "
           . "--num_threads %s --genotypemergeoption %s %s %s -o %s",
         $opts->{xmx},         $config->{tmp},
-        $config->{GATK},      $config->{fasta},
+        $config->{gatk},      $config->{fasta},
         $opts->{num_threads}, $opts->{genotypemergeoption},
         join( " ", @app_snp ), join( " ", @app_ind ),
         $output
     );
-    push @cmds, [$cmd];
+    push @cmds, $cmd;
     $self->bundle( \@cmds );
 }
 

@@ -1,36 +1,36 @@
 package UGP;
 use Moo;
-use IPC::System::Simple qw|run|;
+use IPC::System::Simple 'run';
 use Config::Std;
 use File::Basename;
 use Parallel::ForkManager;
-use File::Copy;
 use IO::File;
+use File::Slurper 'read_lines';
+use feature 'say';
 
 extends 'Base';
 
 with qw|
-  Bam2Fastq
-  BWA
-  FastQC
-  SamTools
-  Sambamba
-  GATK
-  ClusterUtils
-  Tabix
-  WHAM
-  Utils
+  bam2fastq
+  bwa
+  sambamba
+  fastqc
+  samtools
+  gatk
+  tabix
+  wham
+  clusterUtils
   |;
 
 ##-----------------------------------------------------------
 ##---------------------- ATTRIBUTES -------------------------
 ##-----------------------------------------------------------
 
-has options => (
+has class_config => (
     is      => 'ro',
     default => sub {
         my $self = shift;
-        return $self->{options};
+        return $self->{class_config};
     }
 );
 
@@ -39,7 +39,7 @@ has output => (
     lazy    => 1,
     default => sub {
         my $self = shift;
-        return $self->{options}->{output};
+        return $self->main->{output};
     },
 );
 
@@ -59,22 +59,6 @@ has 'slurm_template' => (
     },
 );
 
-has 'log_path' => (
-    is      => 'ro',
-    default => sub {
-        my $self = shift;
-        return unless ( $self->commandline->{log_path} );
-
-        my $path = $self->commandline->{log_path};
-
-        if ( $path =~ /\/$/ ) { return $path }
-        else {
-            $path =~ s/$/\//;
-            return $path;
-        }
-    },
-);
-
 has qstat_limit => (
     is      => 'ro',
     default => sub {
@@ -88,10 +72,9 @@ has qstat_limit => (
 ##---------------------- METHODS ----------------------------
 ##-----------------------------------------------------------
 
-sub UGP_Pipeline {
+sub pipeline {
     my $self = shift;
 
-    my $PROG;
     my %progress_list;
     my $steps = $self->order;
 
@@ -99,8 +82,7 @@ sub UGP_Pipeline {
         $self->LOG('config');
 
         if ( -e 'PROGRESS' and -s 'PROGRESS' ) {
-            my @progress = `cat PROGRESS`;
-            chomp @progress;
+            my @progress = read_lines('PROGRESS');
 
             map {
                 my @prgs = split ":", $_;
@@ -111,22 +93,24 @@ sub UGP_Pipeline {
     }
 
     # collect the cmds on stack.
-    my @cmd_stack;
     foreach my $sub ( @{$steps} ) {
         chomp $sub;
 
         eval { $self->$sub };
-        if ($@) { $self->ERROR("Error when calling $sub: $@") }
+        if ($@) {
+            $self->ERROR("Error during call to $sub: $@");
+        }
 
+        ## next if $sub commands already done.
         if ( $progress_list{$sub} and $progress_list{$sub} eq 'complete' ) {
             delete $self->{bundle};
             next;
         }
 
-        # print stack for review
+        ## print stack for review
         if ( !$self->execute ) {
             my $stack = $self->{bundle};
-            map { print "Review of command[s] from: $sub => @$_[0]\n" }
+            map { print "Review of command[s] from: $sub => $_\n" }
               @{ $stack->{$sub} };
             delete $stack->{$sub};
             next;
@@ -138,9 +122,6 @@ sub UGP_Pipeline {
             $self->_cluster;
         }
     }
-
-    ## sent copy of log file to output directory.
-    copy($self->{log_file}, $self->main->{output} ) if $self->execute;
     return;
 }
 
@@ -163,7 +144,7 @@ sub pull {
     # for caller ease, return one large hashref.
     my %options = ( %{ $self->main }, %programs );
 
-    $self->{options} = \%options;
+    $self->{class_config} = \%options;
     return $self;
 }
 
@@ -177,35 +158,29 @@ sub bundle {
     my ( $package, $sub ) = split /::/, $caller;
 
     # what type of call
-    my $call_type = ref $cmd;
-    unless ( $call_type and $call_type ne 'HASH' ) {
-        $self->ERROR(
-            "bundled command from $sub command must be an scalar or array reference."
-        );
+    my $ref_type = ref $cmd;
+    unless ( $ref_type =~ /(ARRAY|SCALAR)/ ) {
+        $self->ERROR("bundle method expects reference to array or scalar.");
     }
 
     my $id;
-    if ( $call_type eq 'ARRAY' ) {
-        foreach my $cmd ( @{$cmd} ) {
-            if ( $cmd->[0] ) {
-                my $log     = "$sub.log-" . ++$id;
-                my $add_log = $cmd->[0] . " 2> $log";
-                $cmd->[0] = $add_log;
-            }
+    my @cmds;
+    if ( $ref_type eq 'ARRAY' ) {
+        foreach my $i ( @{$cmd} ) {
+            my $log     = "$sub.log-" . ++$id;
+            my $add_log = $i . " 2> $log";
+            $i = $add_log;
+            push @cmds, $i;
         }
     }
-
-    # place in list and add log file;
-    my @cmds;
-    if ( ref $cmd eq 'ARRAY' ) {
-        @cmds = @{$cmd};
+    else {
+        my $i       = $$cmd;
+        my $log     = "$sub.log-" . ++$id;
+        my $add_log = $i . " 2> $log";
+        $i = $add_log;
+        push @cmds, $i;
     }
-    else { @cmds = [$$cmd] }
-    chomp @cmds;
-
-    # add to object
     $self->{bundle}{$sub} = \@cmds;
-
     return;
 }
 
@@ -276,15 +251,37 @@ sub _server {
 
 ##-----------------------------------------------------------
 
+sub node_setup {
+    my ( $self, $step ) = @_;
+
+    my $opts = $self->{config}->{$step};
+    my $node = $opts->{node} || 'ucgd';
+
+    ## jpn need higher values for default.
+    my $jpn;
+    if ( $step eq 'fastqforward' ) {
+        ( $opts->{jpn} )
+          ? ( $jpn = $opts->{jpn} )
+          : ( $jpn = '4' );
+    }
+    else {
+        $jpn = $opts->{jpn} || '1';
+    }
+
+    return $jpn, $node;
+}
+
+##-----------------------------------------------------------
+
 sub _cluster {
-    my $self = shift;
+    my ( $self, $stack ) = @_;
 
     # command information.
     my @sub      = keys %{ $self->{bundle} };
     my @stack    = values %{ $self->{bundle} };
     my @commands = map { @$_ } @stack;
 
-    return if ( !@commands );
+    return if ( ! @commands );
 
     # jobs per node per step
     my $jpn = $self->config->{ $sub[0] }->{jpn} || '1';
@@ -298,9 +295,9 @@ sub _cluster {
     my $id;
     my ( @parts, @copies, @slurm_stack );
     while (@commands) {
-        my $tmp = $sub[0] . "_" . ++$id . ".sbatch";
+        my $slurm_file = $sub[0] . "_" . ++$id . ".sbatch";
 
-        my $RUN = IO::File->new( $tmp, 'w' )
+        my $RUN = IO::File->new( $slurm_file, 'w' )
           or $self->ERROR('Can not create needed slurm file [cluster]');
 
         # don't go over total file amount.
@@ -318,14 +315,15 @@ sub _cluster {
         my $batch = $self->$node( \@parts, $sub[0] );
 
         print $RUN $batch;
-        push @slurm_stack, $tmp;
+        push @slurm_stack, $slurm_file;
         $RUN->close;
     }
 
+    open( my $FH, '>>', 'launch.index' );
     my $running = 0;
     foreach my $launch (@slurm_stack) {
         if ( $running >= $self->qstat_limit ) {
-            my $status = $self->_jobs_status;
+            my $status = $self->_jobs_status($node);
             if ( $status eq 'add' ) {
                 $running--;
                 redo;
@@ -336,20 +334,21 @@ sub _cluster {
             }
         }
         else {
-            system "sbatch $launch &>> launch.index";
+            print $FH "$launch\t";
+            system "sbatch $launch >> launch.index";
             $running++;
             next;
         }
     }
 
-    # give sbatch system time to start
+    ## give smaller stacks time to start.
     sleep(60);
 
     # check the status of current sbatch jobs
     # before moving on.
-    $self->_wait_all_jobs;
-
-    `rm launch.index`;
+    $self->_wait_all_jobs($node, $sub[0]);
+    $self->_error_check;
+    unlink('launch.index');
 
     delete $self->{bundle};
     $self->LOG( 'finish',   $sub[0] );
@@ -360,8 +359,10 @@ sub _cluster {
 ##-----------------------------------------------------------
 
 sub _jobs_status {
-    my $self  = shift;
-    my $state = `squeue -u u0413537|wc -l`;
+    my ( $self, $node ) = @_;
+
+    my $partition = $self->_which_node($node);
+    my $state = `squeue -A $partition -u u0413537 -h | wc -l`;
 
     if ( $state >= $self->qstat_limit ) {
         return 'wait';
@@ -373,24 +374,126 @@ sub _jobs_status {
 
 ##-----------------------------------------------------------
 
-sub _wait_all_jobs {
-    my $self   = shift;
-    my @indexs = `cat launch.index`;
-    chomp @indexs;
+## method used when using preemptable nodes.
 
-    foreach my $job (@indexs) {
-        my @parts = split /\s/, $job;
+sub _relaunch {
+    my $self = shift;
 
-      LINE:
-        my $state = `scontrol show job $parts[-1] |grep 'JobState'`;
-        if ( $state =~ /(RUNNING|PENDING)/ ) {
-            sleep(60);
-            goto LINE;
-        }
-        else { next }
+    my @error = `grep error *.out`;
+    chomp @error;
+    if ( !@error ) { return }
+
+    my %relaunch;
+    my @error_files;
+    foreach my $cxl (@error) {
+        chomp $cxl;
+        next unless ( $cxl =~ /PREEMPTION/ );
+
+        my @ids = split /\s/, $cxl;
+
+        ## collect error files.
+        my ( $sbatch, undef ) = split /:/, $ids[0];
+        push @error_files, $sbatch;
+
+        ## record launch id.
+        $relaunch{ $ids[4] }++;
     }
-    return;
+
+    open( my $FH, '>>', 'launch.index' );
+
+    my @indexs = read_lines 'launch.index';
+    foreach my $line (@indexs) {
+        chomp $line;
+        my @parts = split /\s/, $line;
+
+        ## find in lookup and dont re-relaunch.
+        if ( $relaunch{ $parts[-1] } ) {
+            print $FH "$parts[0]\t";
+            system "sbatch $parts[0] >> launch.index";
+            $self->WARN("Relaunching job $parts[0]");
+        }
+    }
+
+    ## remove error files.
+    unlink @error_files;
 }
 
 ##-----------------------------------------------------------
+
+sub _wait_all_jobs {
+    my ( $self, $node, $sub) = @_;
+
+    my $process;
+    do {
+        sleep(60);
+        $self->_relaunch;
+        sleep(60);
+        $process = $self->_process_check( $node, $sub );
+    } while ($process);
+}
+
+##-----------------------------------------------------------
+
+sub _process_check {
+    my ( $self, $node, $sub) = @_;
+    my $partition = $self->_which_node($node);
+
+    my @processing = `squeue -A $partition -u u0413537 -h --format=%30j |grep $sub`;
+    chomp @processing;
+    if ( ! @processing ) { return 0 }
+    
+    ## check run specific processing.
+    ## make lookup of what is running.
+    my %running;
+    foreach my $active ( @processing ) {
+        chomp $active;
+        $active =~ s/\s+//g;
+        $running{$active}++;
+    }
+
+    ## check what was launched.
+    open(my $LAUNCH, '<', 'launch.index') 
+        or $self->ERROR("Can't find needed launch.index file.");
+
+    my $current = 0;
+    foreach my $launched ( <$LAUNCH> ) {
+        chomp $launched;
+        my @result = split /\t/, $launched;
+
+        if ( $running{$result[0]} ) {
+            $current++;
+        }
+    }
+    ($current) ? (return 1) : (return 0);
+}
+
+##-----------------------------------------------------------
+
+sub _which_node {
+    my ( $self, $node ) = @_;
+
+    if ( $node eq 'ucgd' ) {
+        return 'ucgd-kp';
+    }
+    elsif ( $node eq 'fqf' ) {
+        return 'ucgd-kp';
+    }
+    elsif ( $node eq 'guest' ) {
+        return 'owner-guest';
+    }
+}
+
+##-----------------------------------------------------------
+
+sub _error_check {
+    my $self = shift;
+
+    my @error = `grep error *.out`;
+    if ( !@error ) { return }
+
+    $self->ERROR("Jobs could not be launch or completed");
+}
+
+##-----------------------------------------------------------
+
 1;

@@ -1,4 +1,4 @@
-package WHAM;
+package wham;
 use Moo::Role;
 
 ##-----------------------------------------------------------
@@ -34,7 +34,7 @@ sub wham_graphing {
 
     my $config = $self->class_config;
     my $opts   = $self->tool_options('wham_graphing');
-    my $files  = $self->file_retrieve('sambamba_bam_merge');
+    my $files  = $self->file_retrieve('bwa_mem');
 
     my @cmds;
     foreach my $bam ( @{$files} ) {
@@ -73,7 +73,7 @@ sub wham_filter {
     foreach my $wham ( @{$files} ) {
         chomp $wham;
 
-        (my $output = $wham) =~ s/_WHAM.vcf/_filtered.WHAM.vcf/;
+        ( my $output = $wham ) =~ s/_WHAM.vcf/_filtered.WHAM.vcf/;
         $self->file_store($output);
 
         my $cmd = sprintf( "cat %s | %s -filter -o %s",
@@ -93,15 +93,19 @@ sub wham_sort {
     my $opts   = $self->tool_options('wham_sort');
     my $files  = $self->file_retrieve('wham_filter');
 
-    my $input = $files->[0];
-    ( my $output = $input ) =~ s/_filtered.WHAM.vcf/_filtered_sorted.WHAM.vcf/;
+    my $output = $config->{output} . $config->{ugp_id} . "_WHAM.filtered.vcf";
     $self->file_store($output);
+
+    #my $input = $files->[0];
+    #( my $output = $input ) =~ s/_filtered.WHAM.vcf/_filtered_sorted.WHAM.vcf/;
+    #$self->file_store($output);
 
     my $joined = join( " ", @{$files} );
 
     my $cmd = sprintf(
         "cat %s >> %swham.tmp && sort -T %s -k1,1 -k2,2n %swham.tmp -o %s && rm %swham.tmp",
-        $joined, $config->{output}, '/tmp', $config->{output}, $output, $config->{output}
+        $joined,           $config->{output}, '/tmp',
+        $config->{output}, $output,           $config->{output}
     );
 
     $self->bundle( \$cmd );
@@ -117,11 +121,10 @@ sub wham_merge_indiv {
     my $opts   = $self->tool_options('wham_merge_indiv');
     my $files  = $self->file_retrieve('wham_sort');
 
-    ( my $output = $files->[0] ) =~ s/_filtered.sorted.WHAM.vcf/_mergeIndv.vcf/;
+    ( my $output = $files->[0] ) =~ s/_WHAM.filtered.vcf/_mergeIndv.vcf/;
 
     my $cmd = sprintf( "%s/mergeIndvs -f %s -s %s > %s",
-        $config->{wham}, $files->[0], $opts->{s}, $output 
-    );
+        $config->{wham}, $files->[0], $opts->{s}, $output );
     $self->file_store($output);
     $self->bundle( \$cmd );
 }
@@ -154,15 +157,18 @@ sub wham_splitter {
     ## get file parts
     my $frags = $self->file_frags( $files->[0] );
 
-    $self->WARN("wham_splitter creating files of 200 lines long.");
+    ## test if temp file already exist.
+    my $tmp_test = $frags->{path} . 'UGP_split_temp_*_WHAM.vcf';
+    if ( glob $tmp_test ) {
+        unlink glob "$tmp_test";
+    }
+    $self->WARN("wham_splitter creating files of 200 per-file.");
 
     my @cmds;
     my $id;
     for my $chunk (@sections) {
         $id++;
-        my $output =
-          $frags->{path} . 'UGP_split_temp_' . $id . '_WHAM.vcf';
-#        open( my $OUT, '>', $output );
+        my $output = $frags->{path} . 'UGP_split_temp_' . $id . '_WHAM.vcf';
         open( my $OUT, '>>', $output );
         $self->file_store($output);
         map { print $OUT $_ } @{$chunk};
@@ -184,7 +190,7 @@ sub wham_genotype {
     my $config    = $self->class_config;
     my $opts      = $self->tool_options('wham_genotype');
     my $files     = $self->file_retrieve('wham_splitter');
-    my $bam_files  = $self->file_retrieve('fastqforward');
+    my $bam_files = $self->file_retrieve('bwa_mem');
 
     my $join_bams = join( ",", @{$bam_files} );
     my $skip_ids = $self->seqid_skip;
@@ -226,15 +232,18 @@ sub wham_genotype_cat {
 
     ## get file info
     my $parts       = $self->file_frags( $files->[0] );
-    my $header      = $parts->{path} . $config->{fqf_id} . "_header.txt";
-    my $tmp_output  = $parts->{path} . $config->{fqf_id} . "_tmp.WHAM.vcf";
-    my $sort_output = $parts->{path} . $config->{fqf_id} . "_sort.WHAM.vcf";
-    my $output      = $parts->{path} . $config->{fqf_id} . "_Final.WHAM.vcf";
+    my $header      = $parts->{path} . $config->{ugp_id} . "_header.txt";
+    my $tmp_output  = $parts->{path} . $config->{ugp_id} . "_tmp.WHAM.vcf";
+    my $sort_output = $parts->{path} . $config->{ugp_id} . "_sort.WHAM.vcf";
+    my $output      = $parts->{path} . $config->{ugp_id} . "_Final.WHAM.vcf";
     $self->file_store($output);
 
     ## open and print header file.
-    open( my $FH, '<', $files->[0] );
-    open( my $HEADER, '>>', $header );
+    open( my $FH, '<', $files->[0] )
+      or $self->ERROR("Needed WHAM files not found.");
+    open( my $HEADER, '>>', $header )
+      or $self->ERROR("Can not create needed header file.");
+
     while (<$FH>) {
         chomp $_;
         if ( $_ =~ /^#/ ) {
@@ -257,12 +266,8 @@ sub wham_genotype_cat {
     }
     close $OUT;
 
-    my $cmd =
-      sprintf( "sort -k1,1 -k2,2n %s > %s; cat %s %s > %s; rm %s",
-        $tmp_output, $sort_output, 
-        $header, $sort_output, 
-        $output, $header
-    );
+    my $cmd = sprintf( "sort -k1,1 -k2,2n %s > %s && cat %s %s > %s && rm %s",
+        $tmp_output, $sort_output, $header, $sort_output, $output, $header );
     $self->bundle( \$cmd );
 }
 

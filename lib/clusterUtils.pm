@@ -1,4 +1,4 @@
-package ClusterUtils;
+package clusterUtils;
 use Moo::Role;
 
 ##-----------------------------------------------------------
@@ -17,7 +17,7 @@ sub ucgd {
 
     my ( @cmds, @copies );
     foreach my $ele ( @{$commands} ) {
-        push @cmds, "$ele->[0] &";
+        push @cmds, "$ele &";
     }
     my $cmdNode = join( "\n", @cmds );
 
@@ -27,13 +27,13 @@ sub ucgd {
 #SBATCH -N 1
 #SBATCH -A ucgd-kp
 #SBATCH -p ucgd-kp
+#SBATCH -o $step\_%A.out 
 
-source /uufs/chpc.utah.edu/common/home/u0413537/.bash_profile
 source /uufs/chpc.utah.edu/common/home/u0413537/.bashrc
+module load fastqforward
 
 # clean up before start
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
-find /tmp -user u0413537 -exec rm -rf {} \\;
 
 $cmdNode
 
@@ -41,7 +41,6 @@ wait
 
 # clean up after finish.
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
-find /tmp -user u0413537 -exec rm -rf {} \\;
 
 EOM
     return $sbatch;
@@ -49,64 +48,92 @@ EOM
 
 ##-----------------------------------------------------------
 
-sub ucgd_cp {
+sub fqf {
     my ( $self, $commands, $step ) = @_;
 
     $self->ERROR("Required commands not found")
       unless ($commands);
 
-    #collect original paths.
-    my $input  = $self->main->{data};
-    my $output = $self->main->{output};
-    my $indel  = '/scratch/ucgd/lustre/u0413537/UGP_Pipeline_Data/GATK_Bundle/';
-
     my ( @cmds, @copies );
     foreach my $ele ( @{$commands} ) {
-        $ele->[0] =~ s|$output|/scratch/local/|g if ( $ele->[1] );
-        $ele->[0] =~ s|$input|/scratch/local/|g  if ( $ele->[1] );
-        $ele->[0] =~ s|$indel|/scratch/local/|g  if ( $ele->[1] );
-        push @cmds, "$ele->[0] &";
-
-        if ( $ele->[1] ) {
-            shift( @{$ele} );    # shift off command.
-            foreach my $cp ( @{$ele} ) {
-                ( my $all_file = $cp ) =~ s/\.ba.*$//g;
-                push @copies, "cp $all_file* /scratch/local &";
-            }
-        }
+        push @cmds, "$ele";
     }
-
-    my $cpNode  = join( "\n", @copies );
     my $cmdNode = join( "\n", @cmds );
 
     my $sbatch = <<"EOM";
 #!/bin/bash
 #SBATCH -t 72:00:00
-#SBATCH -N 1
+#SBATCH -N 7
 #SBATCH -A ucgd-kp
 #SBATCH -p ucgd-kp
+#SBATCH -o $step\_%A.out 
 
-source /uufs/chpc.utah.edu/common/home/u0413537/.bash_profile
 source /uufs/chpc.utah.edu/common/home/u0413537/.bashrc
+source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_prerun
+module load fastqforward
+
+# clean all shared memory.
+/uufs/chpc.utah.edu/common/home/ucgdstor/common/apps/kingspeak.peaks/ucgd/dev/clean_shared.sh
 
 # clean up before start
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
-find /tmp -user u0413537 -exec rm -rf {} \\;
 
-$cpNode
-
-wait
+export TMPDIR=/scratch/local
 
 $cmdNode
 
 wait
 
-# move results
-find /scratch/local/ -user u0413537 -exec mv -n {} $output \\;
+# clean up after finish.
+find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
+source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_postrun
+
+EOM
+    return $sbatch;
+}
+
+##-----------------------------------------------------------
+
+sub fqf_guest {
+    my ( $self, $commands, $step ) = @_;
+
+    $self->ERROR("Required commands not found")
+      unless ($commands);
+
+    my ( @cmds, @copies );
+    foreach my $ele ( @{$commands} ) {
+        push @cmds, "$ele";
+    }
+    my $cmdNode = join( "\n", @cmds );
+
+    my $sbatch = <<"EOM";
+#!/bin/bash
+#SBATCH -t 72:00:00
+#SBATCH -N 7
+#SBATCH -x kp[168-195,200-227]
+#SBATCH -A owner-guest
+#SBATCH -p kingspeak-guest
+#SBATCH -o $step\_%A.out 
+
+source /uufs/chpc.utah.edu/common/home/u0413537/.bashrc
+source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_prerun
+module load fastqforward
+
+# clean all shared memory.
+/uufs/chpc.utah.edu/common/home/ucgdstor/common/apps/kingspeak.peaks/ucgd/dev/clean_shared.sh
+
+# clean up before start
+find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
+
+export TMPDIR=/scratch/local
+
+$cmdNode
+
+wait
 
 # clean up after finish.
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
-find /tmp -user u0413537 -exec rm -rf {} \\;
+source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_postrun
 
 EOM
     return $sbatch;
@@ -122,7 +149,7 @@ sub guest {
 
     my ( @cmds, @copies );
     foreach my $ele ( @{$commands} ) {
-        push @cmds, "$ele->[0] &";
+        push @cmds, "$ele &";
     }
     my $cmdNode = join( "\n", @cmds );
 
@@ -130,13 +157,15 @@ sub guest {
 #!/bin/bash
 #SBATCH -t 72:00:00
 #SBATCH -N 1
+#SBATCH -x kp[168-195,200-227]
 #SBATCH -A owner-guest
+#SBATCH -p kingspeak-guest
+#SBATCH -o $step\_%A.out 
 
-source /uufs/chpc.utah.edu/common/home/u0413537/.bash_profile
+source /uufs/chpc.utah.edu/common/home/u0413537/.bashrc
 
 # clean up before start
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
-find /tmp -user u0413537 -exec rm -rf {} \\;
 
 $cmdNode
 
@@ -144,7 +173,6 @@ wait
 
 # clean up after finish.
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
-find /tmp -user u0413537 -exec rm -rf {} \\;
 
 EOM
     return $sbatch;

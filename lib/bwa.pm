@@ -1,4 +1,4 @@
-package BWA;
+package bwa;
 use Moo::Role;
 
 ##-----------------------------------------------------------
@@ -13,11 +13,11 @@ sub bwa_index {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('bwa_index');
 
     my $cmd = sprintf( "%s/bwa -a %s index %s %s\n",
-        $config->{BWA}, $opts->{a}, $config->{fasta} );
+        $config->{bwa}, $opts->{a}, $config->{fasta} );
     $self->bundle( \$cmd );
 }
 
@@ -27,7 +27,7 @@ sub bwa_mem {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('bwa_mem');
     my $files  = $self->file_retrieve('fastqc_run');
 
@@ -38,9 +38,9 @@ sub bwa_mem {
         push @seq_files, $file;
     }
 
-    # must have matching pairs.
+    ## must have matching pairs .
     if ( scalar @seq_files % 2 ) {
-        $self->ERROR( "FQ files must be matching pairs. " );
+        $self->ERROR("FQ files must be matching pairs. ");
     }
 
     my @cmds;
@@ -56,9 +56,15 @@ sub bwa_mem {
         my $path_bam = $config->{output} . $bam;
 
         my $dis_bam =
-          $config->{output} . $file1->{parts}[0] . "_" . $pair++ . "_sorted_Dedup_discordant.bam";
+            $config->{output}
+          . $file1->{parts}[0] . "_"
+          . $pair++
+          . "_sorted_Dedup_discordant.bam";
         my $split_bam =
-          $config->{output} . $file1->{parts}[0] . "_" . $pair++ . "_sorted_Dedup_splitter.bam";
+            $config->{output}
+          . $file1->{parts}[0] . "_"
+          . $pair++
+          . "_sorted_Dedup_splitter.bam";
 
         # store the output files.
         $self->file_store($path_bam);
@@ -70,20 +76,17 @@ sub bwa_mem {
         my $cmd = sprintf(
             "%s/bwa mem -t %s -R %s %s %s %s 2> bwa_mem_%s.log | "
               . "%s/samblaster --addMateTags | "
-              #. "%s/samblaster --addMateTags --discordantFile %s --splitterFile %s | "
               . "%s/sambamba view --nthreads 1 -f bam -l 0 -S /dev/stdin | "
               . "%s/sambamba sort -m %sG --tmpdir=%s -o %s /dev/stdin",
-            $config->{BWA},              $opts->{t},
+            $config->{bwa},              $opts->{t},
             $r_group,                    $config->{fasta},
             $file1->{full},              $file2->{full},
-            $id,                         $self->software->{Samblaster},
-#            $dis_bam,                    $split_bam,
-            $self->software->{Sambamba}, $self->software->{Sambamba},
+            $id,                         $self->software->{samblaster},
+            $self->software->{sambamba}, $self->software->{sambamba},
             $opts->{memory_limit},       $config->{tmp},
             $path_bam
         );
-        push @cmds, [ $cmd, $file1->{full}, $file2->{full} ];
-
+        push @cmds, $cmd;
         $id++;
     }
     $self->bundle( \@cmds );

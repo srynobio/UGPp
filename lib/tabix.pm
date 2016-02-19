@@ -1,4 +1,4 @@
-package Tabix;
+package tabix;
 use Moo::Role;
 
 ##-----------------------------------------------------------
@@ -13,7 +13,7 @@ sub bgzip {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('bgzip');
 
     my $combine_file = $self->file_retrieve('CombineVariants');
@@ -22,7 +22,8 @@ sub bgzip {
     $self->file_store($output_file);
 
     my $cmd = sprintf( "%s/bgzip -c %s > %s",
-        $config->{Tabix}, $combine_file->[0], $output_file );
+        $config->{tabix}, $combine_file->[0], $output_file 
+    );
     $self->bundle( \$cmd );
 }
 
@@ -32,13 +33,13 @@ sub tabix {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->options;
+    my $config = $self->class_config;
     my $opts   = $self->tool_options('tabix');
 
     my $combine_file = $self->file_retrieve('bgzip');
 
     my $cmd =
-      sprintf( "%s/tabix -p vcf %s", $config->{Tabix}, $combine_file->[0] );
+      sprintf( "%s/tabix -p vcf %s", $config->{tabix}, $combine_file->[0] );
     $self->bundle( \$cmd );
 }
 
