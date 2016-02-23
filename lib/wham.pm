@@ -36,6 +36,8 @@ sub wham_graphing {
     my $opts   = $self->tool_options('wham_graphing');
     my $files  = $self->file_retrieve('bwa_mem');
 
+    my $skip_ids = $self->seqid_skip;
+
     my @cmds;
     foreach my $bam ( @{$files} ) {
         chomp $bam;
@@ -49,8 +51,8 @@ sub wham_graphing {
         my $threads;
         ( $opts->{x} ) ? ( $threads = $opts->{x} ) : ( $threads = 1 );
 
-        my $cmd = sprintf( "%s/WHAM-GRAPHENING -a %s -k -x %s -f %s > %s",
-            $config->{wham}, $config->{fasta}, $threads, $bam, $output );
+        my $cmd = sprintf( "%s/WHAM-GRAPHENING -a %s -k -x %s -f %s -e %s > %s",
+            $config->{wham}, $config->{fasta}, $threads, $bam, $skip_ids, $output );
         push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
